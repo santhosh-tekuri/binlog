@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"io"
 	"io/ioutil"
-	"os"
+	"net"
 	"testing"
 )
 
@@ -117,20 +117,43 @@ func TestReader_stringNull(t *testing.T) {
 }
 
 func TestHandshakeV10(t *testing.T) {
-	//conn, err := net.Dial("tcp", "localhost:3306")
-	//if err != nil {
-	//	t.Fatal(err)
-	//}
-	f, err := os.Open("hs")
+	conn, err := net.Dial("tcp", "localhost:3306")
 	if err != nil {
 		t.Fatal(err)
 	}
-	r := newReader(f)
+	r := newReader(conn)
 	hs := handshakeV10{}
 	if err = hs.parse(r); err != nil {
 		t.Fatal(err)
 	}
 	t.Logf("%#v", hs)
+
+	w := newWriter(conn)
+	w.seq = r.seq
+	resp := handshakeResponse41{
+		capabilityFlags: CLIENT_LONG_FLAG | CLIENT_SECURE_CONNECTION,
+		maxPacketSize:   maxPacketSize,
+		characterSet:    hs.characterSet,
+		username:        "root",
+		authResponse:    encryptedPasswd("password", append(hs.authPluginDataPart1, hs.authPluginDataPart2...)),
+		database:        "",
+		authPluginName:  "",
+		connectAttrs:    nil,
+	}
+	if err := resp.writeTo(w); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	r = newReader(conn)
+	r.seq = w.seq
+	marker, err := r.int1()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("marker", marker)
 }
 
 // Helpers ---

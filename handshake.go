@@ -1,9 +1,5 @@
 package binlog
 
-import (
-	"fmt"
-)
-
 // Capability Flags: https://dev.mysql.com/doc/internals/en/capability-flags.html#packet-Protocol::CapabilityFlags
 const (
 	CLIENT_LONG_PASSWORD                  = 0x00000001
@@ -90,7 +86,6 @@ func (e *handshakeV10) parse(r *reader) (err error) {
 		} else {
 			authPluginDataLength = 13
 		}
-		fmt.Println("came here 2", authPluginDataLength)
 		if e.authPluginDataPart2, err = r.bytes(int(authPluginDataLength)); err != nil {
 			return err
 		}
