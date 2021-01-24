@@ -1,6 +1,8 @@
 package binlog
 
-import "crypto/sha1"
+import (
+	"crypto/sha1"
+)
 
 type handshakeResponse41 struct {
 	capabilityFlags uint32
@@ -93,7 +95,7 @@ func encryptedPasswd(password string, scramble []byte) (out []byte) {
 	sha1sha1Pwd := hash.Sum(nil)
 
 	hash.Reset()
-	hash.Write(scramble)
+	hash.Write(scramble[:20])
 	hash.Write(sha1sha1Pwd)
 	sha1Scramble := hash.Sum(nil)
 
