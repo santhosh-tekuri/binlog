@@ -233,7 +233,19 @@ func (r *reader) stringEOF() (string, error) {
 			return "", err
 		}
 	}
+}
 
+func (r *reader) drain() error {
+	for {
+		r.r = r.w
+		err := r.fill()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+	}
 }
 
 func makeSlice(n int) []byte {
