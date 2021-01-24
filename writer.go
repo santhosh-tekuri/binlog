@@ -7,17 +7,21 @@ import (
 type writer struct {
 	wd  io.Writer
 	buf []byte
-	seq uint8
+	seq *uint8
 }
 
-func newWriter(w io.Writer) *writer {
-	return &writer{wd: w, buf: make([]byte, 4, headerSize+maxPacketSize)}
+func newWriter(w io.Writer, seq *uint8) *writer {
+	return &writer{
+		wd:  w,
+		buf: make([]byte, 4, headerSize+maxPacketSize),
+		seq: seq,
+	}
 }
 
 func (w *writer) flush() error {
 	for len(w.buf) >= headerSize+maxPacketSize {
-		w.buf[0], w.buf[1], w.buf[2], w.buf[3] = 0xff, 0xff, 0xff, w.seq
-		w.seq++
+		w.buf[0], w.buf[1], w.buf[2], w.buf[3] = 0xff, 0xff, 0xff, *w.seq
+		*w.seq++
 		if _, err := w.wd.Write(w.buf[:headerSize+maxPacketSize]); err != nil {
 			return err
 		}
@@ -32,8 +36,8 @@ func (w *writer) Close() error {
 		return err
 	}
 	payload := len(w.buf) - headerSize
-	w.buf[0], w.buf[1], w.buf[2], w.buf[3] = byte(payload), byte(payload>>8), byte(payload>>16), w.seq
-	w.seq++
+	w.buf[0], w.buf[1], w.buf[2], w.buf[3] = byte(payload), byte(payload>>8), byte(payload>>16), *w.seq
+	*w.seq++
 	_, err := w.wd.Write(w.buf)
 	return err
 }

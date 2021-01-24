@@ -11,11 +11,12 @@ import (
 func TestReader_LessThanMaxPacketSize(t *testing.T) {
 	first, firstPayload := newPacket(10, 0)
 	last, _ := newPacket(0, 1)
+	var seq uint8
 	r := newReader(io.MultiReader(
 		bytes.NewReader(first),
 		bytes.NewReader(last),
 		bytes.NewReader(make([]byte, 10)),
-	))
+	), &seq)
 	got, err := ioutil.ReadAll(r)
 	if err != nil {
 		t.Fatal(err)
@@ -30,11 +31,12 @@ func TestReader_LessThanMaxPacketSize(t *testing.T) {
 func TestReader_EqualToMaxPayloadSize(t *testing.T) {
 	first, firstPayload := newPacket(maxPacketSize, 0)
 	last, _ := newPacket(0, 1)
+	var seq uint8
 	r := newReader(io.MultiReader(
 		bytes.NewReader(first),
 		bytes.NewReader(last),
 		bytes.NewReader(make([]byte, 10)),
-	))
+	), &seq)
 	got, err := ioutil.ReadAll(r)
 	if err != nil {
 		t.Fatal(err)
@@ -48,12 +50,13 @@ func TestReader_MultipleOfMaxPayloadSize(t *testing.T) {
 	first, firstPayload := newPacket(maxPacketSize, 0)
 	second, secondPayload := newPacket(maxPacketSize, 1)
 	last, _ := newPacket(0, 2)
+	var seq uint8
 	r := newReader(io.MultiReader(
 		bytes.NewReader(first),
 		bytes.NewReader(second),
 		bytes.NewReader(last),
 		bytes.NewReader(make([]byte, 10)),
-	))
+	), &seq)
 	got, err := ioutil.ReadAll(r)
 	if err != nil {
 		t.Fatal(err)
@@ -71,13 +74,14 @@ func TestReader_NotMultipleOfMaxPayloadSize(t *testing.T) {
 	second, secondPayload := newPacket(maxPacketSize, 1)
 	third, thirdPayload := newPacket(10, 2)
 	last, _ := newPacket(0, 3)
+	var seq uint8
 	r := newReader(io.MultiReader(
 		bytes.NewReader(first),
 		bytes.NewReader(second),
 		bytes.NewReader(third),
 		bytes.NewReader(last),
 		bytes.NewReader(make([]byte, 10)),
-	))
+	), &seq)
 	got, err := ioutil.ReadAll(r)
 	if err != nil {
 		t.Fatal(err)
@@ -97,7 +101,8 @@ func TestReader_stringNull(t *testing.T) {
 	data := append([]byte("hello"), 0)
 	data = append(append(data, []byte("world")...), 0)
 	packet := newPacketData(data)
-	r := newReader(bytes.NewReader(packet))
+	var seq uint8
+	r := newReader(bytes.NewReader(packet), &seq)
 
 	s, err := r.stringNull()
 	if err != nil {
@@ -121,15 +126,15 @@ func TestHandshakeV10(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r := newReader(conn)
+	var seq uint8
+	r := newReader(conn, &seq)
 	hs := handshakeV10{}
 	if err = hs.parse(r); err != nil {
 		t.Fatal(err)
 	}
 	t.Logf("%#v\n", hs)
 
-	w := newWriter(conn)
-	w.seq = r.seq
+	w := newWriter(conn, &seq)
 	resp := handshakeResponse41{
 		capabilityFlags: CLIENT_LONG_FLAG | CLIENT_SECURE_CONNECTION,
 		maxPacketSize:   maxPacketSize,
@@ -147,8 +152,7 @@ func TestHandshakeV10(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	r = newReader(conn)
-	r.seq = w.seq
+	r = newReader(conn, &seq)
 	marker, err := r.peek()
 	if err != nil {
 		t.Fatal(err)

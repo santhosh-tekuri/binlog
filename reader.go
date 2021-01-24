@@ -14,17 +14,18 @@ type reader struct {
 	rd      io.Reader
 	buf     []byte
 	r, w    int
-	payload int   // payload to be read, initially 0
-	seq     uint8 // sequence of packet
-	last    bool  // is last packet
+	payload int    // payload to be read, initially 0
+	seq     *uint8 // sequence of packet
+	last    bool   // is last packet
 	header  []byte
 }
 
-func newReader(r io.Reader) *reader {
+func newReader(r io.Reader, seq *uint8) *reader {
 	return &reader{
 		rd:     r,
 		buf:    make([]byte, headerSize+maxPacketSize),
 		header: make([]byte, headerSize),
+		seq:    seq,
 	}
 }
 
@@ -37,10 +38,10 @@ func (r *reader) readHeader() (int, error) {
 		return n, err
 	}
 	r.payload = int(uint32(r.header[0]) | uint32(r.header[1])<<8 | uint32(r.header[2])<<16)
-	if r.header[3] != r.seq {
-		return 0, fmt.Errorf("reader.fill: sequece got %d, want %d", r.header[3], r.seq+1)
+	if r.header[3] != *r.seq {
+		return 0, fmt.Errorf("reader.fill: sequece got %d, want %d", r.header[3], *r.seq+1)
 	}
-	r.seq++
+	*r.seq++
 	if r.payload < maxPacketSize {
 		r.last = true
 	}
