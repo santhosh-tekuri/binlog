@@ -109,6 +109,13 @@ func (r *reader) ensure(n int) error {
 	return nil
 }
 
+func (r *reader) peek() (byte, error) {
+	if err := r.ensure(1); err != nil {
+		return 0, err
+	}
+	return r.buf[r.r], nil
+}
+
 func (r *reader) Read(p []byte) (int, error) {
 	if err := r.ensure(1); err != nil {
 		return 0, err
@@ -212,6 +219,21 @@ func (r *reader) stringNull() (string, error) {
 		}
 		i++
 	}
+}
+
+func (r *reader) stringEOF() (string, error) {
+	for {
+		err := r.fill()
+		if err == io.EOF {
+			v := string(r.buf[r.r:r.w])
+			r.r = r.w
+			return v, nil
+		}
+		if err != nil {
+			return "", err
+		}
+	}
+
 }
 
 func makeSlice(n int) []byte {
