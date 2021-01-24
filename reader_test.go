@@ -159,8 +159,10 @@ func TestHandshakeV10(t *testing.T) {
 			t.Fatal(err)
 		}
 		t.Logf("%#v", ep)
-	} else {
-		t.Log("marker", marker)
+	} else if marker == okMarker || marker == eofMarker {
+		if err := r.drain(); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 

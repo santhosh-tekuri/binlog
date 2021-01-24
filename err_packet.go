@@ -2,7 +2,11 @@ package binlog
 
 import "fmt"
 
-const errMarker = 0xFF
+const (
+	errMarker = 0xFF
+	okMarker  = 0x00
+	eofMarker = 0xfe
+)
 
 type errPacket struct {
 	errorCode      uint16
