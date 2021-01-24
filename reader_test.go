@@ -126,7 +126,7 @@ func TestHandshakeV10(t *testing.T) {
 	if err = hs.parse(r); err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("%#v", hs)
+	t.Logf("%#v\n", hs)
 
 	w := newWriter(conn)
 	w.seq = r.seq
@@ -149,11 +149,19 @@ func TestHandshakeV10(t *testing.T) {
 
 	r = newReader(conn)
 	r.seq = w.seq
-	marker, err := r.int1()
+	marker, err := r.peek()
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log("marker", marker)
+	if marker == errMarker {
+		ep := errPacket{}
+		if err := ep.parse(r); err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("%#v", ep)
+	} else {
+		t.Log("marker", marker)
+	}
 }
 
 // Helpers ---
