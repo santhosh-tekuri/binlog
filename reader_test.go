@@ -226,6 +226,12 @@ func TestHandshakeV10(t *testing.T) {
 				t.Fatal(err)
 			}
 			t.Logf("%#v", re)
+		case TABLE_MAP_EVENT:
+			tme := tableMapEvent{}
+			if err := tme.parse(r); err != nil {
+				t.Fatal(err)
+			}
+			t.Logf("%#v", tme)
 		}
 		if h.eventType == STOP_EVENT {
 			fmt.Println("#####################")

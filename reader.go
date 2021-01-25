@@ -152,13 +152,13 @@ func (r *reader) int2() (uint16, error) {
 	return uint16(buf[0]) | uint16(buf[1])<<8, nil
 }
 
-func (r *reader) int3() (int, error) {
+func (r *reader) int3() (uint32, error) {
 	if err := r.ensure(3); err != nil {
 		return 0, err
 	}
 	buf := r.buf[r.r:]
 	r.r += 3
-	return int(uint32(buf[0]) | uint32(buf[1])<<8 | uint32(buf[2])<<16), nil
+	return uint32(buf[0]) | uint32(buf[1])<<8 | uint32(buf[2])<<16, nil
 }
 
 func (r *reader) int4() (uint32, error) {
@@ -170,6 +170,16 @@ func (r *reader) int4() (uint32, error) {
 	return uint32(buf[0]) | uint32(buf[1])<<8 | uint32(buf[2])<<16 | uint32(buf[3])<<24, nil
 }
 
+func (r *reader) int6() (uint64, error) {
+	if err := r.ensure(6); err != nil {
+		return 0, err
+	}
+	buf := r.buf[r.r:]
+	r.r += 6
+	return uint64(buf[0]) | uint64(buf[1])<<8 | uint64(buf[2])<<16 | uint64(buf[3])<<24 |
+		uint64(buf[4])<<32 | uint64(buf[5])<<40, nil
+}
+
 func (r *reader) int8() (uint64, error) {
 	if err := r.ensure(8); err != nil {
 		return 0, err
@@ -178,6 +188,26 @@ func (r *reader) int8() (uint64, error) {
 	r.r += 8
 	return uint64(buf[0]) | uint64(buf[1])<<8 | uint64(buf[2])<<16 | uint64(buf[3])<<24 |
 		uint64(buf[4])<<32 | uint64(buf[5])<<40 | uint64(buf[6])<<48 | uint64(buf[7])<<56, nil
+}
+
+func (r *reader) intN() (uint64, error) {
+	b, err := r.int1()
+	if err != nil {
+		return 0, err
+	}
+	switch b {
+	case 0xfc:
+		v, err := r.int2()
+		return uint64(v), err
+	case 0xfd:
+		v, err := r.int3()
+		return uint64(v), err
+	case 0xfe:
+		v, err := r.int8()
+		return uint64(v), err
+	default:
+		return uint64(b), nil
+	}
 }
 
 func (r *reader) bytes(len int) ([]byte, error) {
@@ -196,6 +226,14 @@ func (r *reader) string(len int) (string, error) {
 	buf := r.buf[r.r : r.r+len]
 	r.r += len
 	return string(buf), nil
+}
+
+func (r *reader) stringN() (string, error) {
+	l, err := r.intN()
+	if err != nil {
+		return "", err
+	}
+	return r.string(int(l))
 }
 
 func (r *reader) skip(n int) error {
