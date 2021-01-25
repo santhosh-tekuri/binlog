@@ -5,7 +5,6 @@ import "fmt"
 const (
 	errMarker = 0xFF
 	okMarker  = 0x00
-	eofMarker = 0xfe
 )
 
 type errPacket struct {

@@ -1,7 +1,6 @@
 package binlog
 
 import (
-	"fmt"
 	"io"
 )
 
@@ -11,13 +10,15 @@ const (
 )
 
 type reader struct {
-	rd      io.Reader
-	buf     []byte
-	r, w    int
-	payload int    // payload to be read, initially 0
-	seq     *uint8 // sequence of packet
-	last    bool   // is last packet
-	header  []byte
+	rd       io.Reader
+	buf      []byte
+	r, w     int
+	payload  int    // payload to be read, initially 0
+	seq      *uint8 // sequence of packet
+	last     bool   // is last packet
+	header   []byte
+	checksum int
+	ww       int
 }
 
 func newReader(r io.Reader, seq *uint8) *reader {
@@ -31,7 +32,6 @@ func newReader(r io.Reader, seq *uint8) *reader {
 
 func (r *reader) readHeader() (int, error) {
 	n, err := io.ReadAtLeast(r.rd, r.header, headerSize)
-	fmt.Println("reading header", n)
 	if n < headerSize {
 		if err == io.EOF {
 			err = io.ErrUnexpectedEOF
@@ -39,10 +39,7 @@ func (r *reader) readHeader() (int, error) {
 		return n, err
 	}
 	r.payload = int(uint32(r.header[0]) | uint32(r.header[1])<<8 | uint32(r.header[2])<<16)
-	if r.header[3] != *r.seq {
-		return 0, fmt.Errorf("reader.fill: sequece got %d, want %d", r.header[3], *r.seq+1)
-	}
-	*r.seq++
+	*r.seq = r.header[3] + 1
 	if r.payload < maxPacketSize {
 		r.last = true
 	}
@@ -50,6 +47,16 @@ func (r *reader) readHeader() (int, error) {
 }
 
 func (r *reader) fill() error {
+	if r.checksum > 0 {
+		r.w = r.ww
+		defer func() {
+			r.ww = r.w
+			r.w -= r.checksum
+			if r.w < r.r {
+				r.w = r.r
+			}
+		}()
+	}
 	if r.payload == 0 {
 		if r.last {
 			return io.EOF
@@ -247,7 +254,7 @@ func (r *reader) stringEOF() (string, error) {
 	}
 }
 
-func (r *reader) drain() error {
+func (r *reader) Close() error {
 	for {
 		r.r = r.w
 		err := r.fill()

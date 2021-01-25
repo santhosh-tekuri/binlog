@@ -1,7 +1,6 @@
 package binlog
 
 import (
-	"fmt"
 	"io"
 )
 
@@ -23,7 +22,6 @@ func (w *writer) flush() error {
 	for len(w.buf) >= headerSize+maxPacketSize {
 		w.buf[0], w.buf[1], w.buf[2], w.buf[3] = 0xff, 0xff, 0xff, *w.seq
 		*w.seq++
-		fmt.Println("xx", *w.seq)
 		if _, err := w.wd.Write(w.buf[:headerSize+maxPacketSize]); err != nil {
 			return err
 		}
@@ -40,7 +38,6 @@ func (w *writer) Close() error {
 	payload := len(w.buf) - headerSize
 	w.buf[0], w.buf[1], w.buf[2], w.buf[3] = byte(payload), byte(payload>>8), byte(payload>>16), *w.seq
 	*w.seq++
-	fmt.Println("yy", *w.seq)
 	_, err := w.wd.Write(w.buf)
 	return err
 }

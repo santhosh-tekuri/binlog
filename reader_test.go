@@ -164,10 +164,9 @@ func TestHandshakeV10(t *testing.T) {
 			t.Fatal(err)
 		}
 		t.Logf("%#v", ep)
-	} else if marker == okMarker || marker == eofMarker {
-		if err := r.drain(); err != nil {
-			t.Fatal(err)
-		}
+	}
+	if err := r.Close(); err != nil {
+		t.Fatal(err)
 	}
 
 	seq = 0
@@ -179,7 +178,6 @@ func TestHandshakeV10(t *testing.T) {
 	//	t.Fatal(err)
 	//}
 
-	fmt.Println("sending combinlogdump")
 	seq = 0
 	w = newWriter(conn, &seq)
 	dump := comBinlogDump{
@@ -196,28 +194,30 @@ func TestHandshakeV10(t *testing.T) {
 	}
 
 	for {
-		t.Log("------------------------")
-		fmt.Println("seq before", seq)
+		t.Log("------------------------", seq)
 		r = newReader(conn, &seq)
+		r.checksum = 4
+
 		b, err := r.peek()
 		if err != nil {
 			t.Fatal(err)
 		}
-		if b == okMarker {
+		switch b {
+		case okMarker:
 			r.int1()
-		} else {
-			if b == errMarker {
-				ep := errPacket{}
-				if err := ep.parse(r); err != nil {
-					t.Fatal(err)
-				}
-				t.Logf("%#v", ep)
+		case errMarker:
+			ep := errPacket{}
+			if err := ep.parse(r); err != nil {
+				t.Fatal(err)
 			}
+			t.Logf("%#v", ep)
+			fallthrough
+		default:
 			t.Fatalf("binlogStream: got %0x want OK-byte", b)
 		}
+
 		h := binaryEventHeader{}
 		h.parse(r)
-		fmt.Println("seq after", seq)
 		t.Logf("%#v", h)
 		switch h.eventType {
 		case ROTATE_EVENT:
@@ -226,13 +226,12 @@ func TestHandshakeV10(t *testing.T) {
 				t.Fatal(err)
 			}
 			t.Logf("%#v", re)
-		default:
-			if err := r.drain(); err != nil {
-				t.Fatal(err)
-			}
 		}
 		if h.eventType == STOP_EVENT {
-			break
+			fmt.Println("#####################")
+		}
+		if err := r.Close(); err != nil {
+			t.Fatal(err)
 		}
 	}
 }
