@@ -2,6 +2,7 @@ package binlog
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
@@ -166,6 +167,72 @@ func TestHandshakeV10(t *testing.T) {
 	} else if marker == okMarker || marker == eofMarker {
 		if err := r.drain(); err != nil {
 			t.Fatal(err)
+		}
+	}
+
+	seq = 0
+	w = newWriter(conn, &seq)
+	w.query("set @master_binlog_checksum = @@global.binlog_checksum")
+	//r = newReader(r, &seq)
+	//t.Log("xxxxxxxxxxxx")
+	//if err := r.drain(); err != nil {
+	//	t.Fatal(err)
+	//}
+
+	fmt.Println("sending combinlogdump")
+	seq = 0
+	w = newWriter(conn, &seq)
+	dump := comBinlogDump{
+		binlogPos:      4,
+		flags:          0,
+		serverID:       10,
+		binlogFilename: "binlog.000002",
+	}
+	if err := dump.writeTo(w); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	for {
+		t.Log("------------------------")
+		fmt.Println("seq before", seq)
+		r = newReader(conn, &seq)
+		b, err := r.peek()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if b == okMarker {
+			r.int1()
+		} else {
+			if b == errMarker {
+				ep := errPacket{}
+				if err := ep.parse(r); err != nil {
+					t.Fatal(err)
+				}
+				t.Logf("%#v", ep)
+			}
+			t.Fatalf("binlogStream: got %0x want OK-byte", b)
+		}
+		h := binaryEventHeader{}
+		h.parse(r)
+		fmt.Println("seq after", seq)
+		t.Logf("%#v", h)
+		switch h.eventType {
+		case ROTATE_EVENT:
+			re := rotateEvent{}
+			if err := re.parse(r); err != nil {
+				t.Fatal(err)
+			}
+			t.Logf("%#v", re)
+		default:
+			if err := r.drain(); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if h.eventType == STOP_EVENT {
+			break
 		}
 	}
 }

@@ -31,6 +31,7 @@ func newReader(r io.Reader, seq *uint8) *reader {
 
 func (r *reader) readHeader() (int, error) {
 	n, err := io.ReadAtLeast(r.rd, r.header, headerSize)
+	fmt.Println("reading header", n)
 	if n < headerSize {
 		if err == io.EOF {
 			err = io.ErrUnexpectedEOF
@@ -160,6 +161,16 @@ func (r *reader) int4() (uint32, error) {
 	buf := r.buf[r.r:]
 	r.r += 4
 	return uint32(buf[0]) | uint32(buf[1])<<8 | uint32(buf[2])<<16 | uint32(buf[3])<<24, nil
+}
+
+func (r *reader) int8() (uint64, error) {
+	if err := r.ensure(8); err != nil {
+		return 0, err
+	}
+	buf := r.buf[r.r:]
+	r.r += 8
+	return uint64(buf[0]) | uint64(buf[1])<<8 | uint64(buf[2])<<16 | uint64(buf[3])<<24 |
+		uint64(buf[4])<<32 | uint64(buf[5])<<40 | uint64(buf[6])<<48 | uint64(buf[7])<<56, nil
 }
 
 func (r *reader) bytes(len int) ([]byte, error) {

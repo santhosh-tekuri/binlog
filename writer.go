@@ -1,6 +1,7 @@
 package binlog
 
 import (
+	"fmt"
 	"io"
 )
 
@@ -22,6 +23,7 @@ func (w *writer) flush() error {
 	for len(w.buf) >= headerSize+maxPacketSize {
 		w.buf[0], w.buf[1], w.buf[2], w.buf[3] = 0xff, 0xff, 0xff, *w.seq
 		*w.seq++
+		fmt.Println("xx", *w.seq)
 		if _, err := w.wd.Write(w.buf[:headerSize+maxPacketSize]); err != nil {
 			return err
 		}
@@ -38,6 +40,7 @@ func (w *writer) Close() error {
 	payload := len(w.buf) - headerSize
 	w.buf[0], w.buf[1], w.buf[2], w.buf[3] = byte(payload), byte(payload>>8), byte(payload>>16), *w.seq
 	*w.seq++
+	fmt.Println("yy", *w.seq)
 	_, err := w.wd.Write(w.buf)
 	return err
 }
@@ -92,6 +95,11 @@ func (w *writer) intN(v uint64) error {
 	return err
 }
 
+func (w *writer) string(v string) error {
+	_, err := w.Write([]byte(v))
+	return err
+}
+
 func (w *writer) stringNull(v string) error {
 	if _, err := w.Write([]byte(v)); err != nil {
 		return err
@@ -136,4 +144,16 @@ func (w *writer) bytesN(v []byte) error {
 	}
 	_, err := w.Write(v)
 	return err
+}
+
+const COM_QUERY = 0x03
+
+func (w *writer) query(q string) error {
+	if err := w.int1(COM_QUERY); err != nil {
+		return err
+	}
+	if err := w.string(q); err != nil {
+		return err
+	}
+	return w.Close()
 }

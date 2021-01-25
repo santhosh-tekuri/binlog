@@ -39,3 +39,18 @@ func (e *errPacket) parse(r *reader) (err error) {
 	}
 	return nil
 }
+
+func checkError(r *reader) (*errPacket, error) {
+	marker, err := r.peek()
+	if err != nil {
+		return nil, err
+	}
+	if marker != errMarker {
+		return nil, err
+	}
+	ep := errPacket{}
+	if err := ep.parse(r); err != nil {
+		return nil, err
+	}
+	return &ep, err
+}
