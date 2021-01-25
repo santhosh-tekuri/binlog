@@ -5,13 +5,17 @@ import (
 )
 
 type rowsEvent struct {
-	tableID uint64
-	flags   uint16
-	present []bitmap
-	rows    [][][]interface{}
+	eventType uint8
+	tme       *tableMapEvent
+	tableID   uint64
+	flags     uint16
+	numCol    uint64
+	present   []bitmap
+	numRow    uint64
 }
 
 func (e *rowsEvent) parse(r *reader, eventType uint8, tme *tableMapEvent) (err error) {
+	e.eventType, e.tme = eventType, tme
 	if e.tableID, err = r.int6(); err != nil {
 		return err
 	}
@@ -28,56 +32,56 @@ func (e *rowsEvent) parse(r *reader, eventType uint8, tme *tableMapEvent) (err e
 			return err
 		}
 	}
-	numCol, err := r.intN()
-	if err != nil {
+	if e.numCol, err = r.intN(); err != nil {
 		return err
 	}
 	e.present = make([]bitmap, 2)
-	if e.present[0], err = r.bytes(bitmapSize(numCol)); err != nil {
+	if e.present[0], err = r.bytes(bitmapSize(e.numCol)); err != nil {
 		return err
 	}
 	switch eventType {
 	case UPDATE_ROWS_EVENTv1, UPDATE_ROWS_EVENTv2:
-		if e.present[1], err = r.bytes(bitmapSize(numCol)); err != nil {
+		if e.present[1], err = r.bytes(bitmapSize(e.numCol)); err != nil {
 			return err
 		}
 	}
-	row := 0
-	index := func() int {
-		switch eventType {
-		case UPDATE_ROWS_EVENTv1, UPDATE_ROWS_EVENTv2:
-			return row % 2
-		}
-		return 0
+	return nil
+}
+
+func (e *rowsEvent) nextRow(r *reader) ([][]interface{}, error) {
+	row := make([][]interface{}, 2)
+	n := 1
+	switch e.eventType {
+	case UPDATE_ROWS_EVENTv1, UPDATE_ROWS_EVENTv2:
+		n = 2
 	}
-	e.rows = make([][][]interface{}, 2)
-	for {
-		nullValue, err := r.bytes(bitmapSize(numCol))
+	for m := 0; m < n; m++ {
+		nullValue, err := r.bytes(bitmapSize(e.numCol))
 		if err != nil {
 			if err == io.EOF {
-				return nil
+				return nil, io.EOF
 			}
-			return err
+			return row, err
 		}
 		var values []interface{}
-		for i := 0; i < int(numCol); i++ {
-			if !e.present[index()].isTrue(i) {
+		for i := 0; i < int(e.numCol); i++ {
+			if !e.present[m].isTrue(i) {
 				continue
 			}
 			if bitmap(nullValue).isTrue(i) {
 				values = append(values, nil)
 			} else {
-				v, err := parseValue(r, tme.columnTypes[i])
+				v, err := parseValue(r, e.tme.columnTypes[i])
 				if err != nil {
-					return err
+					return row, err
 				}
 				values = append(values, v)
 			}
 		}
-		e.rows[index()] = append(e.rows[index()], values)
-		row++
+		row[m] = values
 	}
-	return nil
+	e.numRow++
+	return row, nil
 }
 
 // bitmap ---

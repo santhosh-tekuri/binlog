@@ -241,6 +241,16 @@ func TestHandshakeV10(t *testing.T) {
 				t.Fatal(err)
 			}
 			t.Logf("%#v", re)
+			for {
+				row, err := re.nextRow(r)
+				if err != nil {
+					if err == io.EOF {
+						break
+					}
+					t.Fatal(err)
+				}
+				fmt.Println("        ", row)
+			}
 		}
 		if h.eventType == STOP_EVENT {
 			fmt.Println("#####################")
