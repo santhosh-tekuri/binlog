@@ -193,6 +193,7 @@ func TestHandshakeV10(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	var tme tableMapEvent
 	for {
 		t.Log("------------------------", seq)
 		r = newReader(conn, &seq)
@@ -227,11 +228,19 @@ func TestHandshakeV10(t *testing.T) {
 			}
 			t.Logf("%#v", re)
 		case TABLE_MAP_EVENT:
-			tme := tableMapEvent{}
+			tme = tableMapEvent{}
 			if err := tme.parse(r); err != nil {
 				t.Fatal(err)
 			}
 			t.Logf("%#v", tme)
+		case WRITE_ROWS_EVENTv0, WRITE_ROWS_EVENTv1, WRITE_ROWS_EVENTv2,
+			UPDATE_ROWS_EVENTv0, UPDATE_ROWS_EVENTv1, UPDATE_ROWS_EVENTv2,
+			DELETE_ROWS_EVENTv0, DELETE_ROWS_EVENTv1, DELETE_ROWS_EVENTv2:
+			re := rowsEvent{}
+			if err := re.parse(r, h.eventType, &tme); err != nil {
+				t.Fatal(err)
+			}
+			t.Logf("%#v", re)
 		}
 		if h.eventType == STOP_EVENT {
 			fmt.Println("#####################")

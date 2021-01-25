@@ -27,11 +27,11 @@ func (e *tableMapEvent) parse(r *reader) (err error) {
 	if e.tableName, err = r.stringNull(); err != nil {
 		return err
 	}
-	columnsCount, err := r.intN()
+	numCol, err := r.intN()
 	if err != nil {
 		return err
 	}
-	if e.columnTypes, err = r.bytes(int(columnsCount)); err != nil {
+	if e.columnTypes, err = r.bytes(int(numCol)); err != nil {
 		return err
 	}
 	return nil

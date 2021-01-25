@@ -1,6 +1,7 @@
 package binlog
 
 import (
+	"fmt"
 	"math"
 	"time"
 )
@@ -40,7 +41,7 @@ const (
 
 // https://dev.mysql.com/doc/internals/en/binary-protocol-value.html
 // todo: test with table with all types, especially negative numbers
-func parseValue(typ byte, r *reader) (interface{}, error) {
+func parseValue(r *reader, typ byte) (interface{}, error) {
 	switch typ {
 	case MYSQL_TYPE_STRING, MYSQL_TYPE_VARCHAR, MYSQL_TYPE_VAR_STRING,
 		MYSQL_TYPE_ENUM, MYSQL_TYPE_SET,
@@ -145,4 +146,5 @@ func parseValue(typ byte, r *reader) (interface{}, error) {
 		}
 		return d, nil
 	}
+	return nil, fmt.Errorf("unmarshal of mysql type %0x is not implemented", typ)
 }
