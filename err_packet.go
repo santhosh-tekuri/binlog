@@ -14,7 +14,7 @@ type errPacket struct {
 	errorMessage   string
 }
 
-func (e *errPacket) parse(r *reader) error {
+func (e *errPacket) parse(r *reader, hs *handshake) error {
 	header := r.int1()
 	if r.err != nil {
 		return r.err
@@ -24,8 +24,7 @@ func (e *errPacket) parse(r *reader) error {
 	}
 	e.errorCode = r.int2()
 
-	capabilities := CLIENT_PROTOCOL_41 // todo: get it from handshake
-	if capabilities&CLIENT_PROTOCOL_41 != 0 {
+	if hs.capabilityFlags&CLIENT_PROTOCOL_41 != 0 {
 		e.sqlStateMarker = r.string(1)
 		e.sqlState = r.string(5)
 	}
@@ -33,7 +32,7 @@ func (e *errPacket) parse(r *reader) error {
 	return r.err
 }
 
-func checkError(r *reader) (*errPacket, error) {
+func checkError(r *reader, hs *handshake) (*errPacket, error) {
 	marker, err := r.peek()
 	if err != nil {
 		return nil, err
@@ -42,6 +41,6 @@ func checkError(r *reader) (*errPacket, error) {
 		return nil, err
 	}
 	ep := &errPacket{}
-	err = ep.parse(r)
+	err = ep.parse(r, hs)
 	return ep, err
 }

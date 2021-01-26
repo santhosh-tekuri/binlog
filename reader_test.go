@@ -160,10 +160,11 @@ func TestHandshakeV10(t *testing.T) {
 	}
 	if marker == errMarker {
 		ep := errPacket{}
-		if err := ep.parse(r); err != nil {
+		if err := ep.parse(r, &hs); err != nil {
 			t.Fatal(err)
 		}
 		t.Logf("%#v", ep)
+		t.Fatal(ep.errorMessage)
 	}
 	if err := r.Close(); err != nil {
 		t.Fatal(err)
@@ -208,7 +209,7 @@ func TestHandshakeV10(t *testing.T) {
 			r.int1()
 		case errMarker:
 			ep := errPacket{}
-			if err := ep.parse(r); err != nil {
+			if err := ep.parse(r, &hs); err != nil {
 				t.Fatal(err)
 			}
 			t.Logf("%#v", ep)
