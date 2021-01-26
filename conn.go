@@ -8,12 +8,16 @@ import (
 )
 
 type conn struct {
-	conn       net.Conn
-	seq        uint8
-	hs         handshake
-	fde        formatDescriptionEvent
-	tme        tableMapEvent
+	conn net.Conn
+	seq  uint8
+	hs   handshake
+	fde  formatDescriptionEvent
+	tme  tableMapEvent
+
+	// binlog related
 	lastReader *reader
+	binlogFile string
+	binlogPos  uint32
 }
 
 func Dial(network, address string) (*conn, error) {
@@ -96,12 +100,20 @@ func (c *conn) confirmChecksumSupport() error {
 func (c *conn) requestBinlog(serverID uint32, fileName string, position uint32) error {
 	c.seq = 0
 	w := newWriter(c.conn, &c.seq)
-	return w.writeClose(comBinlogDump{
+	err := w.writeClose(comBinlogDump{
 		binlogPos:      position,
 		flags:          0,
 		serverID:       serverID,
 		binlogFilename: fileName,
 	})
+	if err != nil {
+		c.binlogFile, c.binlogPos = fileName, position
+	}
+	return err
+}
+
+func (c *conn) nextLocation() (filename string, position uint32) {
+	return c.binlogFile, c.binlogPos
 }
 
 func (c *conn) nextEvent() (interface{}, error) {
@@ -139,6 +151,7 @@ func (c *conn) nextEvent() (interface{}, error) {
 	}
 	fmt.Printf("%#v\n", h)
 
+	c.binlogPos = h.logPos
 	// Read event body
 	switch h.eventType {
 	case FORMAT_DESCRIPTION_EVENT:
@@ -148,6 +161,9 @@ func (c *conn) nextEvent() (interface{}, error) {
 	case ROTATE_EVENT:
 		re := rotateEvent{}
 		err := re.parse(r, &c.fde)
+		if err != nil {
+			c.binlogFile, c.binlogPos = re.nextBinlog, uint32(re.position)
+		}
 		return re, err
 	case TABLE_MAP_EVENT:
 		c.tme = tableMapEvent{}
@@ -163,4 +179,8 @@ func (c *conn) nextEvent() (interface{}, error) {
 	default:
 		return c.nextEvent()
 	}
+}
+
+func (c *conn) Close() error {
+	return c.conn.Close()
 }
