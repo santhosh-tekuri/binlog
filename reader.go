@@ -1,6 +1,7 @@
 package binlog
 
 import (
+	"bytes"
 	"io"
 )
 
@@ -257,6 +258,7 @@ func (r *reader) skip(n int) {
 	r.r += n
 }
 
+// todo: unit test loop more than one iter
 func (r *reader) nullIndex() (index int, ok bool) {
 	if r.err != nil {
 		return r.r, false
@@ -268,10 +270,11 @@ func (r *reader) nullIndex() (index int, ok bool) {
 				return r.r, false
 			}
 		}
-		if r.buf[r.r+i] == 0 {
-			return r.r + i, true
+		j := bytes.IndexByte(r.buf[r.r+i:r.w], 0)
+		if j != -1 {
+			return r.r + i + j, true
 		}
-		i++
+		i = r.w - r.r
 	}
 }
 
