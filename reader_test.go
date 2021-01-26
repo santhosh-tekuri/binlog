@@ -139,22 +139,19 @@ func TestHandshakeV10(t *testing.T) {
 	if hs.capabilityFlags&CLIENT_SSL != 0 {
 		t.Log("using ssl...")
 		w := newWriter(conn, &seq)
-		req := sslRequest{
+		w.writeClose(sslRequest{
 			capabilityFlags: CLIENT_LONG_FLAG | CLIENT_SECURE_CONNECTION,
 			maxPacketSize:   maxPacketSize,
 			characterSet:    hs.characterSet,
-		}
-		if err := req.writeTo(w); err != nil {
-			t.Fatal(err)
-		}
-		if err := w.Close(); err != nil {
+		})
+		if err != nil {
 			t.Fatal(err)
 		}
 		conn = tls.Client(conn, &tls.Config{InsecureSkipVerify: true})
 	}
 
 	w := newWriter(conn, &seq)
-	resp := handshakeResponse41{
+	err = w.writeClose(handshakeResponse41{
 		capabilityFlags: CLIENT_LONG_FLAG | CLIENT_SECURE_CONNECTION,
 		maxPacketSize:   maxPacketSize,
 		characterSet:    hs.characterSet,
@@ -163,11 +160,8 @@ func TestHandshakeV10(t *testing.T) {
 		database:        "",
 		authPluginName:  "",
 		connectAttrs:    nil,
-	}
-	if err := resp.writeTo(w); err != nil {
-		t.Fatal(err)
-	}
-	if err := w.Close(); err != nil {
+	})
+	if err != nil {
 		t.Fatal(err)
 	}
 
@@ -198,16 +192,13 @@ func TestHandshakeV10(t *testing.T) {
 
 	seq = 0
 	w = newWriter(conn, &seq)
-	dump := comBinlogDump{
+	err = w.writeClose(comBinlogDump{
 		binlogPos:      4,
 		flags:          0,
 		serverID:       10,
 		binlogFilename: "binlog.000002",
-	}
-	if err := dump.writeTo(w); err != nil {
-		t.Fatal(err)
-	}
-	if err := w.Close(); err != nil {
+	})
+	if err != nil {
 		t.Fatal(err)
 	}
 

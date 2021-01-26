@@ -154,3 +154,10 @@ func (w *writer) query(q string) error {
 	w.string(q)
 	return w.Close()
 }
+
+func (w *writer) writeClose(event interface{ writeTo(w *writer) error }) error {
+	if err := event.writeTo(w); err != nil {
+		return err
+	}
+	return w.Close()
+}

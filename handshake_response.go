@@ -15,7 +15,7 @@ type handshakeResponse41 struct {
 	connectAttrs    map[string]string
 }
 
-func (e *handshakeResponse41) writeTo(w *writer) error {
+func (e handshakeResponse41) writeTo(w *writer) error {
 	capabilities := e.capabilityFlags | CLIENT_PROTOCOL_41
 	if e.database != "" {
 		capabilities |= CLIENT_CONNECT_WITH_DB
@@ -62,7 +62,7 @@ type sslRequest struct {
 	characterSet    uint8
 }
 
-func (e *sslRequest) writeTo(w *writer) error {
+func (e sslRequest) writeTo(w *writer) error {
 	w.int4(e.capabilityFlags | CLIENT_PROTOCOL_41 | CLIENT_SSL)
 	w.int4(e.maxPacketSize)
 	w.int1(e.characterSet)
