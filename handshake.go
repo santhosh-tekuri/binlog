@@ -10,6 +10,7 @@ const (
 	CLIENT_COMPRESS                       = 0x00000020
 	CLIENT_ODBC                           = 0x00000040
 	CLIENT_PLUGIN_AUTH                    = 0x00080000
+	CLIENT_SSL                            = 0x00000800
 	CLIENT_SECURE_CONNECTION              = 0x00008000
 	CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA = 0x00200000
 	CLIENT_CONNECT_ATTRS                  = 0x00100000

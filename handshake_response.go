@@ -28,59 +28,33 @@ func (e handshakeResponse41) writeTo(w *writer) error {
 		capabilities |= CLIENT_CONNECT_ATTRS
 	}
 
-	if err := w.int4(capabilities); err != nil {
-		return err
-	}
-	if err := w.int4(e.maxPacketSize); err != nil {
-		return err
-	}
-	if err := w.int1(e.characterSet); err != nil {
-		return err
-	}
-	if _, err := w.Write(make([]byte, 23)); err != nil { // reserved
-		return err
-	}
-	if err := w.stringNull(e.username); err != nil {
-		return err
-	}
+	w.int4(capabilities)
+	w.int4(e.maxPacketSize)
+	w.int1(e.characterSet)
+	w.Write(make([]byte, 23))
+	w.stringNull(e.username)
 	switch {
 	case capabilities&CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA != 0:
-		if err := w.bytesN(e.authResponse); err != nil {
-			return err
-		}
+		w.bytesN(e.authResponse)
 	case capabilities&CLIENT_SECURE_CONNECTION != 0:
-		if err := w.bytes1(e.authResponse); err != nil {
-			return err
-		}
+		w.bytes1(e.authResponse)
 	default:
-		if err := w.bytesNull(e.authResponse); err != nil {
-			return err
-		}
+		w.bytesNull(e.authResponse)
 	}
 	if capabilities&CLIENT_CONNECT_WITH_DB != 0 {
-		if err := w.stringNull(e.database); err != nil {
-			return err
-		}
+		w.stringNull(e.database)
 	}
 	if capabilities&CLIENT_PLUGIN_AUTH != 0 {
-		if err := w.stringNull(e.authPluginName); err != nil {
-			return err
-		}
+		w.stringNull(e.authPluginName)
 	}
 	if capabilities&CLIENT_CONNECT_ATTRS != 0 {
-		if err := w.intN(uint64(len(e.connectAttrs))); err != nil {
-			return err
-		}
+		w.intN(uint64(len(e.connectAttrs)))
 		for k, v := range e.connectAttrs {
-			if err := w.stringN(k); err != nil {
-				return err
-			}
-			if err := w.stringN(v); err != nil {
-				return err
-			}
+			w.stringN(k)
+			w.stringN(v)
 		}
 	}
-	return nil
+	return w.err
 }
 
 // https://dev.mysql.com/doc/internals/en/secure-password-authentication.html

@@ -8,6 +8,7 @@ type writer struct {
 	wd  io.Writer
 	buf []byte
 	seq *uint8
+	err error
 }
 
 func newWriter(w io.Writer, seq *uint8) *writer {
@@ -19,11 +20,14 @@ func newWriter(w io.Writer, seq *uint8) *writer {
 }
 
 func (w *writer) flush() error {
+	if w.err != nil {
+		return w.err
+	}
 	for len(w.buf) >= headerSize+maxPacketSize {
 		w.buf[0], w.buf[1], w.buf[2], w.buf[3] = 0xff, 0xff, 0xff, *w.seq
 		*w.seq++
-		if _, err := w.wd.Write(w.buf[:headerSize+maxPacketSize]); err != nil {
-			return err
+		if _, w.err = w.wd.Write(w.buf[:headerSize+maxPacketSize]); w.err != nil {
+			return w.err
 		}
 		copy(w.buf[4:], w.buf[headerSize+maxPacketSize:])
 		w.buf = w.buf[0 : headerSize+len(w.buf)-(headerSize+maxPacketSize)]
@@ -146,11 +150,7 @@ func (w *writer) bytesN(v []byte) error {
 const COM_QUERY = 0x03
 
 func (w *writer) query(q string) error {
-	if err := w.int1(COM_QUERY); err != nil {
-		return err
-	}
-	if err := w.string(q); err != nil {
-		return err
-	}
+	w.int1(COM_QUERY)
+	w.string(q)
 	return w.Close()
 }

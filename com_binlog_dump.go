@@ -13,20 +13,10 @@ type comBinlogDump struct {
 }
 
 func (e comBinlogDump) writeTo(w *writer) error {
-	if err := w.int1(COM_BINLOG_DUMP); err != nil {
-		return err
-	}
-	if err := w.int4(e.binlogPos); err != nil {
-		return err
-	}
-	if err := w.int2(e.flags); err != nil {
-		return err
-	}
-	if err := w.int4(e.serverID); err != nil {
-		return err
-	}
-	if err := w.string(e.binlogFilename); err != nil {
-		return err
-	}
-	return nil
+	w.int1(COM_BINLOG_DUMP)
+	w.int4(e.binlogPos)
+	w.int2(e.flags)
+	w.int4(e.serverID)
+	w.string(e.binlogFilename)
+	return w.err
 }

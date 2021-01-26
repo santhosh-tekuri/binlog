@@ -134,6 +134,7 @@ func TestHandshakeV10(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("%#v\n", hs)
+	t.Log("ssl supported:", hs.capabilityFlags&CLIENT_SSL)
 
 	w := newWriter(conn, &seq)
 	resp := handshakeResponse41{
