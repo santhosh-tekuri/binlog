@@ -192,6 +192,7 @@ func TestHandshakeV10(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	var fde formatDescriptionEvent
 	var tme tableMapEvent
 	for {
 		t.Log("------------------------", seq)
@@ -222,6 +223,12 @@ func TestHandshakeV10(t *testing.T) {
 		}
 		t.Logf("%#v", h)
 		switch h.eventType {
+		case FORMAT_DESCRIPTION_EVENT:
+			fde = formatDescriptionEvent{}
+			if err := fde.parse(r); err != nil {
+				t.Fatal(err)
+			}
+			t.Logf("%#v", fde)
 		case ROTATE_EVENT:
 			re := rotateEvent{}
 			if err := re.parse(r); err != nil {
@@ -238,7 +245,7 @@ func TestHandshakeV10(t *testing.T) {
 			UPDATE_ROWS_EVENTv0, UPDATE_ROWS_EVENTv1, UPDATE_ROWS_EVENTv2,
 			DELETE_ROWS_EVENTv0, DELETE_ROWS_EVENTv1, DELETE_ROWS_EVENTv2:
 			re := rowsEvent{}
-			if err := re.parse(r, h.eventType, &tme); err != nil {
+			if err := re.parse(r, &fde, h.eventType, &tme); err != nil {
 				t.Fatal(err)
 			}
 			t.Logf("%#v", re)

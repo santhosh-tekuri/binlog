@@ -288,19 +288,27 @@ func (r *reader) stringNull() string {
 	return string(r.bytesNullInternal())
 }
 
-func (r *reader) stringEOF() string {
+func (r *reader) bytesEOFInternal() []byte {
 	for {
 		if r.err == io.EOF {
 			r.err = nil
-			v := string(r.buf[r.r:r.w])
+			v := r.buf[r.r:r.w]
 			r.r = r.w
 			return v
 		}
 		if r.err != nil {
-			return ""
+			return nil
 		}
 		r.err = r.fill()
 	}
+}
+
+func (r *reader) bytesEOF() []byte {
+	return append([]byte(nil), r.bytesEOFInternal()...)
+}
+
+func (r *reader) stringEOF() string {
+	return string(r.bytesEOFInternal())
 }
 
 func (r *reader) Close() error {

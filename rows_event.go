@@ -14,9 +14,13 @@ type rowsEvent struct {
 	numRow    uint64
 }
 
-func (e *rowsEvent) parse(r *reader, eventType uint8, tme *tableMapEvent) error {
+func (e *rowsEvent) parse(r *reader, fde *formatDescriptionEvent, eventType uint8, tme *tableMapEvent) error {
 	e.eventType, e.tme = eventType, tme
-	e.tableID = r.int6()
+	if fde.postHeaderLength(eventType, 8) == 6 {
+		e.tableID = uint64(r.int4())
+	} else {
+		e.tableID = r.int6()
+	}
 	e.flags = r.int2()
 	switch eventType {
 	case WRITE_ROWS_EVENTv2, UPDATE_ROWS_EVENTv2, DELETE_ROWS_EVENTv2: // version==2
