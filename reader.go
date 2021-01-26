@@ -257,44 +257,42 @@ func (r *reader) skip(n int) {
 	r.r += n
 }
 
-func (r *reader) bytesNull() []byte {
+func (r *reader) nullIndex() (index int, ok bool) {
 	if r.err != nil {
-		return nil
+		return r.r, false
 	}
 	i := 0
 	for {
 		if r.r+i >= r.w {
 			if err := r.fill(); err != nil {
-				return nil
+				return r.r, false
 			}
 		}
 		if r.buf[r.r+i] == 0 {
-			v := append([]byte(nil), r.buf[r.r:r.r+i]...)
-			r.r += i + 1
-			return v
+			return r.r + i, true
 		}
 		i++
 	}
 }
 
+func (r *reader) bytesNull() []byte {
+	i, ok := r.nullIndex()
+	if !ok {
+		return nil
+	}
+	v := append([]byte(nil), r.buf[r.r:i]...)
+	r.r = i + 1
+	return v
+}
+
 func (r *reader) stringNull() string {
-	if r.err != nil {
+	i, ok := r.nullIndex()
+	if !ok {
 		return ""
 	}
-	i := 0
-	for {
-		if r.r+i >= r.w {
-			if err := r.fill(); err != nil {
-				return ""
-			}
-		}
-		if r.buf[r.r+i] == 0 {
-			s := string(r.buf[r.r : r.r+i])
-			r.r += i + 1
-			return s
-		}
-		i++
-	}
+	v := string(r.buf[r.r:i])
+	r.r = i + 1
+	return v
 }
 
 func (r *reader) stringEOF() string {
