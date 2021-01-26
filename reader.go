@@ -259,43 +259,33 @@ func (r *reader) skip(n int) {
 }
 
 // todo: unit test loop more than one iter
-func (r *reader) nullIndex() (index int, ok bool) {
+func (r *reader) bytesNullInternal() []byte {
 	if r.err != nil {
-		return r.r, false
+		return nil
 	}
 	i := 0
 	for {
 		if r.r+i >= r.w {
 			if err := r.fill(); err != nil {
-				return r.r, false
+				return nil
 			}
 		}
 		j := bytes.IndexByte(r.buf[r.r+i:r.w], 0)
 		if j != -1 {
-			return r.r + i + j, true
+			v := r.buf[r.r : r.r+i+j]
+			r.r += i + j + 1
+			return v
 		}
 		i = r.w - r.r
 	}
 }
 
 func (r *reader) bytesNull() []byte {
-	i, ok := r.nullIndex()
-	if !ok {
-		return nil
-	}
-	v := append([]byte(nil), r.buf[r.r:i]...)
-	r.r = i + 1
-	return v
+	return append([]byte(nil), r.bytesNullInternal()...)
 }
 
 func (r *reader) stringNull() string {
-	i, ok := r.nullIndex()
-	if !ok {
-		return ""
-	}
-	v := string(r.buf[r.r:i])
-	r.r = i + 1
-	return v
+	return string(r.bytesNullInternal())
 }
 
 func (r *reader) stringEOF() string {
