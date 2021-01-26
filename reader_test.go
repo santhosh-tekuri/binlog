@@ -129,7 +129,7 @@ func TestHandshakeV10(t *testing.T) {
 	}
 	var seq uint8
 	r := newReader(conn, &seq)
-	hs := handshakeV10{}
+	hs := handshake{}
 	if err = hs.parse(r); err != nil {
 		t.Fatal(err)
 	}

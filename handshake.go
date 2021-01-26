@@ -18,21 +18,30 @@ const (
 
 // https://dev.mysql.com/doc/internals/en/connection-phase-packets.html
 
-type handshakeV10 struct {
+type handshake struct {
+	// common to v9 and v10
 	protocolVersion uint8
 	serverVersion   string
 	connectionID    uint32
 	authPluginData  []byte
+
+	// v10 specific fields
 	capabilityFlags uint32
 	characterSet    uint8
 	statusFlags     uint16
 	authPluginName  string
 }
 
-func (e *handshakeV10) parse(r *reader) error {
+func (e *handshake) parse(r *reader) error {
 	e.protocolVersion = r.int1()
 	e.serverVersion = r.stringNull()
 	e.connectionID = r.int4()
+	if e.protocolVersion == 9 {
+		e.authPluginData = r.bytesNull()
+		return r.err
+	}
+
+	// v10 ---
 	e.authPluginData = r.bytes(8)
 	r.skip(1) // filler
 	e.capabilityFlags = uint32(r.int2())
@@ -67,22 +76,5 @@ func (e *handshakeV10) parse(r *reader) error {
 	if e.capabilityFlags&CLIENT_PLUGIN_AUTH != 0 {
 		e.authPluginName = r.stringNull()
 	}
-	return r.err
-}
-
-// handshakeV9 ---
-
-type handshakeV9 struct {
-	protocolVersion  uint8
-	serverVersion    string
-	connectionID     uint32
-	auth_plugin_data []byte
-}
-
-func (e *handshakeV9) parse(r *reader) error {
-	e.protocolVersion = r.int1()
-	e.serverVersion = r.stringNull()
-	e.connectionID = r.int4()
-	e.auth_plugin_data = r.bytesNull()
 	return r.err
 }
