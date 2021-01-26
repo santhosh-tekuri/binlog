@@ -11,17 +11,15 @@ type eofPacket struct {
 	statusFlags uint16
 }
 
-func (e *eofPacket) parse(r *reader) (err error) {
-	if header, err := r.int1(); err != nil {
-		return err
-	} else if header != eofMarker {
+func (e *eofPacket) parse(r *reader) error {
+	header := r.int1()
+	if r.err != nil {
+		return r.err
+	}
+	if header != eofMarker {
 		return fmt.Errorf("eofPacket.parse: got header %0xd", header)
 	}
-	if e.warnings, err = r.int2(); err != nil {
-		return err
-	}
-	if e.statusFlags, err = r.int2(); err != nil {
-		return err
-	}
-	return nil
+	e.warnings = r.int2()
+	e.statusFlags = r.int2()
+	return r.err
 }

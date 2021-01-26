@@ -14,29 +14,23 @@ type errPacket struct {
 	errorMessage   string
 }
 
-func (e *errPacket) parse(r *reader) (err error) {
-	if header, err := r.int1(); err != nil {
-		return err
-	} else if header != errMarker {
+func (e *errPacket) parse(r *reader) error {
+	header := r.int1()
+	if r.err != nil {
+		return r.err
+	}
+	if header != errMarker {
 		return fmt.Errorf("errorPacket.parse: got header %0xd", header)
 	}
-	if e.errorCode, err = r.int2(); err != nil {
-		return err
-	}
+	e.errorCode = r.int2()
 
-	// todo
-	// if capabilities & CLIENT_PROTOCOL_41 {
-	if e.sqlStateMarker, err = r.string(1); err != nil {
-		return err
+	capabilities := CLIENT_PROTOCOL_41 // todo: get it from handshake
+	if capabilities&CLIENT_PROTOCOL_41 != 0 {
+		e.sqlStateMarker = r.string(1)
+		e.sqlState = r.string(5)
 	}
-	if e.sqlState, err = r.string(5); err != nil {
-		return err
-	}
-	//}
-	if e.errorMessage, err = r.stringEOF(); err != nil {
-		return err
-	}
-	return nil
+	e.errorMessage = r.stringEOF()
+	return r.err
 }
 
 func checkError(r *reader) (*errPacket, error) {
@@ -47,9 +41,7 @@ func checkError(r *reader) (*errPacket, error) {
 	if marker != errMarker {
 		return nil, err
 	}
-	ep := errPacket{}
-	if err := ep.parse(r); err != nil {
-		return nil, err
-	}
-	return &ep, err
+	ep := &errPacket{}
+	err = ep.parse(r)
+	return ep, err
 }

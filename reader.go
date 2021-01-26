@@ -19,6 +19,7 @@ type reader struct {
 	header   []byte
 	checksum int
 	ww       int
+	err      error
 }
 
 func newReader(r io.Reader, seq *uint8) *reader {
@@ -46,7 +47,11 @@ func (r *reader) readHeader() (int, error) {
 	return n, err
 }
 
+// fill returns nil, if at least one byte of payload is read.
 func (r *reader) fill() error {
+	if r.err != nil {
+		return r.err
+	}
 	if r.checksum > 0 {
 		r.w = r.ww
 		defer func() {
@@ -98,24 +103,36 @@ func (r *reader) fill() error {
 	return nil
 }
 
-func (r *reader) more() (bool, error) {
-	if r.w-r.r > 0 || r.payload > 0 {
-		return true, nil
-	}
-	err := r.fill()
-	if err == io.EOF {
-		return false, nil
-	}
-	return true, err
-}
-
 func (r *reader) ensure(n int) error {
+	if r.err != nil {
+		return r.err
+	}
 	for n > r.w-r.r {
-		if err := r.fill(); err != nil {
-			return err
+		if r.err = r.fill(); r.err != nil {
+			if r.err == io.EOF {
+				r.err = io.ErrUnexpectedEOF
+			}
+			return r.err
 		}
 	}
 	return nil
+}
+
+// public methods ---
+
+func (r *reader) more() bool {
+	if r.err != nil {
+		return false
+	}
+	if r.w-r.r > 0 || r.payload > 0 {
+		return true
+	}
+	err := r.fill()
+	if err == io.EOF {
+		return false
+	}
+	r.err = err
+	return false
 }
 
 func (r *reader) peek() (byte, error) {
@@ -134,173 +151,177 @@ func (r *reader) Read(p []byte) (int, error) {
 	return n, nil
 }
 
-func (r *reader) int1() (byte, error) {
+func (r *reader) int1() byte {
 	if err := r.ensure(1); err != nil {
-		return 0, err
+		return 0
 	}
 	b := r.buf[r.r]
 	r.r++
-	return b, nil
+	return b
 }
 
-func (r *reader) int2() (uint16, error) {
+func (r *reader) int2() uint16 {
 	if err := r.ensure(2); err != nil {
-		return 0, err
+		return 0
 	}
 	buf := r.buf[r.r:]
 	r.r += 2
-	return uint16(buf[0]) | uint16(buf[1])<<8, nil
+	return uint16(buf[0]) | uint16(buf[1])<<8
 }
 
-func (r *reader) int3() (uint32, error) {
+func (r *reader) int3() uint32 {
 	if err := r.ensure(3); err != nil {
-		return 0, err
+		return 0
 	}
 	buf := r.buf[r.r:]
 	r.r += 3
-	return uint32(buf[0]) | uint32(buf[1])<<8 | uint32(buf[2])<<16, nil
+	return uint32(buf[0]) | uint32(buf[1])<<8 | uint32(buf[2])<<16
 }
 
-func (r *reader) int4() (uint32, error) {
+func (r *reader) int4() uint32 {
 	if err := r.ensure(4); err != nil {
-		return 0, err
+		return 0
 	}
 	buf := r.buf[r.r:]
 	r.r += 4
-	return uint32(buf[0]) | uint32(buf[1])<<8 | uint32(buf[2])<<16 | uint32(buf[3])<<24, nil
+	return uint32(buf[0]) | uint32(buf[1])<<8 | uint32(buf[2])<<16 | uint32(buf[3])<<24
 }
 
-func (r *reader) int6() (uint64, error) {
+func (r *reader) int6() uint64 {
 	if err := r.ensure(6); err != nil {
-		return 0, err
+		return 0
 	}
 	buf := r.buf[r.r:]
 	r.r += 6
-	return uint64(buf[0]) | uint64(buf[1])<<8 | uint64(buf[2])<<16 | uint64(buf[3])<<24 |
-		uint64(buf[4])<<32 | uint64(buf[5])<<40, nil
+	return uint64(buf[0]) | uint64(buf[1])<<8 | uint64(buf[2])<<16 |
+		uint64(buf[3])<<24 | uint64(buf[4])<<32 | uint64(buf[5])<<40
 }
 
-func (r *reader) int8() (uint64, error) {
+func (r *reader) int8() uint64 {
 	if err := r.ensure(8); err != nil {
-		return 0, err
+		return 0
 	}
 	buf := r.buf[r.r:]
 	r.r += 8
 	return uint64(buf[0]) | uint64(buf[1])<<8 | uint64(buf[2])<<16 | uint64(buf[3])<<24 |
-		uint64(buf[4])<<32 | uint64(buf[5])<<40 | uint64(buf[6])<<48 | uint64(buf[7])<<56, nil
+		uint64(buf[4])<<32 | uint64(buf[5])<<40 | uint64(buf[6])<<48 | uint64(buf[7])<<56
 }
 
-func (r *reader) intN() (uint64, error) {
-	b, err := r.int1()
-	if err != nil {
-		return 0, err
+func (r *reader) intN() uint64 {
+	b := r.int1()
+	if r.err != nil {
+		return 0
 	}
 	switch b {
 	case 0xfc:
-		v, err := r.int2()
-		return uint64(v), err
+		return uint64(r.int2())
 	case 0xfd:
-		v, err := r.int3()
-		return uint64(v), err
+		return uint64(r.int3())
 	case 0xfe:
-		v, err := r.int8()
-		return uint64(v), err
+		return r.int8()
 	default:
-		return uint64(b), nil
+		return uint64(b)
 	}
 }
 
-func (r *reader) bytes(len int) ([]byte, error) {
+func (r *reader) bytes(len int) []byte {
 	if err := r.ensure(len); err != nil {
-		return nil, err
+		return nil
 	}
 	buf := r.buf[r.r : r.r+len]
 	r.r += len
-	return append([]byte(nil), buf...), nil
+	return append([]byte(nil), buf...)
 }
 
-func (r *reader) string(len int) (string, error) {
+func (r *reader) string(len int) string {
 	if err := r.ensure(len); err != nil {
-		return "", err
+		return ""
 	}
 	buf := r.buf[r.r : r.r+len]
 	r.r += len
-	return string(buf), nil
+	return string(buf)
 }
 
-func (r *reader) stringN() (string, error) {
-	l, err := r.intN()
-	if err != nil {
-		return "", err
+func (r *reader) stringN() string {
+	l := r.intN()
+	if r.err != nil {
+		return ""
 	}
 	return r.string(int(l))
 }
 
-func (r *reader) skip(n int) error {
-	if err := r.ensure(n); err != nil {
-		return err
+func (r *reader) skip(n int) {
+	if r.ensure(n) != nil {
+		return
 	}
 	r.r += n
-	return nil
 }
 
-func (r *reader) bytesNull() ([]byte, error) {
+func (r *reader) bytesNull() []byte {
+	if r.err != nil {
+		return nil
+	}
 	i := 0
 	for {
 		if r.r+i >= r.w {
 			if err := r.fill(); err != nil {
-				return nil, err
+				return nil
 			}
 		}
 		if r.buf[r.r+i] == 0 {
 			v := append([]byte(nil), r.buf[r.r:r.r+i]...)
 			r.r += i + 1
-			return v, nil
+			return v
 		}
 		i++
 	}
 }
 
-func (r *reader) stringNull() (string, error) {
+func (r *reader) stringNull() string {
+	if r.err != nil {
+		return ""
+	}
 	i := 0
 	for {
 		if r.r+i >= r.w {
 			if err := r.fill(); err != nil {
-				return "", err
+				return ""
 			}
 		}
 		if r.buf[r.r+i] == 0 {
 			s := string(r.buf[r.r : r.r+i])
 			r.r += i + 1
-			return s, nil
+			return s
 		}
 		i++
 	}
 }
 
-func (r *reader) stringEOF() (string, error) {
+func (r *reader) stringEOF() string {
 	for {
-		err := r.fill()
-		if err == io.EOF {
+		if r.err == io.EOF {
+			r.err = nil
 			v := string(r.buf[r.r:r.w])
 			r.r = r.w
-			return v, nil
+			return v
 		}
-		if err != nil {
-			return "", err
+		if r.err != nil {
+			return ""
 		}
+		r.err = r.fill()
 	}
 }
 
 func (r *reader) Close() error {
 	for {
 		r.r = r.w
-		err := r.fill()
-		if err == io.EOF {
+		r.err = r.fill()
+		if r.err == io.EOF {
+			r.err = nil
 			return nil
 		}
-		if err != nil {
-			return err
+		if r.err != nil {
+			return r.err
 		}
 	}
 }

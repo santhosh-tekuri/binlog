@@ -48,24 +48,12 @@ type binaryEventHeader struct {
 	flags     uint16
 }
 
-func (h *binaryEventHeader) parse(r *reader) (err error) {
-	if h.timestamp, err = r.int4(); err != nil {
-		return err
-	}
-	if h.eventType, err = r.int1(); err != nil {
-		return err
-	}
-	if h.serverID, err = r.int4(); err != nil {
-		return err
-	}
-	if h.eventSize, err = r.int4(); err != nil {
-		return err
-	}
-	if h.logPos, err = r.int4(); err != nil {
-		return err
-	}
-	if h.flags, err = r.int2(); err != nil {
-		return err
-	}
-	return nil
+func (h *binaryEventHeader) parse(r *reader) error {
+	h.timestamp = r.int4()
+	h.eventType = r.int1()
+	h.serverID = r.int4()
+	h.eventSize = r.int4()
+	h.logPos = r.int4()
+	h.flags = r.int2()
+	return r.err
 }

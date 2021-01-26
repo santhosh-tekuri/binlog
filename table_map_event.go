@@ -8,31 +8,17 @@ type tableMapEvent struct {
 	columnTypes []byte
 }
 
-func (e *tableMapEvent) parse(r *reader) (err error) {
-	if e.tableID, err = r.int6(); err != nil {
-		return err
+func (e *tableMapEvent) parse(r *reader) error {
+	e.tableID = r.int6()
+	e.flags = r.int2()
+	_ = r.int1() // schema name length
+	e.schemaName = r.stringNull()
+	_ = r.int1() // table name length
+	e.tableName = r.stringNull()
+	numCol := r.intN()
+	if r.err != nil {
+		return r.err
 	}
-	if e.flags, err = r.int2(); err != nil {
-		return err
-	}
-	if _, err = r.int1(); err != nil { // schema name length
-		return err
-	}
-	if e.schemaName, err = r.stringNull(); err != nil {
-		return err
-	}
-	if _, err = r.int1(); err != nil { // table name length
-		return err
-	}
-	if e.tableName, err = r.stringNull(); err != nil {
-		return err
-	}
-	numCol, err := r.intN()
-	if err != nil {
-		return err
-	}
-	if e.columnTypes, err = r.bytes(int(numCol)); err != nil {
-		return err
-	}
-	return nil
+	e.columnTypes = r.bytes(int(numCol))
+	return r.err
 }

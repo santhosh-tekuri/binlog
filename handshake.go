@@ -30,55 +30,32 @@ type handshakeV10 struct {
 	authPluginName      string
 }
 
-func (e *handshakeV10) parse(r *reader) (err error) {
-	if e.protocolVersion, err = r.int1(); err != nil {
-		return err
+func (e *handshakeV10) parse(r *reader) error {
+	e.protocolVersion = r.int1()
+	e.serverVersion = r.stringNull()
+	e.connectionID = r.int4()
+	e.authPluginDataPart1 = r.bytes(8)
+	r.skip(1) // filler
+	e.capabilityFlags = uint32(r.int2())
+	if !r.more() {
+		return r.err
 	}
-	if e.serverVersion, err = r.stringNull(); err != nil {
-		return err
-	}
-	if e.connectionID, err = r.int4(); err != nil {
-		return err
-	}
-	if e.authPluginDataPart1, err = r.bytes(8); err != nil {
-		return err
-	}
-	if err = r.skip(1); err != nil { // filler
-		return err
-	}
-	if lowerFlags, err := r.int2(); err != nil {
-		return err
-	} else {
-		e.capabilityFlags = uint32(lowerFlags)
-	}
-	if more, err := r.more(); err != nil {
-		return err
-	} else if !more {
-		return nil
-	}
-	if e.characterSet, err = r.int1(); err != nil {
-		return err
-	}
-	if e.statusFlags, err = r.int2(); err != nil {
-		return err
-	}
-	if upperFlags, err := r.int2(); err != nil {
-		return err
-	} else {
-		e.capabilityFlags |= uint32(upperFlags) << 16
+	e.characterSet = r.int1()
+	e.statusFlags = r.int2()
+	e.capabilityFlags |= uint32(r.int2()) << 16
+	if r.err != nil {
+		return r.err
 	}
 	var authPluginDataLength uint8
+	// todo: guess no if check needed
 	if e.capabilityFlags&CLIENT_PLUGIN_AUTH != 0 {
-		if authPluginDataLength, err = r.int1(); err != nil {
-			return err
-		}
+		authPluginDataLength = r.int1()
 	} else {
-		if err = r.skip(1); err != nil {
-			return err
-		}
+		r.skip(1)
 	}
-	if err = r.skip(10); err != nil { // reserved
-		return err
+	r.skip(10) // reserved
+	if r.err != nil {
+		return r.err
 	}
 	if e.capabilityFlags&CLIENT_SECURE_CONNECTION != 0 {
 		if authPluginDataLength > 0 && (13 < authPluginDataLength-8) {
@@ -86,16 +63,12 @@ func (e *handshakeV10) parse(r *reader) (err error) {
 		} else {
 			authPluginDataLength = 13
 		}
-		if e.authPluginDataPart2, err = r.bytes(int(authPluginDataLength)); err != nil {
-			return err
-		}
+		e.authPluginDataPart2 = r.bytes(int(authPluginDataLength))
 	}
 	if e.capabilityFlags&CLIENT_PLUGIN_AUTH != 0 {
-		if e.authPluginName, err = r.stringNull(); err != nil {
-			return err
-		}
+		e.authPluginName = r.stringNull()
 	}
-	return nil
+	return r.err
 }
 
 // handshakeV9 ---
@@ -107,18 +80,10 @@ type handshakeV9 struct {
 	auth_plugin_data []byte
 }
 
-func (e *handshakeV9) parse(r *reader) (err error) {
-	if e.protocolVersion, err = r.int1(); err != nil {
-		return err
-	}
-	if e.serverVersion, err = r.stringNull(); err != nil {
-		return err
-	}
-	if e.connectionID, err = r.int4(); err != nil {
-		return err
-	}
-	if e.auth_plugin_data, err = r.bytesNull(); err != nil {
-		return err
-	}
-	return nil
+func (e *handshakeV9) parse(r *reader) error {
+	e.protocolVersion = r.int1()
+	e.serverVersion = r.stringNull()
+	e.connectionID = r.int4()
+	e.auth_plugin_data = r.bytesNull()
+	return r.err
 }

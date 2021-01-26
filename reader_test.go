@@ -105,17 +105,17 @@ func TestReader_stringNull(t *testing.T) {
 	var seq uint8
 	r := newReader(bytes.NewReader(packet), &seq)
 
-	s, err := r.stringNull()
-	if err != nil {
-		t.Fatal(err)
+	s := r.stringNull()
+	if r.err != nil {
+		t.Fatal(r.err)
 	}
 	if s != "hello" {
 		t.Fatal("got", s, "want", "hello")
 	}
 
-	s, err = r.stringNull()
-	if err != nil {
-		t.Fatal(err)
+	s = r.stringNull()
+	if r.err != nil {
+		t.Fatal(r.err)
 	}
 	if s != "world" {
 		t.Fatal("got", s, "want", "world")
@@ -172,11 +172,10 @@ func TestHandshakeV10(t *testing.T) {
 	seq = 0
 	w = newWriter(conn, &seq)
 	w.query("set @master_binlog_checksum = @@global.binlog_checksum")
-	//r = newReader(r, &seq)
-	//t.Log("xxxxxxxxxxxx")
-	//if err := r.drain(); err != nil {
-	//	t.Fatal(err)
-	//}
+	r = newReader(conn, &seq)
+	if err := r.Close(); err != nil {
+		t.Fatal(err)
+	}
 
 	seq = 0
 	w = newWriter(conn, &seq)
@@ -218,7 +217,9 @@ func TestHandshakeV10(t *testing.T) {
 		}
 
 		h := binaryEventHeader{}
-		h.parse(r)
+		if err := h.parse(r); err != nil {
+			t.Fatal(err)
+		}
 		t.Logf("%#v", h)
 		switch h.eventType {
 		case ROTATE_EVENT:
@@ -252,11 +253,8 @@ func TestHandshakeV10(t *testing.T) {
 				fmt.Println("        ", row)
 			}
 		}
-		if h.eventType == STOP_EVENT {
-			fmt.Println("#####################")
-		}
 		if err := r.Close(); err != nil {
-			t.Fatal(err)
+			t.Fatal(h.eventType, err)
 		}
 	}
 }

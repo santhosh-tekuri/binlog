@@ -47,95 +47,62 @@ func parseValue(r *reader, typ byte) (interface{}, error) {
 		MYSQL_TYPE_ENUM, MYSQL_TYPE_SET,
 		MYSQL_TYPE_LONG_BLOB, MYSQL_TYPE_MEDIUM_BLOB, MYSQL_TYPE_BLOB, MYSQL_TYPE_TINY_BLOB,
 		MYSQL_TYPE_GEOMETRY, MYSQL_TYPE_BIT, MYSQL_TYPE_DECIMAL, MYSQL_TYPE_NEWDECIMAL:
-		return r.stringN()
+		return r.stringN(), r.err
 	case MYSQL_TYPE_LONGLONG:
-		return r.int8()
+		return r.int8(), r.err
 	case MYSQL_TYPE_LONG, MYSQL_TYPE_INT24:
-		return r.int4()
+		return r.int4(), r.err
 	case MYSQL_TYPE_SHORT, MYSQL_TYPE_YEAR:
-		return r.int2()
+		return r.int2(), r.err
 	case MYSQL_TYPE_TINY:
-		return r.int1()
+		return r.int1(), r.err
 	case MYSQL_TYPE_DOUBLE:
-		v, err := r.int8()
-		if err != nil {
-			return nil, err
-		}
-		return math.Float64frombits(v), nil
+		return math.Float64frombits(r.int8()), r.err
 	case MYSQL_TYPE_FLOAT:
-		v, err := r.int4()
-		if err != nil {
-			return nil, err
-		}
-		return math.Float32frombits(v), nil
+		return math.Float32frombits(r.int4()), r.err
 	case MYSQL_TYPE_DATE, MYSQL_TYPE_DATETIME, MYSQL_TYPE_TIMESTAMP:
-		l, err := r.int1()
-		if err != nil {
-			return nil, err
+		l := r.int1()
+		if r.err != nil {
+			return nil, r.err
 		}
 		var year uint16
 		var month, day, hour, minute, second uint8
 		var microsecond uint32
 		if l >= 4 {
-			if year, err = r.int2(); err != nil {
-				return nil, err
-			}
-			if month, err = r.int1(); err != nil {
-				return nil, err
-			}
-			if day, err = r.int1(); err != nil {
-				return nil, err
-			}
+			year = r.int2()
+			month = r.int1()
+			day = r.int1()
 		}
 		if l >= 7 {
-			if hour, err = r.int1(); err != nil {
-				return nil, err
-			}
-			if minute, err = r.int1(); err != nil {
-				return nil, err
-			}
-			if second, err = r.int1(); err != nil {
-				return nil, err
-			}
+			hour = r.int1()
+			minute = r.int1()
+			second = r.int1()
 		}
 		if l == 11 {
-			if microsecond, err = r.int4(); err != nil {
-				return nil, err
-			}
+			microsecond = r.int4()
 		}
 		return time.Date(
 			int(year), time.Month(month), int(day),
 			int(hour), int(minute), int(second),
-			int(microsecond*1000), time.Local), nil
+			int(microsecond*1000), time.Local), r.err
 	case MYSQL_TYPE_TIME:
-		l, err := r.int1()
-		if err != nil {
-			return nil, err
+		l := r.int1()
+		if r.err != nil {
+			return nil, r.err
 		}
 		var isNegative, hours, minutes, seconds uint8
 		var days, microseconds uint32
 		if l >= 8 {
-			if isNegative, err = r.int1(); err != nil {
-				return nil, err
-			}
-			if days, err = r.int4(); err != nil {
-				return nil, err
-			}
-			if hours, err = r.int1(); err != nil {
-				return nil, err
-			}
-			if minutes, err = r.int1(); err != nil {
-				return nil, err
-			}
-			if seconds, err = r.int1(); err != nil {
-				return nil, err
-			}
+			isNegative = r.int1()
+			days = r.int4()
+			hours = r.int1()
+			minutes = r.int1()
+			seconds = r.int1()
 		}
 		if l == 12 {
-			if microseconds, err = r.int4(); err != nil {
-				return nil, err
-			}
+			microseconds = r.int4()
 		}
+
 		d := time.Duration(days)*24*time.Hour +
 			time.Duration(hours)*time.Hour +
 			time.Duration(minutes)*time.Minute +
@@ -144,7 +111,7 @@ func parseValue(r *reader, typ byte) (interface{}, error) {
 		if isNegative == 1 {
 			d = -d
 		}
-		return d, nil
+		return d, r.err
 	}
 	return nil, fmt.Errorf("unmarshal of mysql type %0x is not implemented", typ)
 }

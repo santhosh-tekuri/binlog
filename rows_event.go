@@ -14,41 +14,38 @@ type rowsEvent struct {
 	numRow    uint64
 }
 
-func (e *rowsEvent) parse(r *reader, eventType uint8, tme *tableMapEvent) (err error) {
+func (e *rowsEvent) parse(r *reader, eventType uint8, tme *tableMapEvent) error {
 	e.eventType, e.tme = eventType, tme
-	if e.tableID, err = r.int6(); err != nil {
-		return err
-	}
-	if e.flags, err = r.int2(); err != nil {
-		return err
-	}
+	e.tableID = r.int6()
+	e.flags = r.int2()
 	switch eventType {
 	case WRITE_ROWS_EVENTv2, UPDATE_ROWS_EVENTv2, DELETE_ROWS_EVENTv2: // version==2
-		extraDataLength, err := r.int2()
-		if err != nil {
-			return err
+		extraDataLength := r.int2()
+		if r.err != nil {
+			return r.err
 		}
-		if _, err := r.string(int(extraDataLength - 2)); err != nil { // extra-data
-			return err
-		}
+		_ = r.string(int(extraDataLength - 2))
 	}
-	if e.numCol, err = r.intN(); err != nil {
-		return err
+	e.numCol = r.intN()
+	if r.err != nil {
+		return r.err
 	}
 	e.present = make([]bitmap, 2)
-	if e.present[0], err = r.bytes(bitmapSize(e.numCol)); err != nil {
-		return err
-	}
+	e.present[0] = r.bytes(bitmapSize(e.numCol))
 	switch eventType {
 	case UPDATE_ROWS_EVENTv1, UPDATE_ROWS_EVENTv2:
-		if e.present[1], err = r.bytes(bitmapSize(e.numCol)); err != nil {
-			return err
-		}
+		e.present[1] = r.bytes(bitmapSize(e.numCol))
 	}
-	return nil
+	return r.err
 }
 
 func (e *rowsEvent) nextRow(r *reader) ([][]interface{}, error) {
+	if !r.more() {
+		if r.err != nil {
+			return nil, r.err
+		}
+		return nil, io.EOF
+	}
 	row := make([][]interface{}, 2)
 	n := 1
 	switch e.eventType {
@@ -56,12 +53,9 @@ func (e *rowsEvent) nextRow(r *reader) ([][]interface{}, error) {
 		n = 2
 	}
 	for m := 0; m < n; m++ {
-		nullValue, err := r.bytes(bitmapSize(e.numCol))
-		if err != nil {
-			if err == io.EOF {
-				return nil, io.EOF
-			}
-			return row, err
+		nullValue := r.bytes(bitmapSize(e.numCol))
+		if r.err != nil {
+			return nil, r.err
 		}
 		var values []interface{}
 		for i := 0; i < int(e.numCol); i++ {

@@ -5,12 +5,8 @@ type rotateEvent struct {
 	nextBinlog string
 }
 
-func (e *rotateEvent) parse(r *reader) (err error) {
-	if e.position, err = r.int8(); err != nil {
-		return err
-	}
-	if e.nextBinlog, err = r.stringEOF(); err != nil {
-		return err
-	}
-	return nil
+func (e *rotateEvent) parse(r *reader) error {
+	e.position = r.int8()
+	e.nextBinlog = r.stringEOF()
+	return r.err
 }
