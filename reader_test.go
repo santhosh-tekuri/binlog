@@ -123,6 +123,48 @@ func TestReader_stringNull(t *testing.T) {
 	}
 }
 
+func TestUsage(t *testing.T) {
+	conn, err := Dial("tcp", "localhost:3306")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if conn.isSSLSupported() {
+		t.Log("using ssl...")
+		if err = conn.upgradeSSL(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := conn.authenticate("root", "password"); err != nil {
+		t.Fatal(err)
+	}
+	if err := conn.confirmChecksumSupport(); err != nil {
+		t.Fatal(err)
+	}
+	if err := conn.requestBinlog(10, "binlog.000002", 4); err != nil {
+		t.Fatal(err)
+	}
+	for {
+		t.Log("-------------------------")
+		e, err := conn.nextEvent()
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("%#v", e)
+		if re, ok := e.(*rowsEvent); ok {
+			for {
+				row, err := re.nextRow()
+				if err != nil {
+					if err == io.EOF {
+						break
+					}
+					t.Fatal(err)
+				}
+				t.Log("        ", row)
+			}
+		}
+	}
+}
+
 func TestHandshakeV10(t *testing.T) {
 	conn, err := net.Dial("tcp", "localhost:3306")
 	if err != nil {
@@ -139,7 +181,7 @@ func TestHandshakeV10(t *testing.T) {
 	if hs.capabilityFlags&CLIENT_SSL != 0 {
 		t.Log("using ssl...")
 		w := newWriter(conn, &seq)
-		w.writeClose(sslRequest{
+		err = w.writeClose(sslRequest{
 			capabilityFlags: CLIENT_LONG_FLAG | CLIENT_SECURE_CONNECTION,
 			maxPacketSize:   maxPacketSize,
 			characterSet:    hs.characterSet,
@@ -182,6 +224,10 @@ func TestHandshakeV10(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// todo: fetch binlog checksum
+	// https://github.com/shyiko/mysql-binlog-connector-java/blob/dd710a5466381faa57442977b24fceff56a0820e/src/main/java/com/github/shyiko/mysql/binlog/BinaryLogClient.java#L943
+
+	// confirm checksum support
 	seq = 0
 	w = newWriter(conn, &seq)
 	w.query("set @master_binlog_checksum = @@global.binlog_checksum")
@@ -259,8 +305,9 @@ func TestHandshakeV10(t *testing.T) {
 				t.Fatal(err)
 			}
 			t.Logf("%#v", re)
+			re.reader = r
 			for {
-				row, err := re.nextRow(r)
+				row, err := re.nextRow()
 				if err != nil {
 					if err == io.EOF {
 						break

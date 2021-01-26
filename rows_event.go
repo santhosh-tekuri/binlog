@@ -13,6 +13,8 @@ type rowsEvent struct {
 	present    []bitmap
 	colOrdinal [][]int
 	numRow     uint64
+
+	reader *reader
 }
 
 func (e *rowsEvent) parse(r *reader, fde *formatDescriptionEvent, eventType uint8, tme *tableMapEvent) error {
@@ -57,7 +59,8 @@ func (e *rowsEvent) parse(r *reader, fde *formatDescriptionEvent, eventType uint
 	return r.err
 }
 
-func (e *rowsEvent) nextRow(r *reader) ([][]interface{}, error) {
+func (e *rowsEvent) nextRow() ([][]interface{}, error) {
+	r := e.reader
 	if !r.more() {
 		if r.err != nil {
 			return nil, r.err
