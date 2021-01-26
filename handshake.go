@@ -19,22 +19,21 @@ const (
 // https://dev.mysql.com/doc/internals/en/connection-phase-packets.html
 
 type handshakeV10 struct {
-	protocolVersion     uint8
-	serverVersion       string
-	connectionID        uint32
-	authPluginDataPart1 []byte
-	capabilityFlags     uint32
-	characterSet        uint8
-	statusFlags         uint16
-	authPluginDataPart2 []byte
-	authPluginName      string
+	protocolVersion uint8
+	serverVersion   string
+	connectionID    uint32
+	authPluginData  []byte
+	capabilityFlags uint32
+	characterSet    uint8
+	statusFlags     uint16
+	authPluginName  string
 }
 
 func (e *handshakeV10) parse(r *reader) error {
 	e.protocolVersion = r.int1()
 	e.serverVersion = r.stringNull()
 	e.connectionID = r.int4()
-	e.authPluginDataPart1 = r.bytes(8)
+	e.authPluginData = r.bytes(8)
 	r.skip(1) // filler
 	e.capabilityFlags = uint32(r.int2())
 	if !r.more() {
@@ -63,7 +62,7 @@ func (e *handshakeV10) parse(r *reader) error {
 		} else {
 			authPluginDataLength = 13
 		}
-		e.authPluginDataPart2 = r.bytes(int(authPluginDataLength))
+		e.authPluginData = append(e.authPluginData, r.bytes(int(authPluginDataLength))...)
 	}
 	if e.capabilityFlags&CLIENT_PLUGIN_AUTH != 0 {
 		e.authPluginName = r.stringNull()

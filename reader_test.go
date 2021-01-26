@@ -141,7 +141,7 @@ func TestHandshakeV10(t *testing.T) {
 		maxPacketSize:   maxPacketSize,
 		characterSet:    hs.characterSet,
 		username:        "root",
-		authResponse:    encryptedPasswd("password", append(hs.authPluginDataPart1, hs.authPluginDataPart2...)),
+		authResponse:    encryptedPasswd("password", hs.authPluginData),
 		database:        "",
 		authPluginName:  "",
 		connectAttrs:    nil,
