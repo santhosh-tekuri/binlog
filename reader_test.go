@@ -232,7 +232,7 @@ func TestHandshakeV10(t *testing.T) {
 			t.Logf("%#v", fde)
 		case ROTATE_EVENT:
 			re := rotateEvent{}
-			if err := re.parse(r); err != nil {
+			if err := re.parse(r, &fde); err != nil {
 				t.Fatal(err)
 			}
 			t.Logf("%#v", re)

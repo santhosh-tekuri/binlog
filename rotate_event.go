@@ -24,15 +24,17 @@ func (e *formatDescriptionEvent) postHeaderLength(typ uint8, def int) int {
 	return def
 }
 
-// rotateEvent ---
+// https://dev.mysql.com/doc/internals/en/rotate-event.html
 
 type rotateEvent struct {
 	position   uint64
 	nextBinlog string
 }
 
-func (e *rotateEvent) parse(r *reader) error {
-	e.position = r.int8()
+func (e *rotateEvent) parse(r *reader, fde *formatDescriptionEvent) error {
+	if fde.binlogVersion > 1 {
+		e.position = r.int8()
+	}
 	e.nextBinlog = r.stringEOF()
 	return r.err
 }
