@@ -166,7 +166,7 @@ func TestHandshakeV10(t *testing.T) {
 		t.Logf("%#v", ep)
 		t.Fatal(ep.errorMessage)
 	}
-	if err := r.Close(); err != nil {
+	if err := r.drain(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -174,7 +174,7 @@ func TestHandshakeV10(t *testing.T) {
 	w = newWriter(conn, &seq)
 	w.query("set @master_binlog_checksum = @@global.binlog_checksum")
 	r = newReader(conn, &seq)
-	if err := r.Close(); err != nil {
+	if err := r.drain(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -261,7 +261,7 @@ func TestHandshakeV10(t *testing.T) {
 				fmt.Println("        ", row)
 			}
 		}
-		if err := r.Close(); err != nil {
+		if err := r.drain(); err != nil {
 			t.Fatal(h.eventType, err)
 		}
 	}

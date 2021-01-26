@@ -311,7 +311,7 @@ func (r *reader) stringEOF() string {
 	return string(r.bytesEOFInternal())
 }
 
-func (r *reader) Close() error {
+func (r *reader) drain() error {
 	for {
 		r.r = r.w
 		r.err = r.fill()
