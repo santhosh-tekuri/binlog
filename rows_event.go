@@ -5,13 +5,14 @@ import (
 )
 
 type rowsEvent struct {
-	eventType uint8
-	tme       *tableMapEvent
-	tableID   uint64
-	flags     uint16
-	numCol    uint64
-	present   []bitmap
-	numRow    uint64
+	eventType  uint8
+	tme        *tableMapEvent
+	tableID    uint64
+	flags      uint16
+	numCol     uint64
+	present    []bitmap
+	colOrdinal [][]int
+	numRow     uint64
 }
 
 func (e *rowsEvent) parse(r *reader, fde *formatDescriptionEvent, eventType uint8, tme *tableMapEvent) error {
@@ -34,12 +35,25 @@ func (e *rowsEvent) parse(r *reader, fde *formatDescriptionEvent, eventType uint
 	if r.err != nil {
 		return r.err
 	}
+
 	e.present = make([]bitmap, 2)
+	e.colOrdinal = make([][]int, 2)
 	e.present[0] = r.bytes(bitmapSize(e.numCol))
+	for i := 0; i < int(e.numCol); i++ {
+		if e.present[0].isTrue(i) {
+			e.colOrdinal[0] = append(e.colOrdinal[0], i)
+		}
+	}
 	switch eventType {
 	case UPDATE_ROWS_EVENTv1, UPDATE_ROWS_EVENTv2:
 		e.present[1] = r.bytes(bitmapSize(e.numCol))
+		for i := 0; i < int(e.numCol); i++ {
+			if e.present[1].isTrue(i) {
+				e.colOrdinal[1] = append(e.colOrdinal[1], i)
+			}
+		}
 	}
+
 	return r.err
 }
 
