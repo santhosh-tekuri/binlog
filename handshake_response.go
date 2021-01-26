@@ -85,22 +85,18 @@ func (e handshakeResponse41) writeTo(w *writer) error {
 
 // https://dev.mysql.com/doc/internals/en/secure-password-authentication.html
 // SHA1( password ) XOR SHA1( "20-bytes random data from server" <concat> SHA1( SHA1( password ) ) )
-func encryptedPasswd(password string, scramble []byte) (out []byte) {
+func encryptedPasswd(password, scramble []byte) []byte {
 	hash := sha1.New()
-	hash.Write([]byte(password))
-	sha1Pwd := hash.Sum(nil)
-
-	hash.Reset()
-	hash.Write(sha1Pwd)
-	sha1sha1Pwd := hash.Sum(nil)
-
-	hash.Reset()
-	hash.Write(scramble[:20])
-	hash.Write(sha1sha1Pwd)
-	sha1Scramble := hash.Sum(nil)
-
-	for i, b := range sha1Scramble {
-		sha1Pwd[i] ^= b
+	sha1 := func(b []byte) []byte {
+		hash.Reset()
+		hash.Write(b)
+		return hash.Sum(nil)
 	}
-	return sha1Pwd
+
+	x := sha1(password)
+	y := sha1(append(scramble[:20], sha1(sha1(password))...))
+	for i, b := range y {
+		x[i] ^= b
+	}
+	return x
 }
