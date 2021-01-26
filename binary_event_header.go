@@ -1,5 +1,8 @@
 package binlog
 
+// https://dev.mysql.com/doc/internals/en/binlog-event-type.html
+// https://dev.mysql.com/doc/internals/en/event-meanings.html
+
 const (
 	UNKNOWN_EVENT            = 0x00
 	START_EVENT_V3           = 0x01
@@ -38,6 +41,8 @@ const (
 	ANONYMOUS_GTID_EVENT     = 0x22
 	PREVIOUS_GTIDS_EVENT     = 0x23
 )
+
+// https://dev.mysql.com/doc/internals/en/binlog-event-header.html
 
 type binaryEventHeader struct {
 	timestamp uint32
