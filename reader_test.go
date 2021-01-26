@@ -2,6 +2,7 @@ package binlog
 
 import (
 	"bytes"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -135,6 +136,22 @@ func TestHandshakeV10(t *testing.T) {
 	}
 	t.Logf("%#v\n", hs)
 	t.Log("ssl supported:", hs.capabilityFlags&CLIENT_SSL)
+	if hs.capabilityFlags&CLIENT_SSL != 0 {
+		t.Log("using ssl...")
+		w := newWriter(conn, &seq)
+		req := sslRequest{
+			capabilityFlags: CLIENT_LONG_FLAG | CLIENT_SECURE_CONNECTION,
+			maxPacketSize:   maxPacketSize,
+			characterSet:    hs.characterSet,
+		}
+		if err := req.writeTo(w); err != nil {
+			t.Fatal(err)
+		}
+		if err := w.Close(); err != nil {
+			t.Fatal(err)
+		}
+		conn = tls.Client(conn, &tls.Config{InsecureSkipVerify: true})
+	}
 
 	w := newWriter(conn, &seq)
 	resp := handshakeResponse41{
