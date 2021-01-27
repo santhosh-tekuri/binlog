@@ -24,7 +24,9 @@ type reader struct {
 	off   int    // read at &buf[off], write at &buf[len(buf)]
 	limit int
 
+	// context for unmarshallers
 	fde formatDescriptionEvent
+	tme tableMapEvent
 }
 
 func (r *reader) Read(p []byte) (int, error) {

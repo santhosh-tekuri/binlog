@@ -6,7 +6,7 @@ import (
 
 type rowsEvent struct {
 	eventType  uint8
-	tme        *tableMapEvent
+	tme        tableMapEvent
 	tableID    uint64
 	flags      uint16
 	numCol     uint64
@@ -17,9 +17,9 @@ type rowsEvent struct {
 	reader *reader
 }
 
-func (e *rowsEvent) parse(r *reader, fde *formatDescriptionEvent, eventType uint8, tme *tableMapEvent) error {
-	e.eventType, e.tme = eventType, tme
-	if fde.postHeaderLength(eventType, 8) == 6 {
+func (e *rowsEvent) parse(r *reader, eventType uint8) error {
+	e.eventType, e.tme = eventType, r.tme
+	if r.fde.postHeaderLength(eventType, 8) == 6 {
 		e.tableID = uint64(r.int4())
 	} else {
 		e.tableID = r.int6()

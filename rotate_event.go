@@ -40,8 +40,8 @@ type rotateEvent struct {
 	nextBinlog string
 }
 
-func (e *rotateEvent) parse(r *reader, fde *formatDescriptionEvent) error {
-	if fde.binlogVersion > 1 {
+func (e *rotateEvent) parse(r *reader) error {
+	if r.fde.binlogVersion > 1 {
 		e.position = r.int8()
 	}
 	e.nextBinlog = r.stringEOF()

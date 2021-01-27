@@ -11,8 +11,6 @@ type conn struct {
 	conn net.Conn
 	seq  uint8
 	hs   handshake
-	fde  formatDescriptionEvent
-	tme  tableMapEvent
 
 	// binlog related
 	binlogReader *reader
@@ -32,16 +30,10 @@ func Dial(network, address string) (*conn, error) {
 		netconn.Close()
 		return nil, err
 	}
-	sv, err := newServerVersion(hs.serverVersion)
-	if err != nil {
-		netconn.Close()
-		return nil, err
-	}
 	return &conn{
 		conn: netconn,
 		seq:  seq,
 		hs:   hs,
-		fde:  formatDescriptionEvent{binlogVersion: sv.binlogVersion()},
 	}, nil
 }
 
@@ -94,6 +86,8 @@ func (c *conn) authenticate(username, password string) error {
 	return r.drain()
 }
 
+// todo: fetch binlog checksum
+
 func (c *conn) confirmChecksumSupport() error {
 	c.seq = 0
 	w := newWriter(c.conn, &c.seq)
@@ -126,6 +120,11 @@ func (c *conn) nextEvent() (interface{}, error) {
 	r := c.binlogReader
 	if r == nil {
 		r = newReader(c.conn, &c.seq)
+		sv, err := newServerVersion(c.hs.serverVersion)
+		if err != nil {
+			return nil, err
+		}
+		r.fde = formatDescriptionEvent{binlogVersion: sv.binlogVersion()}
 		c.binlogReader = r
 	} else {
 		r.limit = -1
@@ -134,7 +133,6 @@ func (c *conn) nextEvent() (interface{}, error) {
 		}
 		r.rd = &packetReader{rd: c.conn, seq: &c.seq}
 	}
-	r.fde = c.fde
 
 	// Check first byte.
 	b, err := r.peek()
@@ -162,7 +160,7 @@ func (c *conn) nextEvent() (interface{}, error) {
 	fmt.Printf("%#v\n", h)
 
 	headerSize := uint32(13)
-	if c.fde.binlogVersion > 1 {
+	if r.fde.binlogVersion > 1 {
 		headerSize = 19
 	}
 	r.limit = int(h.eventSize-headerSize) - 4 // checksum = 4
@@ -171,26 +169,26 @@ func (c *conn) nextEvent() (interface{}, error) {
 	// Read event body
 	switch h.eventType {
 	case FORMAT_DESCRIPTION_EVENT:
-		c.fde = formatDescriptionEvent{}
-		err := c.fde.parse(r)
-		return c.fde, err
+		r.fde = formatDescriptionEvent{}
+		err := r.fde.parse(r)
+		return r.fde, err
 	case ROTATE_EVENT:
 		re := rotateEvent{}
-		err := re.parse(r, &c.fde)
+		err := re.parse(r)
 		if err != nil {
 			c.binlogFile, c.binlogPos = re.nextBinlog, uint32(re.position)
 		}
 		return re, err
 	case TABLE_MAP_EVENT:
-		c.tme = tableMapEvent{}
-		err := c.tme.parse(r)
-		return c.tme, err
+		r.tme = tableMapEvent{}
+		err := r.tme.parse(r)
+		return r.tme, err
 	case WRITE_ROWS_EVENTv0, WRITE_ROWS_EVENTv1, WRITE_ROWS_EVENTv2,
 		UPDATE_ROWS_EVENTv0, UPDATE_ROWS_EVENTv1, UPDATE_ROWS_EVENTv2,
 		DELETE_ROWS_EVENTv0, DELETE_ROWS_EVENTv1, DELETE_ROWS_EVENTv2:
 		re := rowsEvent{}
 		re.reader = r
-		err := re.parse(r, &c.fde, h.eventType, &c.tme)
+		err := re.parse(r, h.eventType)
 		return &re, err
 	default:
 		return c.nextEvent()
