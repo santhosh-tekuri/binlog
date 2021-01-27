@@ -133,7 +133,7 @@ func (r *reader) more() bool {
 		return false
 	}
 	r.err = err
-	return false
+	return r.err == nil
 }
 
 func (r *reader) peek() (byte, error) {
