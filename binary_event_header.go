@@ -58,10 +58,9 @@ func (h *binaryEventHeader) parse(r *reader) error {
 	h.eventType = r.int1()
 	h.serverID = r.int4()
 	h.eventSize = r.int4()
-	r.limit = int(h.eventSize-13) - r.checksum
-	//if r.binlogVersion > 1 {
-	h.logPos = r.int4()
-	h.flags = r.int2()
-	//}
+	if r.fde.binlogVersion > 1 {
+		h.logPos = r.int4()
+		h.flags = r.int2()
+	}
 	return r.err
 }

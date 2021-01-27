@@ -131,8 +131,7 @@ func (c *conn) nextEvent() (interface{}, error) {
 	}
 	r := newReader(c.conn, &c.seq)
 	c.lastReader = r
-	r.binlogVersion = c.fde.binlogVersion
-	r.checksum = 4
+	r.fde = c.fde
 
 	// Check first byte.
 	b, err := r.peek()
@@ -159,12 +158,11 @@ func (c *conn) nextEvent() (interface{}, error) {
 	}
 	fmt.Printf("%#v\n", h)
 
-	//headerSize := uint32(13)
-	//if c.fde.binlogVersion > 1 {
-	//	headerSize = 19
-	//}
-	//fmt.Println("headersize", headerSize, h.eventSize)
-	//r.limit = int(h.eventSize - headerSize) // checksum = 4
+	headerSize := uint32(13)
+	if c.fde.binlogVersion > 1 {
+		headerSize = 19
+	}
+	r.limit = int(h.eventSize-headerSize) - 4 // checksum = 4
 
 	c.binlogPos = h.logPos
 	// Read event body

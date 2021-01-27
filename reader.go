@@ -24,8 +24,7 @@ type reader struct {
 	off   int    // read at &buf[off], write at &buf[len(buf)]
 	limit int
 
-	binlogVersion uint16
-	checksum      int
+	fde formatDescriptionEvent
 }
 
 func (r *reader) Read(p []byte) (int, error) {
