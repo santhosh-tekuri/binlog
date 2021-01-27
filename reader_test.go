@@ -162,6 +162,33 @@ func TestUsage(t *testing.T) {
 	}
 }
 
+func TestFileUsage(t *testing.T) {
+	conn, err := Open("/Users/santhosh/go/src/binlog/binlog.000003")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for {
+		t.Log("-------------------------")
+		e, err := conn.nextEvent()
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("%#v", e)
+		if re, ok := e.(*rowsEvent); ok {
+			for {
+				row, err := re.nextRow()
+				if err != nil {
+					if err == io.EOF {
+						break
+					}
+					t.Fatal(err)
+				}
+				t.Log("        ", row)
+			}
+		}
+	}
+}
+
 // Helpers ---
 
 func newPacket(size int, seq byte) (packet, payload []byte) {
