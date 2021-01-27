@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
+	"strings"
 )
 
 type binlogFile struct {
@@ -16,9 +18,19 @@ type binlogFile struct {
 	binlogPos    uint32
 }
 
-// https://dev.mysql.com/doc/internals/en/determining-binary-log-version.html
+// todo: https://dev.mysql.com/doc/internals/en/determining-binary-log-version.html
 
 func Open(file string) (*binlogFile, error) {
+	f, err := openBinlogFile(file)
+	if err != nil {
+		return nil, err
+	}
+	return &binlogFile{
+		conn: f,
+	}, nil
+}
+
+func openBinlogFile(file string) (*os.File, error) {
 	f, err := os.Open(file)
 	if err != nil {
 		return nil, err
@@ -31,9 +43,7 @@ func Open(file string) (*binlogFile, error) {
 	if !bytes.Equal(header, []byte{0xfe, 'b', 'i', 'n'}) {
 		return nil, fmt.Errorf("binlog.Open: %s has invalid fileheader", file)
 	}
-	return &binlogFile{
-		conn: f,
-	}, nil
+	return f, nil
 }
 
 func (c *binlogFile) nextEvent() (interface{}, error) {
@@ -53,6 +63,28 @@ func (c *binlogFile) nextEvent() (interface{}, error) {
 		}
 		r.limit = -1
 		fmt.Println("drained")
+	}
+
+	if !r.more() {
+		name := r.rd.(*os.File).Name()
+		dot := strings.LastIndexByte(name, '.')
+		if dot != -1 {
+			suffix := name[dot+1:]
+			for len(suffix) > 1 && suffix[0] == '0' {
+				suffix = suffix[1:]
+			}
+			i, err := strconv.Atoi(suffix)
+			if err == nil {
+				nextFile := fmt.Sprintf("%s%06d", name[:dot+1], i+1)
+				f, err := openBinlogFile(nextFile)
+				if err == nil {
+					fmt.Println("******************>>>>>>>>", nextFile)
+					r.rd.(*os.File).Close()
+					r.rd = f
+					c.binlogFile, c.binlogPos = nextFile, 4 // magic header = 4
+				}
+			}
+		}
 	}
 
 	// Read event header
