@@ -15,9 +15,9 @@ type conn struct {
 	tme  tableMapEvent
 
 	// binlog related
-	lastReader *reader
-	binlogFile string
-	binlogPos  uint32
+	binlogReader *reader
+	binlogFile   string
+	binlogPos    uint32
 }
 
 func Dial(network, address string) (*conn, error) {
@@ -123,14 +123,17 @@ func (c *conn) nextLocation() (filename string, position uint32) {
 }
 
 func (c *conn) nextEvent() (interface{}, error) {
-	if c.lastReader != nil {
-		c.lastReader.limit = -1
-		if err := c.lastReader.drain(); err != nil {
+	r := c.binlogReader
+	if r == nil {
+		r = newReader(c.conn, &c.seq)
+		c.binlogReader = r
+	} else {
+		r.limit = -1
+		if err := r.drain(); err != nil {
 			return nil, fmt.Errorf("binlog.nextEvent: error in draining event: %v", err)
 		}
+		r.rd = &packetReader{rd: c.conn, seq: &c.seq}
 	}
-	r := newReader(c.conn, &c.seq)
-	c.lastReader = r
 	r.fde = c.fde
 
 	// Check first byte.
