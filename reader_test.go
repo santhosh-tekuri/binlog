@@ -253,7 +253,7 @@ func TestHandshakeV10(t *testing.T) {
 	for {
 		t.Log("------------------------", seq)
 		r = newReader(conn, &seq)
-		r.checksum = 4
+		//r.checksum = 4
 
 		b, err := r.peek()
 		if err != nil {

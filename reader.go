@@ -10,202 +10,207 @@ const (
 	maxPacketSize = 1<<24 - 1
 )
 
-type reader struct {
-	rd       io.Reader
-	buf      []byte
-	r, w     int
-	payload  int    // payload to be read, initially 0
-	seq      *uint8 // sequence of packet
-	last     bool   // is last packet
-	header   []byte
-	checksum int
-	ww       int
-	err      error
-}
-
 func newReader(r io.Reader, seq *uint8) *reader {
 	return &reader{
-		rd:     r,
-		buf:    make([]byte, headerSize+maxPacketSize),
-		header: make([]byte, headerSize),
-		seq:    seq,
+		rd:    &packetReader{rd: r, seq: seq},
+		limit: -1,
 	}
 }
 
-func (r *reader) readHeader() (int, error) {
-	n, err := io.ReadAtLeast(r.rd, r.header, headerSize)
-	if n < headerSize {
-		if err == io.EOF {
-			err = io.ErrUnexpectedEOF
+type reader struct {
+	rd    io.Reader
+	err   error
+	buf   []byte // contents are the bytes buf[off:]
+	off   int    // read at &buf[off], write at &buf[len(buf)]
+	limit int
+
+	binlogVersion uint16
+	checksum      int
+}
+
+func (r *reader) Read(p []byte) (int, error) {
+	if len(r.buffer()) == 0 {
+		if err := r.readMore(); err != nil {
+			return 0, err
 		}
-		return n, err
 	}
-	r.payload = int(uint32(r.header[0]) | uint32(r.header[1])<<8 | uint32(r.header[2])<<16)
-	*r.seq = r.header[3] + 1
-	if r.payload < maxPacketSize {
-		r.last = true
-	}
-	return n, err
+	n := copy(p, r.buffer())
+	r.skip(n)
+	return n, nil
 }
 
-// fill returns nil, if at least one byte of payload is read.
-func (r *reader) fill() error {
+func (r *reader) readMore() error {
 	if r.err != nil {
 		return r.err
 	}
-	if r.checksum > 0 {
-		r.w = r.ww
-		defer func() {
-			r.ww = r.w
-			r.w -= r.checksum
-			if r.w < r.r {
-				r.w = r.r
-			}
-		}()
-	}
-	if r.payload == 0 {
-		if r.last {
-			return io.EOF
-		}
-		// Slide existing data to beginning.
-		if r.r > 0 {
-			copy(r.buf, r.buf[r.r:r.w])
-			r.w -= r.r
-			r.r = 0
-		}
-		// Not enough space anywhere, we need to allocate.
-		if r.w == len(r.buf) {
-			buf := makeSlice(len(r.buf) + 1<<20)
-			copy(buf, r.buf[r.r:r.w])
-			r.buf = buf
-		}
-		// Read header.
-		n, err := r.readHeader()
-		if n < headerSize {
-			return err
-		}
-	}
-	if r.payload == 0 && r.last {
+	if r.limit >= 0 && len(r.buf)-r.off >= r.limit {
 		return io.EOF
 	}
-	available := len(r.buf) - r.w
-	if available > r.payload {
-		available = r.payload
-	}
-	n, err := r.rd.Read(r.buf[r.w : r.w+available])
-	r.payload -= n
-	r.w += n
-	if n == 0 && err != nil {
-		if err == io.EOF {
-			return io.ErrUnexpectedEOF
+	if len(r.buf) == cap(r.buf) {
+		if r.off > 0 {
+			copy(r.buf, r.buf[r.off:])
+			r.buf = r.buf[0 : len(r.buf)-r.off]
+			r.off = 0
+		} else {
+			buf := make([]byte, cap(r.buf)+1<<20)
+			copy(buf, r.buf[r.off:])
+			r.buf = buf[:len(r.buf)-r.off]
+			r.off = 0
 		}
-		return err
 	}
-	return nil
+	n, err := r.rd.Read(r.buf[len(r.buf):cap(r.buf)])
+	r.buf = r.buf[:len(r.buf)+n]
+	if err == io.EOF {
+		return io.EOF
+	}
+	r.err = err
+	return r.err
+}
+
+func (r *reader) buffer() []byte {
+	buf := r.buf[r.off:]
+	if r.limit >= 0 {
+		return buf[:r.limit]
+	}
+	return buf
 }
 
 func (r *reader) ensure(n int) error {
-	if r.err != nil {
+	if r.limit >= 0 && n > r.limit {
+		r.err = io.ErrUnexpectedEOF
 		return r.err
 	}
-	for n > r.w-r.r {
-		if r.err = r.fill(); r.err != nil {
-			if r.err == io.EOF {
-				r.err = io.ErrUnexpectedEOF
-			}
-			return r.err
+	for r.err == nil && n > len(r.buffer()) {
+		if r.readMore() == io.EOF {
+			r.err = io.ErrUnexpectedEOF
+			break
 		}
 	}
-	return nil
-}
-
-// public methods ---
-
-func (r *reader) more() bool {
-	if r.err != nil {
-		return false
-	}
-	if r.w-r.r > 0 || r.payload > 0 {
-		return true
-	}
-	err := r.fill()
-	if err == io.EOF {
-		return false
-	}
-	r.err = err
-	return r.err == nil
+	return r.err
 }
 
 func (r *reader) peek() (byte, error) {
 	if err := r.ensure(1); err != nil {
 		return 0, err
 	}
-	return r.buf[r.r], nil
+	return r.buffer()[0], nil
 }
 
-func (r *reader) Read(p []byte) (int, error) {
-	if err := r.ensure(1); err != nil {
-		return 0, err
+func (r *reader) skip(n int) error {
+	if r.err != nil {
+		return r.err
 	}
-	n := copy(p, r.buf[r.r:r.w])
-	r.r += n
-	return n, nil
+	if r.limit >= 0 && n > r.limit {
+		r.err = io.ErrUnexpectedEOF
+		return r.err
+	}
+	for n > 0 {
+		if len(r.buffer()) == 0 {
+			if r.readMore() == io.EOF {
+				r.err = io.ErrUnexpectedEOF
+			}
+			if r.err != nil {
+				return r.err
+			}
+		}
+		m := n
+		if m > len(r.buffer()) {
+			m = len(r.buffer())
+		}
+		r.off += m
+		n -= m
+		if r.limit >= 0 {
+			r.limit -= m
+		}
+	}
+	return nil
 }
+
+func (r *reader) drain() error {
+	if r.err == io.ErrUnexpectedEOF {
+		r.err = nil
+	}
+	for r.err == nil {
+		r.skip(len(r.buffer()))
+		if r.readMore() == io.EOF {
+			return nil
+		}
+	}
+	return r.err
+}
+
+func (r *reader) more() bool {
+	if r.err != nil {
+		return false
+	}
+	if len(r.buffer()) > 0 || r.limit > 0 {
+		return true
+	}
+
+	return r.readMore() == nil
+}
+
+// int ---
 
 func (r *reader) int1() byte {
 	if err := r.ensure(1); err != nil {
 		return 0
 	}
-	b := r.buf[r.r]
-	r.r++
-	return b
+	v := r.buffer()[0]
+	r.skip(1)
+	return v
 }
 
 func (r *reader) int2() uint16 {
 	if err := r.ensure(2); err != nil {
 		return 0
 	}
-	buf := r.buf[r.r:]
-	r.r += 2
-	return uint16(buf[0]) | uint16(buf[1])<<8
+	buf := r.buffer()
+	v := uint16(buf[0]) | uint16(buf[1])<<8
+	r.skip(2)
+	return v
 }
 
 func (r *reader) int3() uint32 {
 	if err := r.ensure(3); err != nil {
 		return 0
 	}
-	buf := r.buf[r.r:]
-	r.r += 3
-	return uint32(buf[0]) | uint32(buf[1])<<8 | uint32(buf[2])<<16
+	buf := r.buffer()
+	v := uint32(buf[0]) | uint32(buf[1])<<8 | uint32(buf[2])<<16
+	r.skip(3)
+	return v
 }
 
 func (r *reader) int4() uint32 {
 	if err := r.ensure(4); err != nil {
 		return 0
 	}
-	buf := r.buf[r.r:]
-	r.r += 4
-	return uint32(buf[0]) | uint32(buf[1])<<8 | uint32(buf[2])<<16 | uint32(buf[3])<<24
+	buf := r.buffer()
+	v := uint32(buf[0]) | uint32(buf[1])<<8 | uint32(buf[2])<<16 | uint32(buf[3])<<24
+	r.skip(4)
+	return v
 }
 
 func (r *reader) int6() uint64 {
 	if err := r.ensure(6); err != nil {
 		return 0
 	}
-	buf := r.buf[r.r:]
-	r.r += 6
-	return uint64(buf[0]) | uint64(buf[1])<<8 | uint64(buf[2])<<16 |
+	buf := r.buffer()
+	v := uint64(buf[0]) | uint64(buf[1])<<8 | uint64(buf[2])<<16 |
 		uint64(buf[3])<<24 | uint64(buf[4])<<32 | uint64(buf[5])<<40
+	r.skip(6)
+	return v
 }
 
 func (r *reader) int8() uint64 {
 	if err := r.ensure(8); err != nil {
 		return 0
 	}
-	buf := r.buf[r.r:]
-	r.r += 8
-	return uint64(buf[0]) | uint64(buf[1])<<8 | uint64(buf[2])<<16 | uint64(buf[3])<<24 |
+	buf := r.buffer()
+	v := uint64(buf[0]) | uint64(buf[1])<<8 | uint64(buf[2])<<16 | uint64(buf[3])<<24 |
 		uint64(buf[4])<<32 | uint64(buf[5])<<40 | uint64(buf[6])<<48 | uint64(buf[7])<<56
+	r.skip(8)
+	return v
 }
 
 func (r *reader) intN() uint64 {
@@ -225,37 +230,23 @@ func (r *reader) intN() uint64 {
 	}
 }
 
-func (r *reader) bytes(len int) []byte {
+// bytes, strings ---
+
+func (r *reader) bytesInternal(len int) []byte {
 	if err := r.ensure(len); err != nil {
 		return nil
 	}
-	buf := r.buf[r.r : r.r+len]
-	r.r += len
-	return append([]byte(nil), buf...)
+	v := r.buffer()[:len]
+	r.skip(len)
+	return v
+}
+
+func (r *reader) bytes(len int) []byte {
+	return append([]byte(nil), r.bytesInternal(len)...)
 }
 
 func (r *reader) string(len int) string {
-	if err := r.ensure(len); err != nil {
-		return ""
-	}
-	buf := r.buf[r.r : r.r+len]
-	r.r += len
-	return string(buf)
-}
-
-func (r *reader) stringN() string {
-	l := r.intN()
-	if r.err != nil {
-		return ""
-	}
-	return r.string(int(l))
-}
-
-func (r *reader) skip(n int) {
-	if r.ensure(n) != nil {
-		return
-	}
-	r.r += n
+	return string(r.bytesInternal(len))
 }
 
 // todo: unit test loop more than one iter
@@ -265,18 +256,18 @@ func (r *reader) bytesNullInternal() []byte {
 	}
 	i := 0
 	for {
-		if r.r+i >= r.w {
-			if err := r.fill(); err != nil {
+		if i == len(r.buffer()) {
+			if r.readMore() != nil {
 				return nil
 			}
 		}
-		j := bytes.IndexByte(r.buf[r.r+i:r.w], 0)
+		j := bytes.IndexByte(r.buffer()[i:], 0)
 		if j != -1 {
-			v := r.buf[r.r : r.r+i+j]
-			r.r += i + j + 1
+			v := r.buffer()[:i+j]
+			r.skip(i + j + 1)
 			return v
 		}
-		i = r.w - r.r
+		i = len(r.buffer())
 	}
 }
 
@@ -290,16 +281,14 @@ func (r *reader) stringNull() string {
 
 func (r *reader) bytesEOFInternal() []byte {
 	for {
-		if r.err == io.EOF {
-			r.err = nil
-			v := r.buf[r.r:r.w]
-			r.r = r.w
-			return v
-		}
 		if r.err != nil {
 			return nil
 		}
-		r.err = r.fill()
+		if r.readMore() == io.EOF {
+			v := r.buffer()
+			r.skip(len(v))
+			return v
+		}
 	}
 }
 
@@ -311,26 +300,10 @@ func (r *reader) stringEOF() string {
 	return string(r.bytesEOFInternal())
 }
 
-func (r *reader) drain() error {
-	for {
-		r.r = r.w
-		r.err = r.fill()
-		if r.err == io.EOF {
-			r.err = nil
-			return nil
-		}
-		if r.err != nil {
-			return r.err
-		}
+func (r *reader) stringN() string {
+	l := r.intN()
+	if r.err != nil {
+		return ""
 	}
-}
-
-func makeSlice(n int) []byte {
-	// If the make fails, give a known error.
-	defer func() {
-		if recover() != nil {
-			panic("binlog.reader: too large")
-		}
-	}()
-	return make([]byte, n)
+	return r.string(int(l))
 }

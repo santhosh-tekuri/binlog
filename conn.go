@@ -32,10 +32,16 @@ func Dial(network, address string) (*conn, error) {
 		netconn.Close()
 		return nil, err
 	}
+	sv, err := newServerVersion(hs.serverVersion)
+	if err != nil {
+		netconn.Close()
+		return nil, err
+	}
 	return &conn{
 		conn: netconn,
 		seq:  seq,
 		hs:   hs,
+		fde:  formatDescriptionEvent{binlogVersion: sv.binlogVersion()},
 	}, nil
 }
 
@@ -118,12 +124,14 @@ func (c *conn) nextLocation() (filename string, position uint32) {
 
 func (c *conn) nextEvent() (interface{}, error) {
 	if c.lastReader != nil {
+		c.lastReader.limit = -1
 		if err := c.lastReader.drain(); err != nil {
 			return nil, fmt.Errorf("binlog.nextEvent: error in draining event: %v", err)
 		}
 	}
 	r := newReader(c.conn, &c.seq)
 	c.lastReader = r
+	r.binlogVersion = c.fde.binlogVersion
 	r.checksum = 4
 
 	// Check first byte.
@@ -150,6 +158,13 @@ func (c *conn) nextEvent() (interface{}, error) {
 		return nil, err
 	}
 	fmt.Printf("%#v\n", h)
+
+	//headerSize := uint32(13)
+	//if c.fde.binlogVersion > 1 {
+	//	headerSize = 19
+	//}
+	//fmt.Println("headersize", headerSize, h.eventSize)
+	//r.limit = int(h.eventSize - headerSize) // checksum = 4
 
 	c.binlogPos = h.logPos
 	// Read event body

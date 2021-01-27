@@ -1,5 +1,11 @@
 package binlog
 
+import (
+	"strings"
+)
+
+// https://dev.mysql.com/doc/internals/en/format-description-event.html
+
 type formatDescriptionEvent struct {
 	binlogVersion          uint16
 	serverVersion          string
@@ -11,6 +17,9 @@ type formatDescriptionEvent struct {
 func (e *formatDescriptionEvent) parse(r *reader) error {
 	e.binlogVersion = r.int2()
 	e.serverVersion = r.string(50)
+	if i := strings.IndexByte(e.serverVersion, 0); i != -1 {
+		e.serverVersion = e.serverVersion[:i]
+	}
 	e.createTimestamp = r.int4()
 	e.eventHeaderLength = r.int1()
 	e.eventTypeHeaderLengths = r.bytesEOF()
