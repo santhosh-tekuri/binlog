@@ -70,7 +70,7 @@ func (r *reader) readMore() error {
 
 func (r *reader) buffer() []byte {
 	buf := r.buf[r.off:]
-	if r.limit >= 0 {
+	if r.limit >= 0 && len(buf) > r.limit {
 		return buf[:r.limit]
 	}
 	return buf
