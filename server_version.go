@@ -9,6 +9,12 @@ import (
 type serverVersion []int
 
 func newServerVersion(s string) (serverVersion, error) {
+	if i := strings.IndexByte(s, '-'); i != -1 {
+		s = s[:i]
+	}
+	if i := strings.IndexByte(s, '+'); i != -1 {
+		s = s[:i]
+	}
 	var sv serverVersion
 	for _, v := range strings.Split(s, ".") {
 		n, err := strconv.Atoi(v)
