@@ -127,11 +127,12 @@ func (c *conn) nextEvent() (interface{}, error) {
 		r.fde = formatDescriptionEvent{binlogVersion: sv.binlogVersion()}
 		c.binlogReader = r
 	} else {
-		r.limit = -1
+		r.limit += 4
 		if err := r.drain(); err != nil {
 			return nil, fmt.Errorf("binlog.nextEvent: error in draining event: %v", err)
 		}
 		r.rd = &packetReader{rd: c.conn, seq: &c.seq}
+		r.limit = -1
 	}
 
 	// Check first byte.

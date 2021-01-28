@@ -163,7 +163,7 @@ func TestUsage(t *testing.T) {
 }
 
 func TestFileUsage(t *testing.T) {
-	conn, err := Open("/Users/santhosh/go/src/binlog/binlog.000003")
+	conn, err := Open("/Users/santhosh/go/src/binlog/binlog.000002")
 	if err != nil {
 		t.Fatal(err)
 	}

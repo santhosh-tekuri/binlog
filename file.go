@@ -91,13 +91,11 @@ func (c *binlogFile) nextEvent() (interface{}, error) {
 		r.fde = formatDescriptionEvent{binlogVersion: v}
 		c.binlogReader = r
 	} else {
-		fmt.Println("draining")
 		r.limit += 4
 		if err := r.drain(); err != nil {
 			return nil, fmt.Errorf("binlog.nextEvent: error in draining event: %v", err)
 		}
 		r.limit = -1
-		fmt.Println("drained")
 	}
 
 	if !r.more() {
