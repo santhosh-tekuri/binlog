@@ -81,14 +81,15 @@ func (e *rowsEvent) nextRow() ([][]interface{}, error) {
 			return nil, r.err
 		}
 		var values []interface{}
-		for i := 0; i < int(e.numCol); i++ {
+		for i, skipped := 0, 0; i < int(e.numCol); i++ {
 			if !e.present[m].isTrue(i) {
+				skipped++
 				continue
 			}
-			if bitmap(nullValue).isTrue(i) {
+			if bitmap(nullValue).isTrue(i - skipped) {
 				values = append(values, nil)
 			} else {
-				v, err := parseValue(r, e.tme.columnTypes[i], e.tme.columnMeta[i])
+				v, err := parseValue(r, e.tme.columnTypes[i], e.tme.columnMeta[i-skipped])
 				if err != nil {
 					return row, err
 				}
