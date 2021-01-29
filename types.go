@@ -1,6 +1,7 @@
 package binlog
 
 import (
+	"encoding/binary"
 	"fmt"
 	"math"
 	"time"
@@ -59,7 +60,16 @@ func parseValue(r *reader, typ byte, meta []byte) (interface{}, error) {
 	case MYSQL_TYPE_DOUBLE:
 		return math.Float64frombits(r.int8()), r.err
 	case MYSQL_TYPE_VARCHAR:
-		return r.stringN(), r.err // todo: check length >256
+		var len int
+		if binary.LittleEndian.Uint16(meta) < 256 {
+			len = int(r.int1())
+		} else {
+			len = int(r.int2())
+		}
+		return r.string(len), r.err
+	case MYSQL_TYPE_BLOB:
+		len := r.intFixed(int(meta[0]))
+		return r.bytes(int(len)), r.err
 	case MYSQL_TYPE_DATETIME2:
 		b := r.bytesInternal(5)
 		if r.err != nil {

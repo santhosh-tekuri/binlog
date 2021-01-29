@@ -214,6 +214,18 @@ func (r *reader) int8() uint64 {
 	return v
 }
 
+func (r *reader) intFixed(n int) uint64 {
+	if err := r.ensure(n); err != nil {
+		return 0
+	}
+	buf := r.buffer()[:n]
+	var v uint64
+	for i, b := range buf {
+		v |= uint64(b) << (uint(i) * 8)
+	}
+	return v
+}
+
 func (r *reader) intN() uint64 {
 	b := r.int1()
 	if r.err != nil {
