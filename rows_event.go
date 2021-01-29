@@ -4,6 +4,8 @@ import (
 	"io"
 )
 
+// https://dev.mysql.com/doc/internals/en/rows-event.html
+
 type rowsEvent struct {
 	eventType  uint8
 	tme        tableMapEvent

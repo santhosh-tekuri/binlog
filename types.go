@@ -27,6 +27,7 @@ const (
 	MYSQL_TYPE_TIMESTAMP2  = 0x11
 	MYSQL_TYPE_DATETIME2   = 0x12
 	MYSQL_TYPE_TIME2       = 0x13
+	MYSQL_TYPE_JSON        = 0xf5
 	MYSQL_TYPE_NEWDECIMAL  = 0xf6
 	MYSQL_TYPE_ENUM        = 0xf7
 	MYSQL_TYPE_SET         = 0xf8
@@ -113,5 +114,5 @@ func parseValue(r *reader, typ byte) (interface{}, error) {
 		}
 		return d, r.err
 	}
-	return nil, fmt.Errorf("unmarshal of mysql type %0x is not implemented", typ)
+	return nil, fmt.Errorf("unmarshal of mysql typed 0x%x is not implemented", typ)
 }
