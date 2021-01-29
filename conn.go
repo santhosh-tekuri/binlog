@@ -78,7 +78,7 @@ func (c *conn) authenticate(username, password string) error {
 	}
 	if marker == errMarker {
 		ep := errPacket{}
-		if err := ep.parse(r, &c.hs); err != nil {
+		if err := ep.parse(r, c.hs.capabilityFlags); err != nil {
 			return err
 		}
 		return errors.New(ep.errorMessage)
@@ -145,7 +145,7 @@ func (c *conn) nextEvent() (interface{}, error) {
 		r.int1()
 	case errMarker:
 		ep := errPacket{}
-		if err := ep.parse(r, &c.hs); err != nil {
+		if err := ep.parse(r, c.hs.capabilityFlags); err != nil {
 			return nil, err
 		}
 		return nil, errors.New(ep.errorMessage)

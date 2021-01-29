@@ -14,7 +14,7 @@ type errPacket struct {
 	errorMessage   string
 }
 
-func (e *errPacket) parse(r *reader, hs *handshake) error {
+func (e *errPacket) parse(r *reader, capabilities uint32) error {
 	header := r.int1()
 	if r.err != nil {
 		return r.err
@@ -24,23 +24,10 @@ func (e *errPacket) parse(r *reader, hs *handshake) error {
 	}
 	e.errorCode = r.int2()
 
-	if hs.capabilityFlags&CLIENT_PROTOCOL_41 != 0 {
+	if capabilities&CLIENT_PROTOCOL_41 != 0 {
 		e.sqlStateMarker = r.string(1)
 		e.sqlState = r.string(5)
 	}
 	e.errorMessage = r.stringEOF()
 	return r.err
-}
-
-func checkError(r *reader, hs *handshake) (*errPacket, error) {
-	marker, err := r.peek()
-	if err != nil {
-		return nil, err
-	}
-	if marker != errMarker {
-		return nil, err
-	}
-	ep := &errPacket{}
-	err = ep.parse(r, hs)
-	return ep, err
 }
