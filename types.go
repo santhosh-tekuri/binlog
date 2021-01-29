@@ -97,12 +97,35 @@ func parseValue(r *reader, typ byte, meta []byte) (interface{}, error) {
 			case 1, 2:
 				frac = int(b[0]) * 10000
 			case 3, 4:
-				frac = int(uint16(b[1]) | uint16(b[0])<<8)
+				frac = int(uint16(b[1])|uint16(b[0])<<8) * 100
 			case 5, 6:
 				frac = int(uint16(b[2]) | uint16(b[1])<<8 | uint16(b[0])<<16)
 			}
 		}
 		return time.Date(year, time.Month(month), day, hour, minute, second, frac*1000, time.UTC), r.err
+	case MYSQL_TYPE_TIMESTAMP2:
+		b := r.bytesInternal(4)
+		if r.err != nil {
+			return nil, r.err
+		}
+		sec := binary.BigEndian.Uint32(b)
+
+		frac := int64(0)
+		if dec := int(meta[0]+1) / 2; dec > 0 {
+			b := r.bytesInternal(dec)
+			if r.err != nil {
+				return nil, r.err
+			}
+			switch dec {
+			case 1, 2:
+				frac = int64(b[0]) * 10000
+			case 3, 4:
+				frac = int64(uint16(b[1])|uint16(b[0])<<8) * 100
+			case 5, 6:
+				frac = int64(uint16(b[2]) | uint16(b[1])<<8 | uint16(b[0])<<16)
+			}
+		}
+		return time.Unix(int64(sec), frac*1000), r.err
 	}
 	return nil, fmt.Errorf("unmarshal of mysql type 0x%x is not implemented", typ)
 }
