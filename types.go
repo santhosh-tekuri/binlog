@@ -42,77 +42,57 @@ const (
 
 // https://dev.mysql.com/doc/internals/en/binary-protocol-value.html
 // todo: test with table with all types, especially negative numbers
-func parseValue(r *reader, typ byte) (interface{}, error) {
+func parseValue(r *reader, typ byte, meta []byte) (interface{}, error) {
 	switch typ {
-	case MYSQL_TYPE_STRING, MYSQL_TYPE_VARCHAR, MYSQL_TYPE_VAR_STRING,
-		MYSQL_TYPE_ENUM, MYSQL_TYPE_SET,
-		MYSQL_TYPE_LONG_BLOB, MYSQL_TYPE_MEDIUM_BLOB, MYSQL_TYPE_BLOB, MYSQL_TYPE_TINY_BLOB,
-		MYSQL_TYPE_GEOMETRY, MYSQL_TYPE_BIT, MYSQL_TYPE_DECIMAL, MYSQL_TYPE_NEWDECIMAL:
-		return r.stringN(), r.err
-	case MYSQL_TYPE_LONGLONG:
-		return r.int8(), r.err
-	case MYSQL_TYPE_LONG, MYSQL_TYPE_INT24:
-		return r.int4(), r.err
-	case MYSQL_TYPE_SHORT, MYSQL_TYPE_YEAR:
-		return r.int2(), r.err
 	case MYSQL_TYPE_TINY:
 		return r.int1(), r.err
-	case MYSQL_TYPE_DOUBLE:
-		return math.Float64frombits(r.int8()), r.err
+	case MYSQL_TYPE_SHORT:
+		return r.int2(), r.err
+	case MYSQL_TYPE_INT24:
+		return r.int3(), r.err
+	case MYSQL_TYPE_LONG:
+		return r.int4(), r.err
+	case MYSQL_TYPE_LONGLONG:
+		return r.int8(), r.err
 	case MYSQL_TYPE_FLOAT:
 		return math.Float32frombits(r.int4()), r.err
-	case MYSQL_TYPE_DATE, MYSQL_TYPE_DATETIME, MYSQL_TYPE_TIMESTAMP:
-		l := r.int1()
+	case MYSQL_TYPE_DOUBLE:
+		return math.Float64frombits(r.int8()), r.err
+	case MYSQL_TYPE_VARCHAR:
+		return r.stringN(), r.err // todo: check length >256
+	case MYSQL_TYPE_DATETIME2:
+		b := r.bytesInternal(5)
 		if r.err != nil {
 			return nil, r.err
 		}
-		var year uint16
-		var month, day, hour, minute, second uint8
-		var microsecond uint32
-		if l >= 4 {
-			year = r.int2()
-			month = r.int1()
-			day = r.int1()
+		datetime := uint64(b[4]) | uint64(b[3])<<8 | uint64(b[2])<<16 | uint64(b[1])<<24 | uint64(b[0])<<32
+		slice := func(off, len int) int {
+			v := datetime >> (40 - (off + len))
+			return int(v & ((1 << len) - 1))
 		}
-		if l >= 7 {
-			hour = r.int1()
-			minute = r.int1()
-			second = r.int1()
-		}
-		if l == 11 {
-			microsecond = r.int4()
-		}
-		return time.Date(
-			int(year), time.Month(month), int(day),
-			int(hour), int(minute), int(second),
-			int(microsecond*1000), time.Local), r.err
-	case MYSQL_TYPE_TIME:
-		l := r.int1()
-		if r.err != nil {
-			return nil, r.err
-		}
-		var isNegative, hours, minutes, seconds uint8
-		var days, microseconds uint32
-		if l >= 8 {
-			isNegative = r.int1()
-			days = r.int4()
-			hours = r.int1()
-			minutes = r.int1()
-			seconds = r.int1()
-		}
-		if l == 12 {
-			microseconds = r.int4()
-		}
+		yearMonth := slice(1, 17)
+		year, month := yearMonth/13, yearMonth%13
+		day := slice(18, 5)
+		hour := slice(23, 5)
+		minute := slice(28, 6)
+		second := slice(34, 6)
 
-		d := time.Duration(days)*24*time.Hour +
-			time.Duration(hours)*time.Hour +
-			time.Duration(minutes)*time.Minute +
-			time.Duration(seconds)*time.Second +
-			time.Duration(microseconds)*time.Microsecond
-		if isNegative == 1 {
-			d = -d
+		frac := 0
+		if dec := int(meta[0]+1) / 2; dec > 0 {
+			b := r.bytesInternal(dec)
+			if r.err != nil {
+				return nil, r.err
+			}
+			switch dec {
+			case 1, 2:
+				frac = int(b[0]) * 10000
+			case 3, 4:
+				frac = int(uint16(b[1]) | uint16(b[0])<<8)
+			case 5, 6:
+				frac = int(uint16(b[2]) | uint16(b[1])<<8 | uint16(b[0])<<16)
+			}
 		}
-		return d, r.err
+		return time.Date(year, time.Month(month), day, hour, minute, second, frac*1000, time.UTC), r.err
 	}
-	return nil, fmt.Errorf("unmarshal of mysql typed 0x%x is not implemented", typ)
+	return nil, fmt.Errorf("unmarshal of mysql type 0x%x is not implemented", typ)
 }

@@ -88,7 +88,7 @@ func (e *rowsEvent) nextRow() ([][]interface{}, error) {
 			if bitmap(nullValue).isTrue(i) {
 				values = append(values, nil)
 			} else {
-				v, err := parseValue(r, e.tme.columnTypes[i])
+				v, err := parseValue(r, e.tme.columnTypes[i], e.tme.columnMeta[i])
 				if err != nil {
 					return row, err
 				}
