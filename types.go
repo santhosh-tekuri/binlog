@@ -87,20 +87,9 @@ func parseValue(r *reader, typ byte, meta []byte) (interface{}, error) {
 		minute := slice(28, 6)
 		second := slice(34, 6)
 
-		frac := 0
-		if dec := int(meta[0]+1) / 2; dec > 0 {
-			b := r.bytesInternal(dec)
-			if r.err != nil {
-				return nil, r.err
-			}
-			switch dec {
-			case 1, 2:
-				frac = int(b[0]) * 10000
-			case 3, 4:
-				frac = int(uint16(b[1])|uint16(b[0])<<8) * 100
-			case 5, 6:
-				frac = int(uint16(b[2]) | uint16(b[1])<<8 | uint16(b[0])<<16)
-			}
+		frac, err := fractionalSeconds(meta[0], r)
+		if err != nil {
+			return nil, err
 		}
 		return time.Date(year, time.Month(month), day, hour, minute, second, frac*1000, time.UTC), r.err
 	case MYSQL_TYPE_TIMESTAMP2:
@@ -110,22 +99,57 @@ func parseValue(r *reader, typ byte, meta []byte) (interface{}, error) {
 		}
 		sec := binary.BigEndian.Uint32(b)
 
-		frac := int64(0)
-		if dec := int(meta[0]+1) / 2; dec > 0 {
-			b := r.bytesInternal(dec)
-			if r.err != nil {
-				return nil, r.err
-			}
-			switch dec {
-			case 1, 2:
-				frac = int64(b[0]) * 10000
-			case 3, 4:
-				frac = int64(uint16(b[1])|uint16(b[0])<<8) * 100
-			case 5, 6:
-				frac = int64(uint16(b[2]) | uint16(b[1])<<8 | uint16(b[0])<<16)
-			}
+		frac, err := fractionalSeconds(meta[0], r)
+		if err != nil {
+			return nil, err
 		}
-		return time.Unix(int64(sec), frac*1000), r.err
+		return time.Unix(int64(sec), int64(frac)*1000), r.err
+	case MYSQL_TYPE_TIME2:
+		b := r.bytesInternal(3)
+		if r.err != nil {
+			return nil, r.err
+		}
+		t := uint64(b[2]) | uint64(b[1])<<8 | uint64(b[0])<<16
+		slice := func(off, len int) int {
+			v := t >> (24 - (off + len))
+			return int(v & ((1 << len) - 1))
+		}
+		sign := slice(1, 1)
+		hour := slice(2, 10)
+		min := slice(12, 6)
+		sec := slice(18, 6)
+		frac, err := fractionalSeconds(meta[0], r)
+		if err != nil {
+			return nil, err
+		}
+		v := time.Duration(hour)*time.Hour +
+			time.Duration(min)*time.Minute +
+			time.Duration(sec)*time.Second +
+			time.Duration(frac)*time.Microsecond
+		if sign == 1 {
+			v = -v
+		}
+		return v, r.err
 	}
 	return nil, fmt.Errorf("unmarshal of mysql type 0x%x is not implemented", typ)
+}
+
+func fractionalSeconds(meta byte, r *reader) (int, error) {
+	dec := int(meta+1) / 2
+	if dec == 0 {
+		return 0, nil
+	}
+	b := r.bytesInternal(dec)
+	if r.err != nil {
+		return 0, r.err
+	}
+	switch dec {
+	case 1, 2:
+		return int(b[0]) * 10000, nil
+	case 3, 4:
+		return int(uint16(b[1])|uint16(b[0])<<8) * 100, nil
+	case 5, 6:
+		return int(uint32(b[2]) | uint32(b[1])<<8 | uint32(b[0])<<16), nil
+	}
+	return 0, fmt.Errorf("binlog.fractionalSeconds: meta=%d must be less than 6", meta)
 }
