@@ -76,7 +76,7 @@ func (e *rowsEvent) nextRow() ([][]interface{}, error) {
 		n = 2
 	}
 	for m := 0; m < n; m++ {
-		nullValue := r.bytes(bitmapSize(e.numCol))
+		nullValue := bitmap(r.bytes(bitmapSize(e.numCol)))
 		if r.err != nil {
 			return nil, r.err
 		}
@@ -86,10 +86,10 @@ func (e *rowsEvent) nextRow() ([][]interface{}, error) {
 				skipped++
 				continue
 			}
-			if bitmap(nullValue).isTrue(i - skipped) {
+			if nullValue.isTrue(i - skipped) {
 				values = append(values, nil)
 			} else {
-				v, err := parseValue(r, e.tme.columnTypes[i], e.tme.columnMeta[i-skipped])
+				v, err := parseValue(r, e.tme.columnTypes[i], e.tme.columnMeta[i])
 				if err != nil {
 					return row, err
 				}
