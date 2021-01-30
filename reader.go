@@ -25,8 +25,10 @@ type reader struct {
 	limit int
 
 	// context for unmarshallers
-	fde formatDescriptionEvent
-	tme tableMapEvent
+	binlogFile string
+	binlogPos  uint32
+	fde        formatDescriptionEvent
+	tme        tableMapEvent
 }
 
 func (r *reader) Read(p []byte) (int, error) {
