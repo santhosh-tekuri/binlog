@@ -84,7 +84,9 @@ func nextEvent(r *reader) (interface{}, error) {
 	case IGNORABLE_EVENT:
 		return ignorableEvent{}, nil
 	case ROWS_QUERY_EVENT:
-		return rowsQueryEvent{}, nil
+		rqe := rowsQueryEvent{}
+		err := rqe.parse(r)
+		return rqe, err
 	default:
 		fmt.Printf("%#v\n", h)
 		return nil, nil

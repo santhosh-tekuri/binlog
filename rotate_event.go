@@ -72,4 +72,3 @@ type appendBlockEvent struct{}
 type incidentEvent struct{}
 type heartbeatEvent struct{}
 type ignorableEvent struct{}
-type rowsQueryEvent struct{}
