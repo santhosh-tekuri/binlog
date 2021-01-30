@@ -24,6 +24,8 @@ func nextEvent(r *reader) (interface{}, error) {
 		r.fde = formatDescriptionEvent{}
 		err := r.fde.parse(r)
 		return r.fde, err
+	case STOP_EVENT:
+		return stopEvent{}, nil
 	case ROTATE_EVENT:
 		re := rotateEvent{}
 		err := re.parse(r)
@@ -39,8 +41,8 @@ func nextEvent(r *reader) (interface{}, error) {
 		UPDATE_ROWS_EVENTv0, UPDATE_ROWS_EVENTv1, UPDATE_ROWS_EVENTv2,
 		DELETE_ROWS_EVENTv0, DELETE_ROWS_EVENTv1, DELETE_ROWS_EVENTv2:
 		re := rowsEvent{}
-		re.reader = r
 		err := re.parse(r, h.eventType)
+		re.reader = r
 		return &re, err
 	default:
 		return nil, nil

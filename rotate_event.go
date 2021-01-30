@@ -47,3 +47,7 @@ func (e *rotateEvent) parse(r *reader) error {
 	e.nextBinlog = r.stringEOF()
 	return r.err
 }
+
+// https://dev.mysql.com/doc/internals/en/stop-event.html
+
+type stopEvent struct{}
