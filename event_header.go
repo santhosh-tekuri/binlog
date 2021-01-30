@@ -44,7 +44,7 @@ const (
 
 // https://dev.mysql.com/doc/internals/en/binlog-event-header.html
 
-type binaryEventHeader struct {
+type eventHeader struct {
 	timestamp uint32
 	eventType uint8
 	serverID  uint32
@@ -53,7 +53,7 @@ type binaryEventHeader struct {
 	flags     uint16
 }
 
-func (h *binaryEventHeader) parse(r *reader) error {
+func (h *eventHeader) parse(r *reader) error {
 	h.timestamp = r.int4()
 	h.eventType = r.int1()
 	h.serverID = r.int4()

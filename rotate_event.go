@@ -51,3 +51,25 @@ func (e *rotateEvent) parse(r *reader) error {
 // https://dev.mysql.com/doc/internals/en/stop-event.html
 
 type stopEvent struct{}
+type previousGTIDsEvent struct{}
+type anonymousGTIDEvent struct{}
+type queryEvent struct{}
+type xidEvent struct{}
+type gtidEvent struct{}
+type unknownEvent struct{}
+type intVarEvent struct{}
+type loadEvent struct{}
+type slaveEvent struct{}
+type createFileEvent struct{}
+type deleteFileEvent struct{}
+type beginLoadQueryEvent struct{}
+type executeLoadQueryEvent struct{}
+type randEvent struct{}
+type userVarEvent struct{}
+type newLoadEvent struct{}
+type execLoadEvent struct{}
+type appendBlockEvent struct{}
+type incidentEvent struct{}
+type heartbeatEvent struct{}
+type ignorableEvent struct{}
+type rowsQueryEvent struct{}

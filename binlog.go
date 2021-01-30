@@ -1,15 +1,12 @@
 package binlog
 
-import (
-	"fmt"
-)
+import "fmt"
 
 func nextEvent(r *reader) (interface{}, error) {
-	h := binaryEventHeader{}
+	h := eventHeader{}
 	if err := h.parse(r); err != nil {
 		return nil, err
 	}
-	fmt.Printf("%#v\n", h)
 
 	headerSize := uint32(13)
 	if r.fde.binlogVersion > 1 {
@@ -44,7 +41,52 @@ func nextEvent(r *reader) (interface{}, error) {
 		err := re.parse(r, h.eventType)
 		re.reader = r
 		return &re, err
+	case PREVIOUS_GTIDS_EVENT:
+		return previousGTIDsEvent{}, nil
+	case ANONYMOUS_GTID_EVENT:
+		return anonymousGTIDEvent{}, nil
+	case QUERY_EVENT:
+		return queryEvent{}, nil
+	case XID_EVENT:
+		return xidEvent{}, nil
+	case GTID_EVENT:
+		return gtidEvent{}, nil
+	case UNKNOWN_EVENT:
+		return unknownEvent{}, nil
+	case INTVAR_EVENT:
+		return intVarEvent{}, nil
+	case LOAD_EVENT:
+		return loadEvent{}, nil
+	case SLAVE_EVENT:
+		return slaveEvent{}, nil
+	case CREATE_FILE_EVENT:
+		return createFileEvent{}, nil
+	case DELETE_FILE_EVENT:
+		return deleteFileEvent{}, nil
+	case BEGIN_LOAD_QUERY_EVENT:
+		return beginLoadQueryEvent{}, nil
+	case EXECUTE_LOAD_QUERY_EVENT:
+		return executeLoadQueryEvent{}, nil
+	case RAND_EVENT:
+		return randEvent{}, nil
+	case USER_VAR_EVENT:
+		return userVarEvent{}, nil
+	case NEW_LOAD_EVENT:
+		return newLoadEvent{}, nil
+	case EXEC_LOAD_EVENT:
+		return execLoadEvent{}, nil
+	case APPEND_BLOCK_EVENT:
+		return appendBlockEvent{}, nil
+	case INCIDENT_EVENT:
+		return incidentEvent{}, nil
+	case HEARTBEAT_EVENT:
+		return heartbeatEvent{}, nil
+	case IGNORABLE_EVENT:
+		return ignorableEvent{}, nil
+	case ROWS_QUERY_EVENT:
+		return rowsQueryEvent{}, nil
 	default:
+		fmt.Printf("%#v\n", h)
 		return nil, nil
 	}
 }
