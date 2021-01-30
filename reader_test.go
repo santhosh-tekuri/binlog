@@ -162,6 +162,31 @@ func TestUsage(t *testing.T) {
 	}
 }
 
+func TestDump(t *testing.T) {
+	conn, err := Dial("tcp", "localhost:3306")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if conn.isSSLSupported() {
+		t.Log("using ssl...")
+		if err = conn.upgradeSSL(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := conn.authenticate("root", "password"); err != nil {
+		t.Fatal(err)
+	}
+	if err := conn.confirmChecksumSupport(); err != nil {
+		t.Fatal(err)
+	}
+	if err := conn.requestBinlog(10, "binlog.000001", 4); err != nil {
+		t.Fatal(err)
+	}
+	if err := conn.dump("/Users/santhosh/go/src/binlog/dump"); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestFileUsage(t *testing.T) {
 	conn, err := Open("/Users/santhosh/go/src/binlog/binlog.000002")
 	if err != nil {

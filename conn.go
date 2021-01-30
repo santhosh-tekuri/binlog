@@ -2,9 +2,14 @@ package binlog
 
 import (
 	"crypto/tls"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net"
+	"os"
+	"path"
 )
 
 type conn struct {
@@ -119,15 +124,23 @@ func (c *conn) nextLocation() (filename string, position uint32) {
 	return c.binlogReader.binlogFile, c.binlogReader.binlogPos
 }
 
+func (c *conn) binlogVersion() (uint16, error) {
+	sv, err := newServerVersion(c.hs.serverVersion)
+	if err != nil {
+		return 0, err
+	}
+	return sv.binlogVersion(), nil
+}
+
 func (c *conn) nextEvent() (interface{}, error) {
 	r := c.binlogReader
 	if r == nil {
 		r = newReader(c.conn, &c.seq)
-		sv, err := newServerVersion(c.hs.serverVersion)
+		v, err := c.binlogVersion()
 		if err != nil {
 			return nil, err
 		}
-		r.fde = formatDescriptionEvent{binlogVersion: sv.binlogVersion()}
+		r.fde = formatDescriptionEvent{binlogVersion: v}
 		c.binlogReader = r
 	} else {
 		r.limit += 4
@@ -161,6 +174,68 @@ func (c *conn) nextEvent() (interface{}, error) {
 		return c.nextEvent()
 	}
 	return e, err
+}
+
+func (c *conn) dump(dir string) error {
+	v, err := c.binlogVersion()
+	if err != nil {
+		return err
+	}
+	buf := make([]byte, 14)
+	var f *os.File
+	defer func() {
+		if f != nil {
+			f.Close()
+		}
+	}()
+	for {
+		fmt.Println("--------------------------------")
+		r := &packetReader{rd: c.conn, seq: &c.seq}
+		_, err := io.ReadFull(r, buf)
+		if err != nil {
+			return err
+		}
+		if buf[0] != okMarker {
+			return fmt.Errorf("binlogStream: got %0x want OK-byte", buf[0])
+		}
+		// timestamp = buf[1:5]
+		eventType := buf[5]
+		// serverID = buf[6:10]
+		eventSize := binary.LittleEndian.Uint32(buf[10:])
+		fmt.Printf("eventType: 0x%02x eventSize: 0x%02x\n", eventType, eventSize)
+		switch eventType {
+		case ROTATE_EVENT:
+			lr := io.LimitReader(r, int64(eventSize-13)) // checksum
+			buf, err := ioutil.ReadAll(lr)
+			if err != nil {
+				return err
+			}
+			if v > 1 {
+				buf = buf[4+2+8 : len(buf)-4] // logPos, flags, position and exclude checksum
+			}
+			if f != nil {
+				if err := f.Close(); err != nil {
+					return err
+				}
+			}
+			fmt.Println("creating file", string(buf))
+			f, err = os.Create(path.Join(dir, string(buf)))
+			if err != nil {
+				return err
+			}
+			if _, err := f.Write([]byte{0xfe, 'b', 'i', 'n'}); err != nil {
+				return err
+			}
+		default:
+			lr := io.LimitReader(r, int64(eventSize-13)) // checksum
+			if _, err := f.Write(buf[1:]); err != nil {
+				return err
+			}
+			if _, err := io.Copy(f, lr); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 func (c *conn) Close() error {
