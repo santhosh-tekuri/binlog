@@ -17,6 +17,8 @@ const (
 	CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA = 0x00200000
 	CLIENT_CONNECT_ATTRS                  = 0x00100000
 	CLIENT_PROTOCOL_41                    = 0x00000200
+	CLIENT_TRANSACTIONS                   = 0x00002000
+	CLIENT_SESSION_TRACK                  = 0x00800000
 )
 
 // https://dev.mysql.com/doc/internals/en/connection-phase-packets.html
