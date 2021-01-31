@@ -28,10 +28,12 @@ func nextEvent(r *reader) (Event, error) {
 		if err != nil {
 			r.binlogFile, r.binlogPos = re.nextBinlog, uint32(re.position)
 		}
+		r.tmeCache = make(map[uint64]*tableMapEvent)
 		return Event{h, re}, err
 	case TABLE_MAP_EVENT:
-		r.tme = tableMapEvent{}
-		err := r.tme.parse(r)
+		tme := tableMapEvent{}
+		err := tme.parse(r)
+		r.tmeCache[tme.tableID] = &tme
 		return Event{h, r.tme}, err
 	case WRITE_ROWS_EVENTv0, WRITE_ROWS_EVENTv1, WRITE_ROWS_EVENTv2,
 		UPDATE_ROWS_EVENTv0, UPDATE_ROWS_EVENTv1, UPDATE_ROWS_EVENTv2,

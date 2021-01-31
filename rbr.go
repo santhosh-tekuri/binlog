@@ -1,6 +1,7 @@
 package binlog
 
 import (
+	"fmt"
 	"io"
 )
 
@@ -9,8 +10,8 @@ import (
 type tableMapEvent struct {
 	tableID           uint64
 	flags             uint16
-	schemaName        string
-	tableName         string
+	SchemaName        string
+	TableName         string
 	numCol            uint64
 	columnTypes       []byte
 	columnMeta        [][]byte
@@ -25,9 +26,9 @@ func (e *tableMapEvent) parse(r *reader) error {
 	e.tableID = r.int6()
 	e.flags = r.int2()
 	_ = r.int1() // schema name length
-	e.schemaName = r.stringNull()
+	e.SchemaName = r.stringNull()
 	_ = r.int1() // table name length
-	e.tableName = r.stringNull()
+	e.TableName = r.stringNull()
 	e.numCol = r.intN()
 	if r.err != nil {
 		return r.err
@@ -81,6 +82,7 @@ func (e *tableMapEvent) parse(r *reader) error {
 type RowsEvent struct {
 	eventType  EventType
 	tableID    uint64
+	tme        *tableMapEvent
 	flags      uint16
 	numCol     uint64
 	present    []bitmap
@@ -94,6 +96,17 @@ func (e *RowsEvent) parse(r *reader, eventType EventType) error {
 	} else {
 		e.tableID = r.int6()
 	}
+	if e.tableID == 0x00ffffff {
+		// dummy RowsEvent
+		r.tme = nil
+	} else {
+		var ok bool
+		if e.tme, ok = r.tmeCache[e.tableID]; !ok {
+			return fmt.Errorf("no tableMapEvent for tableID %d", e.tableID)
+		}
+		r.tme = e.tme
+	}
+
 	e.flags = r.int2()
 	switch eventType {
 	case WRITE_ROWS_EVENTv2, UPDATE_ROWS_EVENTv2, DELETE_ROWS_EVENTv2: // version==2
@@ -106,6 +119,10 @@ func (e *RowsEvent) parse(r *reader, eventType EventType) error {
 	e.numCol = r.intN()
 	if r.err != nil {
 		return r.err
+	}
+	if e.numCol == 0 {
+		// dummy RowsEvent
+		r.tme = nil
 	}
 
 	e.present = make([]bitmap, 2)
@@ -130,6 +147,10 @@ func (e *RowsEvent) parse(r *reader, eventType EventType) error {
 }
 
 func nextRow(r *reader) ([][]interface{}, error) {
+	if r.tme == nil {
+		// dummy RowsEvent
+		return nil, io.EOF
+	}
 	if !r.more() {
 		if r.err != nil {
 			return nil, r.err

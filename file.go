@@ -2,12 +2,11 @@ package binlog
 
 import (
 	"fmt"
-	"io"
 	"os"
 )
 
 type Dir struct {
-	conn io.Reader
+	conn *filesReader
 
 	binlogReader *reader
 	binlogFile   string
@@ -35,8 +34,9 @@ func (c *Dir) NextEvent() (Event, error) {
 			return Event{}, err
 		}
 		r = &reader{
-			rd:    c.conn,
-			limit: -1,
+			rd:       c.conn,
+			tmeCache: c.conn.tmeCache,
+			limit:    -1,
 		}
 		r.fde = formatDescriptionEvent{binlogVersion: v}
 		c.binlogReader = r

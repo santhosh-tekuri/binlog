@@ -12,8 +12,9 @@ import (
 )
 
 type filesReader struct {
-	file *os.File
-	path *string
+	file     *os.File
+	path     *string
+	tmeCache map[uint64]*tableMapEvent
 }
 
 func newFilesReader(file *string) (*filesReader, error) {
@@ -24,7 +25,7 @@ func newFilesReader(file *string) (*filesReader, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &filesReader{f, file}, nil
+	return &filesReader{f, file, make(map[uint64]*tableMapEvent)}, nil
 }
 
 func (r *filesReader) Read(p []byte) (int, error) {
@@ -51,6 +52,9 @@ func (r *filesReader) Read(p []byte) (int, error) {
 			_ = r.file.Close()
 			r.file = f
 			*r.path = next
+			for k, _ := range r.tmeCache {
+				delete(r.tmeCache, k)
+			}
 			fmt.Println("*********************", next)
 		} else if os.IsNotExist(err) {
 			time.Sleep(1000)
