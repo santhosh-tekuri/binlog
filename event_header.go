@@ -43,6 +43,7 @@ const (
 )
 
 // https://dev.mysql.com/doc/internals/en/binlog-event-header.html
+// https://dev.mysql.com/doc/internals/en/event-header-fields.html
 
 type eventHeader struct {
 	timestamp uint32

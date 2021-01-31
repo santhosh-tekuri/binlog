@@ -128,6 +128,7 @@ func fetchLastLocation(dir string) (file string, pos uint32, err error) {
 
 	buf := make([]byte, 13)
 	for {
+		fmt.Println("pos", pos)
 		_, err = io.ReadFull(f, buf)
 		if err == io.EOF {
 			err = nil

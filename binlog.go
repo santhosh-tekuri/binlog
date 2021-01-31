@@ -7,14 +7,16 @@ func nextEvent(r *reader) (interface{}, error) {
 	if err := h.parse(r); err != nil {
 		return nil, err
 	}
-
+	fmt.Printf("%#v\n", h)
 	headerSize := uint32(13)
 	if r.fde.binlogVersion > 1 {
 		headerSize = 19
 	}
 	r.limit = int(h.eventSize-headerSize) - 4 // checksum = 4
 
-	r.binlogPos = h.logPos
+	if h.logPos != 0 {
+		r.binlogPos = h.logPos
+	}
 	// Read event body
 	switch h.eventType {
 	case FORMAT_DESCRIPTION_EVENT:
