@@ -145,9 +145,9 @@ func TestUsage(t *testing.T) {
 		}
 		t.Logf("%#v", e.Header)
 		t.Logf("%#v", e.Data)
-		if re, ok := e.Data.(RowsEvent); ok {
+		if _, ok := e.Data.(RowsEvent); ok {
 			for {
-				row, err := re.NextRow()
+				row, err := conn.NextRow()
 				if err != nil {
 					if err == io.EOF {
 						break
@@ -208,9 +208,9 @@ func TestFileUsage(t *testing.T) {
 		}
 		t.Log(conn.binlogFile, conn.binlogReader.binlogPos)
 		t.Logf("%#v", e)
-		if re, ok := e.Data.(RowsEvent); ok {
+		if _, ok := e.Data.(RowsEvent); ok {
 			for {
-				row, err := re.NextRow()
+				row, err := conn.NextRow()
 				if err != nil {
 					if err == io.EOF {
 						break

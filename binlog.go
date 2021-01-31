@@ -36,10 +36,9 @@ func nextEvent(r *reader) (Event, error) {
 	case WRITE_ROWS_EVENTv0, WRITE_ROWS_EVENTv1, WRITE_ROWS_EVENTv2,
 		UPDATE_ROWS_EVENTv0, UPDATE_ROWS_EVENTv1, UPDATE_ROWS_EVENTv2,
 		DELETE_ROWS_EVENTv0, DELETE_ROWS_EVENTv1, DELETE_ROWS_EVENTv2:
-		re := RowsEvent{}
-		err := re.parse(r, h.EventType)
-		re.reader = r
-		return Event{h, re}, err
+		r.re = RowsEvent{}
+		err := r.re.parse(r, h.EventType)
+		return Event{h, r.re}, err
 	case PREVIOUS_GTIDS_EVENT:
 		return Event{h, previousGTIDsEvent{}}, nil
 	case ANONYMOUS_GTID_EVENT:

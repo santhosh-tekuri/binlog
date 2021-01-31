@@ -29,6 +29,7 @@ type reader struct {
 	binlogPos  uint32
 	fde        formatDescriptionEvent
 	tme        tableMapEvent
+	re         RowsEvent
 }
 
 func (r *reader) Read(p []byte) (int, error) {

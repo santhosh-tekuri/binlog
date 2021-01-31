@@ -170,6 +170,10 @@ func (c *Conn) NextEvent() (Event, error) {
 	return nextEvent(r)
 }
 
+func (c *Conn) NextRow() ([][]interface{}, error) {
+	return nextRow(c.binlogReader)
+}
+
 func (c *Conn) Close() error {
 	return c.conn.Close()
 }

@@ -80,19 +80,15 @@ func (e *tableMapEvent) parse(r *reader) error {
 
 type RowsEvent struct {
 	eventType  EventType
-	tme        tableMapEvent
 	tableID    uint64
 	flags      uint16
 	numCol     uint64
 	present    []bitmap
 	colOrdinal [][]int
-	numRow     uint64
-
-	reader *reader
 }
 
 func (e *RowsEvent) parse(r *reader, eventType EventType) error {
-	e.eventType, e.tme = eventType, r.tme
+	e.eventType = eventType
 	if r.fde.postHeaderLength(eventType, 8) == 6 {
 		e.tableID = uint64(r.int4())
 	} else {
@@ -133,8 +129,7 @@ func (e *RowsEvent) parse(r *reader, eventType EventType) error {
 	return r.err
 }
 
-func (e *RowsEvent) NextRow() ([][]interface{}, error) {
-	r := e.reader
+func nextRow(r *reader) ([][]interface{}, error) {
 	if !r.more() {
 		if r.err != nil {
 			return nil, r.err
@@ -143,25 +138,25 @@ func (e *RowsEvent) NextRow() ([][]interface{}, error) {
 	}
 	row := make([][]interface{}, 2)
 	n := 1
-	switch e.eventType {
+	switch r.re.eventType {
 	case UPDATE_ROWS_EVENTv1, UPDATE_ROWS_EVENTv2:
 		n = 2
 	}
 	for m := 0; m < n; m++ {
-		nullValue := bitmap(r.bytes(bitmapSize(e.numCol)))
+		nullValue := bitmap(r.bytes(bitmapSize(r.re.numCol)))
 		if r.err != nil {
 			return nil, r.err
 		}
 		var values []interface{}
-		for i, skipped := 0, 0; i < int(e.numCol); i++ {
-			if !e.present[m].isTrue(i) {
+		for i, skipped := 0, 0; i < int(r.re.numCol); i++ {
+			if !r.re.present[m].isTrue(i) {
 				skipped++
 				continue
 			}
 			if nullValue.isTrue(i - skipped) {
 				values = append(values, nil)
 			} else {
-				v, err := parseValue(r, e.tme.columnTypes[i], e.tme.columnMeta[i])
+				v, err := parseValue(r, r.tme.columnTypes[i], r.tme.columnMeta[i])
 				if err != nil {
 					return row, err
 				}
@@ -170,7 +165,6 @@ func (e *RowsEvent) NextRow() ([][]interface{}, error) {
 		}
 		row[m] = values
 	}
-	e.numRow++
 	return row, nil
 }
 

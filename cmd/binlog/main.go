@@ -12,6 +12,7 @@ import (
 
 type binLog interface {
 	NextEvent() (binlog.Event, error)
+	NextRow() ([][]interface{}, error)
 }
 
 // binlog view tcp:localhost:3306,ssl,user=root,passwd=password binlog.000002:4
@@ -95,9 +96,9 @@ func view(bl binLog) error {
 			panic(err)
 		}
 		fmt.Printf("%#v\n%#v\n", e.Header, e.Data)
-		if re, ok := e.Data.(binlog.RowsEvent); ok {
+		if _, ok := e.Data.(binlog.RowsEvent); ok {
 			for {
-				row, err := re.NextRow()
+				row, err := bl.NextRow()
 				if err != nil {
 					if err == io.EOF {
 						break
@@ -108,10 +109,6 @@ func view(bl binLog) error {
 			}
 		}
 	}
-}
-
-func dump(bl binLog, dir string) {
-
 }
 
 func getLocation(arg string) (file string, pos uint32) {

@@ -51,6 +51,10 @@ func (c *Dir) NextEvent() (Event, error) {
 	return nextEvent(r)
 }
 
+func (c *Dir) NextRow() ([][]interface{}, error) {
+	return nextRow(c.binlogReader)
+}
+
 // todo: https://dev.mysql.com/doc/internals/en/determining-binary-log-version.html
 func findBinlogVersion(file string) (uint16, error) {
 	f, err := os.Open(file)
