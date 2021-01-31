@@ -7,7 +7,7 @@ import (
 	"net"
 )
 
-type conn struct {
+type Conn struct {
 	conn net.Conn
 	seq  uint8
 	hs   handshake
@@ -18,7 +18,7 @@ type conn struct {
 	binlogPos    uint32
 }
 
-func Dial(network, address string) (*conn, error) {
+func Dial(network, address string) (*Conn, error) {
 	netconn, err := net.Dial(network, address)
 	if err != nil {
 		return nil, err
@@ -30,18 +30,18 @@ func Dial(network, address string) (*conn, error) {
 		netconn.Close()
 		return nil, err
 	}
-	return &conn{
+	return &Conn{
 		conn: netconn,
 		seq:  seq,
 		hs:   hs,
 	}, nil
 }
 
-func (c *conn) IsSSLSupported() bool {
+func (c *Conn) IsSSLSupported() bool {
 	return c.hs.capabilityFlags&CLIENT_SSL != 0
 }
 
-func (c *conn) UpgradeSSL() error {
+func (c *Conn) UpgradeSSL() error {
 	w := newWriter(c.conn, &c.seq)
 	err := w.writeClose(sslRequest{
 		capabilityFlags: CLIENT_LONG_FLAG | CLIENT_SECURE_CONNECTION,
@@ -55,7 +55,7 @@ func (c *conn) UpgradeSSL() error {
 	return nil
 }
 
-func (c *conn) Authenticate(username, password string) error {
+func (c *Conn) Authenticate(username, password string) error {
 	w := newWriter(c.conn, &c.seq)
 	err := w.writeClose(handshakeResponse41{
 		capabilityFlags: CLIENT_LONG_FLAG | CLIENT_SECURE_CONNECTION,
@@ -88,7 +88,7 @@ func (c *conn) Authenticate(username, password string) error {
 
 // todo: fetch binlog checksum
 
-func (c *conn) confirmChecksumSupport() error {
+func (c *Conn) confirmChecksumSupport() error {
 	c.seq = 0
 	w := newWriter(c.conn, &c.seq)
 	if err := w.query("set @master_binlog_checksum = @@global.binlog_checksum"); err != nil {
@@ -97,7 +97,7 @@ func (c *conn) confirmChecksumSupport() error {
 	return newReader(c.conn, &c.seq).drain()
 }
 
-func (c *conn) RequestBinlog(serverID uint32, fileName string, position uint32) error {
+func (c *Conn) RequestBinlog(serverID uint32, fileName string, position uint32) error {
 	if err := c.confirmChecksumSupport(); err != nil {
 		return err
 	}
@@ -115,14 +115,14 @@ func (c *conn) RequestBinlog(serverID uint32, fileName string, position uint32) 
 	return err
 }
 
-func (c *conn) nextLocation() (filename string, position uint32) {
+func (c *Conn) nextLocation() (filename string, position uint32) {
 	if c.binlogReader == nil {
 		return c.binlogFile, c.binlogPos
 	}
 	return c.binlogReader.binlogFile, c.binlogReader.binlogPos
 }
 
-func (c *conn) binlogVersion() (uint16, error) {
+func (c *Conn) binlogVersion() (uint16, error) {
 	sv, err := newServerVersion(c.hs.serverVersion)
 	if err != nil {
 		return 0, err
@@ -130,7 +130,7 @@ func (c *conn) binlogVersion() (uint16, error) {
 	return sv.binlogVersion(), nil
 }
 
-func (c *conn) NextEvent() (Event, error) {
+func (c *Conn) NextEvent() (Event, error) {
 	r := c.binlogReader
 	if r == nil {
 		r = newReader(c.conn, &c.seq)
@@ -170,7 +170,7 @@ func (c *conn) NextEvent() (Event, error) {
 	return nextEvent(r)
 }
 
-func (c *conn) Close() error {
+func (c *Conn) Close() error {
 	return c.conn.Close()
 }
 

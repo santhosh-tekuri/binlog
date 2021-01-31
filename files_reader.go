@@ -79,7 +79,7 @@ func openBinlogFile(file string) (*os.File, error) {
 func nextBinlogFile(name string) (string, error) {
 	dot := strings.LastIndexByte(name, '.')
 	if dot == -1 {
-		return "", errors.New("no dot in binlogFile")
+		return "", errors.New("no dot in Dir")
 	}
 	suffix := name[dot+1:]
 	for len(suffix) > 1 && suffix[0] == '0' {
@@ -87,7 +87,7 @@ func nextBinlogFile(name string) (string, error) {
 	}
 	i, err := strconv.Atoi(suffix)
 	if err != nil {
-		return "", errors.New("invalid binlogFile suffix")
+		return "", errors.New("invalid Dir suffix")
 	}
 	return fmt.Sprintf("%s%06d", name[:dot+1], i+1), nil
 }

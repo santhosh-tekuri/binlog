@@ -6,7 +6,7 @@ import (
 	"os"
 )
 
-type binlogFile struct {
+type Dir struct {
 	conn io.Reader
 
 	binlogReader *reader
@@ -14,8 +14,8 @@ type binlogFile struct {
 	binlogPos    uint32
 }
 
-func Open(file string) (*binlogFile, error) {
-	f := &binlogFile{
+func Open(file string) (*Dir, error) {
+	f := &Dir{
 		binlogFile: file,
 		binlogPos:  4,
 	}
@@ -27,7 +27,7 @@ func Open(file string) (*binlogFile, error) {
 	return f, nil
 }
 
-func (c *binlogFile) NextEvent() (Event, error) {
+func (c *Dir) NextEvent() (Event, error) {
 	r := c.binlogReader
 	if r == nil {
 		v, err := findBinlogVersion(c.binlogFile)

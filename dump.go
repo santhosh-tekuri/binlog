@@ -2,7 +2,9 @@ package binlog
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -10,7 +12,14 @@ import (
 	"path"
 )
 
-func (c *conn) dump(dir string) error {
+func (c *Conn) Dump(dir string) error {
+	fi, err := os.Stat(dir)
+	if err != nil {
+		return err
+	}
+	if !fi.IsDir() {
+		return fmt.Errorf("binlog.Dump: %q is not a directory", dir)
+	}
 	v, err := c.binlogVersion()
 	if err != nil {
 		return err
@@ -28,8 +37,26 @@ func (c *conn) dump(dir string) error {
 		if _, err := io.ReadFull(r, buf); err != nil {
 			return err
 		}
+		if buf[0] == errMarker {
+			buff := bytes.NewBuffer(buf)
+			if _, err := buff.ReadFrom(r); err != nil {
+				return err
+			}
+			buf := buff.Bytes()
+			if len(buf) < 3 {
+				return fmt.Errorf("binlog.dump: got %0x want OK-byte", errMarker)
+			}
+			buf = buf[3:] // errHeader, errCode
+			if c.hs.capabilityFlags&CLIENT_PROTOCOL_41 != 0 {
+				if len(buf) < 6 {
+					return fmt.Errorf("binlog.dump: got %0x want OK-byte", errMarker)
+				}
+				buf = buf[6:] // sqlStateMarker, sqlState
+			}
+			return errors.New(string(buf))
+		}
 		if buf[0] != okMarker {
-			return fmt.Errorf("binlog.dump: got %0x want OK-byte", buf[0])
+			return fmt.Errorf("binlog.Dump: got %0x want OK-byte", buf[0])
 		}
 		// Timestamp = buf[1:5]
 		eventType := EventType(buf[5])
