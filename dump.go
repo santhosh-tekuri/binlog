@@ -1,6 +1,7 @@
 package binlog
 
 import (
+	"bufio"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -82,4 +83,61 @@ func appendLine(file, line string) error {
 		return err
 	}
 	return f.Close()
+}
+
+func fetchLastLocation(dir string) (file string, pos uint32, err error) {
+	// Find last file in dir.
+	f, err := os.Open(path.Join(dir, "binlog.index"))
+	if err != nil {
+		return "", 0, err
+	}
+	defer f.Close()
+	r := bufio.NewScanner(f)
+	var last string
+	for r.Scan() {
+		last = r.Text()
+	}
+	if r.Err() != nil {
+		return "", 0, err
+	}
+
+	f, err = os.Open(path.Join(dir, last))
+	if err != nil {
+		return "", 0, fmt.Errorf("binlog.fetchLocation: error in open last file: %v", err)
+	}
+	defer f.Close()
+	fi, err := f.Stat()
+	if err != nil {
+		return "", 0, err
+	}
+	_, err = f.Seek(4, io.SeekStart)
+	if err != nil {
+		return
+	}
+	pos += 4
+
+	buf := make([]byte, 13)
+	for {
+		_, err = io.ReadFull(f, buf)
+		if err == io.EOF {
+			err = nil
+			return
+		}
+		if err != nil {
+			return
+		}
+		// timestamp = buf[:4]
+		// eventType := buf[4]
+		// serverID = buf[5:9]
+		eventSize := binary.LittleEndian.Uint32(buf[9:])
+		if int64(pos+eventSize-13) > fi.Size() {
+			// partial record found
+			fmt.Println("partial record", pos, eventSize, fi.Size())
+			return
+		}
+		if _, err = f.Seek(int64(eventSize-13), io.SeekCurrent); err != nil {
+			return
+		}
+		pos += eventSize
+	}
 }

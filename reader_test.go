@@ -187,8 +187,18 @@ func TestDump(t *testing.T) {
 	}
 }
 
+// 415
+//  /Users/santhosh/go/src/binlog/dump/binlog.000005 1336
+func TestFetchLastLocation(t *testing.T) {
+	file, pos, err := fetchLastLocation("/Users/santhosh/go/src/binlog/dump")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(file, pos)
+}
+
 func TestFileUsage(t *testing.T) {
-	conn, err := Open("/Users/santhosh/go/src/binlog/binlog.000002")
+	conn, err := Open("/Users/santhosh/go/src/binlog/dump/binlog.000002")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -198,6 +208,7 @@ func TestFileUsage(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		t.Log(conn.binlogFile, conn.binlogReader.binlogPos)
 		t.Logf("%#v", e)
 		if re, ok := e.(*rowsEvent); ok {
 			for {
