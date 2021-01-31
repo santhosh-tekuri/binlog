@@ -26,7 +26,7 @@ func (e *formatDescriptionEvent) parse(r *reader) error {
 	return r.err
 }
 
-func (e *formatDescriptionEvent) postHeaderLength(typ uint8, def int) int {
+func (e *formatDescriptionEvent) postHeaderLength(typ EventType, def int) int {
 	if len(e.eventTypeHeaderLengths) >= int(typ) {
 		return int(e.eventTypeHeaderLengths[typ])
 	}

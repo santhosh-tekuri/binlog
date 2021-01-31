@@ -78,8 +78,8 @@ func (e *tableMapEvent) parse(r *reader) error {
 
 // https://dev.mysql.com/doc/internals/en/rows-event.html
 
-type rowsEvent struct {
-	eventType  uint8
+type RowsEvent struct {
+	eventType  EventType
 	tme        tableMapEvent
 	tableID    uint64
 	flags      uint16
@@ -91,7 +91,7 @@ type rowsEvent struct {
 	reader *reader
 }
 
-func (e *rowsEvent) parse(r *reader, eventType uint8) error {
+func (e *RowsEvent) parse(r *reader, eventType EventType) error {
 	e.eventType, e.tme = eventType, r.tme
 	if r.fde.postHeaderLength(eventType, 8) == 6 {
 		e.tableID = uint64(r.int4())
@@ -133,7 +133,7 @@ func (e *rowsEvent) parse(r *reader, eventType uint8) error {
 	return r.err
 }
 
-func (e *rowsEvent) nextRow() ([][]interface{}, error) {
+func (e *RowsEvent) NextRow() ([][]interface{}, error) {
 	r := e.reader
 	if !r.more() {
 		if r.err != nil {

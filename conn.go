@@ -37,11 +37,11 @@ func Dial(network, address string) (*conn, error) {
 	}, nil
 }
 
-func (c *conn) isSSLSupported() bool {
+func (c *conn) IsSSLSupported() bool {
 	return c.hs.capabilityFlags&CLIENT_SSL != 0
 }
 
-func (c *conn) upgradeSSL() error {
+func (c *conn) UpgradeSSL() error {
 	w := newWriter(c.conn, &c.seq)
 	err := w.writeClose(sslRequest{
 		capabilityFlags: CLIENT_LONG_FLAG | CLIENT_SECURE_CONNECTION,
@@ -55,7 +55,7 @@ func (c *conn) upgradeSSL() error {
 	return nil
 }
 
-func (c *conn) authenticate(username, password string) error {
+func (c *conn) Authenticate(username, password string) error {
 	w := newWriter(c.conn, &c.seq)
 	err := w.writeClose(handshakeResponse41{
 		capabilityFlags: CLIENT_LONG_FLAG | CLIENT_SECURE_CONNECTION,
@@ -97,7 +97,10 @@ func (c *conn) confirmChecksumSupport() error {
 	return newReader(c.conn, &c.seq).drain()
 }
 
-func (c *conn) requestBinlog(serverID uint32, fileName string, position uint32) error {
+func (c *conn) RequestBinlog(serverID uint32, fileName string, position uint32) error {
+	if err := c.confirmChecksumSupport(); err != nil {
+		return err
+	}
 	c.seq = 0
 	w := newWriter(c.conn, &c.seq)
 	err := w.writeClose(comBinlogDump{
@@ -127,20 +130,20 @@ func (c *conn) binlogVersion() (uint16, error) {
 	return sv.binlogVersion(), nil
 }
 
-func (c *conn) nextEvent() (interface{}, error) {
+func (c *conn) NextEvent() (Event, error) {
 	r := c.binlogReader
 	if r == nil {
 		r = newReader(c.conn, &c.seq)
 		v, err := c.binlogVersion()
 		if err != nil {
-			return nil, err
+			return Event{}, err
 		}
 		r.fde = formatDescriptionEvent{binlogVersion: v}
 		c.binlogReader = r
 	} else {
 		r.limit += 4
 		if err := r.drain(); err != nil {
-			return nil, fmt.Errorf("binlog.nextEvent: error in draining event: %v", err)
+			return Event{}, fmt.Errorf("binlog.NextEvent: error in draining event: %v", err)
 		}
 		r.rd = &packetReader{rd: c.conn, seq: &c.seq}
 		r.limit = -1
@@ -149,7 +152,7 @@ func (c *conn) nextEvent() (interface{}, error) {
 	// Check first byte.
 	b, err := r.peek()
 	if err != nil {
-		return nil, err
+		return Event{}, err
 	}
 	switch b {
 	case okMarker:
@@ -157,18 +160,14 @@ func (c *conn) nextEvent() (interface{}, error) {
 	case errMarker:
 		ep := errPacket{}
 		if err := ep.parse(r, c.hs.capabilityFlags); err != nil {
-			return nil, err
+			return Event{}, err
 		}
-		return nil, errors.New(ep.errorMessage)
+		return Event{}, errors.New(ep.errorMessage)
 	default:
-		return nil, fmt.Errorf("binlogStream: got %0x want OK-byte", b)
+		return Event{}, fmt.Errorf("binlogStream: got %0x want OK-byte", b)
 	}
 
-	e, err := nextEvent(r)
-	if e == nil && err == nil {
-		return c.nextEvent()
-	}
-	return e, err
+	return nextEvent(r)
 }
 
 func (c *conn) Close() error {

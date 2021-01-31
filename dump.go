@@ -31,11 +31,11 @@ func (c *conn) dump(dir string) error {
 		if buf[0] != okMarker {
 			return fmt.Errorf("binlog.dump: got %0x want OK-byte", buf[0])
 		}
-		// timestamp = buf[1:5]
-		eventType := buf[5]
-		// serverID = buf[6:10]
+		// Timestamp = buf[1:5]
+		eventType := EventType(buf[5])
+		// ServerID = buf[6:10]
 		eventSize := binary.LittleEndian.Uint32(buf[10:])
-		fmt.Printf("eventType: 0x%02x eventSize: 0x%02x\n", eventType, eventSize)
+		fmt.Printf("EventType: 0x%02x EventSize: 0x%02x\n", eventType, eventSize)
 		switch eventType {
 		case ROTATE_EVENT:
 			lr := io.LimitReader(r, int64(eventSize-13))
@@ -44,7 +44,7 @@ func (c *conn) dump(dir string) error {
 				return err
 			}
 			if v > 1 {
-				buf = buf[4+2+8 : len(buf)-4] // logPos, flags, position and exclude checksum
+				buf = buf[4+2+8 : len(buf)-4] // LogPos, Flags, position and exclude checksum
 			}
 			if f != nil {
 				if err := f.Close(); err != nil {
@@ -137,9 +137,9 @@ func fetchLastLocation(dir string) (file string, pos uint32, err error) {
 		if err != nil {
 			return
 		}
-		// timestamp = buf[:4]
-		// eventType := buf[4]
-		// serverID = buf[5:9]
+		// Timestamp = buf[:4]
+		// EventType := buf[4]
+		// ServerID = buf[5:9]
 		eventSize := binary.LittleEndian.Uint32(buf[9:])
 		if int64(pos+eventSize-13) > fi.Size() {
 			// partial record found

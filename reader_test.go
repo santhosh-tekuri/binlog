@@ -125,31 +125,29 @@ func TestUsage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if conn.isSSLSupported() {
+	if conn.IsSSLSupported() {
 		t.Log("using ssl...")
-		if err = conn.upgradeSSL(); err != nil {
+		if err = conn.UpgradeSSL(); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := conn.authenticate("root", "password"); err != nil {
+	if err := conn.Authenticate("root", "password"); err != nil {
 		t.Fatal(err)
 	}
-	if err := conn.confirmChecksumSupport(); err != nil {
-		t.Fatal(err)
-	}
-	if err := conn.requestBinlog(10, "binlog.000002", 4); err != nil {
+	if err := conn.RequestBinlog(10, "binlog.000002", 4); err != nil {
 		t.Fatal(err)
 	}
 	for {
 		t.Log("-------------------------")
-		e, err := conn.nextEvent()
+		e, err := conn.NextEvent()
 		if err != nil {
 			t.Fatal(err)
 		}
-		t.Logf("%#v", e)
-		if re, ok := e.(*rowsEvent); ok {
+		t.Logf("%#v", e.Header)
+		t.Logf("%#v", e.Data)
+		if re, ok := e.Data.(RowsEvent); ok {
 			for {
-				row, err := re.nextRow()
+				row, err := re.NextRow()
 				if err != nil {
 					if err == io.EOF {
 						break
@@ -167,19 +165,19 @@ func TestDump(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if conn.isSSLSupported() {
+	if conn.IsSSLSupported() {
 		t.Log("using ssl...")
-		if err = conn.upgradeSSL(); err != nil {
+		if err = conn.UpgradeSSL(); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := conn.authenticate("root", "password"); err != nil {
+	if err := conn.Authenticate("root", "password"); err != nil {
 		t.Fatal(err)
 	}
 	if err := conn.confirmChecksumSupport(); err != nil {
 		t.Fatal(err)
 	}
-	if err := conn.requestBinlog(10, "binlog.000001", 4); err != nil {
+	if err := conn.RequestBinlog(10, "binlog.000001", 4); err != nil {
 		t.Fatal(err)
 	}
 	if err := conn.dump("/Users/santhosh/go/src/binlog/dump"); err != nil {
@@ -204,15 +202,15 @@ func TestFileUsage(t *testing.T) {
 	}
 	for {
 		t.Log("-------------------------")
-		e, err := conn.nextEvent()
+		e, err := conn.NextEvent()
 		if err != nil {
 			t.Fatal(err)
 		}
 		t.Log(conn.binlogFile, conn.binlogReader.binlogPos)
 		t.Logf("%#v", e)
-		if re, ok := e.(*rowsEvent); ok {
+		if re, ok := e.(*RowsEvent); ok {
 			for {
-				row, err := re.nextRow()
+				row, err := re.NextRow()
 				if err != nil {
 					if err == io.EOF {
 						break

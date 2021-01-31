@@ -27,12 +27,12 @@ func Open(file string) (*binlogFile, error) {
 	return f, nil
 }
 
-func (c *binlogFile) nextEvent() (interface{}, error) {
+func (c *binlogFile) NextEvent() (Event, error) {
 	r := c.binlogReader
 	if r == nil {
 		v, err := findBinlogVersion(c.binlogFile)
 		if err != nil {
-			return nil, err
+			return Event{}, err
 		}
 		r = &reader{
 			rd:    c.conn,
@@ -43,16 +43,12 @@ func (c *binlogFile) nextEvent() (interface{}, error) {
 	} else {
 		r.limit += 4
 		if err := r.drain(); err != nil {
-			return nil, fmt.Errorf("binlog.nextEvent: error in draining event: %v", err)
+			return Event{}, fmt.Errorf("binlog.NextEvent: error in draining event: %v", err)
 		}
 		r.limit = -1
 	}
 
-	e, err := nextEvent(r)
-	if e == nil && err == nil {
-		return c.nextEvent()
-	}
-	return e, err
+	return nextEvent(r)
 }
 
 // todo: https://dev.mysql.com/doc/internals/en/determining-binary-log-version.html
@@ -65,7 +61,7 @@ func findBinlogVersion(file string) (uint16, error) {
 	r := &reader{rd: f, limit: -1}
 	r.skip(4) // magic number
 	r.skip(4)
-	eventType := r.int1()
+	eventType := EventType(r.int1())
 	r.skip(4)
 	eventSize := r.int4()
 	if r.err != nil {
