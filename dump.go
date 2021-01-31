@@ -51,15 +51,8 @@ func (c *conn) dump(dir string) error {
 					return err
 				}
 			}
-			fmt.Println("creating file", string(buf))
-			if err := appendLine(path.Join(dir, "binlog.index"), string(buf)); err != nil {
-				return fmt.Errorf("binlog.dump: error in appending to binlog.index: %v", err)
-			}
-			f, err = os.Create(path.Join(dir, string(buf)))
+			f, err = createFile(dir, string(buf))
 			if err != nil {
-				return err
-			}
-			if _, err := f.Write([]byte{0xfe, 'b', 'i', 'n'}); err != nil {
 				return err
 			}
 		default:
@@ -80,9 +73,26 @@ func appendLine(file, line string) error {
 		return err
 	}
 	if _, err := f.WriteString(line + "\n"); err != nil {
-		return err
+		_ = f.Close()
+		return fmt.Errorf("binlog.appendLine: error in appending to binlog.index: %v", err)
 	}
 	return f.Close()
+}
+
+func createFile(dir, file string) (*os.File, error) {
+	f, err := os.Create(path.Join(dir, file))
+	if err != nil {
+		return nil, err
+	}
+	if _, err := f.Write([]byte{0xfe, 'b', 'i', 'n'}); err != nil {
+		_ = f.Close()
+		return nil, err
+	}
+	if err := appendLine(path.Join(dir, "binlog.index"), file); err != nil {
+		_ = f.Close()
+		return nil, err
+	}
+	return f, nil
 }
 
 func fetchLastLocation(dir string) (file string, pos uint32, err error) {
