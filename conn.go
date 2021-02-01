@@ -7,6 +7,10 @@ import (
 	"net"
 )
 
+var ErrMalformedPacket = errors.New("malformed packet")
+
+type Null struct{}
+
 type Conn struct {
 	conn net.Conn
 	seq  uint8
@@ -30,6 +34,8 @@ func Dial(network, address string) (*Conn, error) {
 		netconn.Close()
 		return nil, err
 	}
+	// unset the features we dont support
+	hs.capabilityFlags &= ^uint32(CLIENT_SESSION_TRACK)
 	return &Conn{
 		conn: netconn,
 		seq:  seq,
@@ -86,24 +92,40 @@ func (c *Conn) Authenticate(username, password string) error {
 	return r.drain()
 }
 
-// todo: fetch binlog checksum
+func (c *Conn) fetchBinlogChecksum() (string, error) {
+	resp, err := c.query(`show variables like 'binlog_checksum'`)
+	if err != nil {
+		return "", err
+	}
+	rs := resp.(*resultSet)
+	rows, err := rs.rows()
+	if err != nil {
+		return "", err
+	}
+	if len(rows) > 0 {
+		return rows[0][1].(string), nil
+	}
+	return "", nil
+}
 
 func (c *Conn) confirmChecksumSupport() error {
-	c.seq = 0
-	w := newWriter(c.conn, &c.seq)
-	if err := w.query("set @master_binlog_checksum = @@global.binlog_checksum"); err != nil {
-		return err
-	}
-	return newReader(c.conn, &c.seq).drain()
+	_, err := c.query(`set @master_binlog_checksum = @@global.binlog_checksum`)
+	return err
 }
 
 func (c *Conn) RequestBinlog(serverID uint32, fileName string, position uint32) error {
-	if err := c.confirmChecksumSupport(); err != nil {
+	checksum, err := c.fetchBinlogChecksum()
+	if err != nil {
 		return err
+	}
+	if checksum != "" {
+		if err := c.confirmChecksumSupport(); err != nil {
+			return err
+		}
 	}
 	c.seq = 0
 	w := newWriter(c.conn, &c.seq)
-	err := w.writeClose(comBinlogDump{
+	err = w.writeClose(comBinlogDump{
 		binlogPos:      position,
 		flags:          0,
 		serverID:       serverID,
