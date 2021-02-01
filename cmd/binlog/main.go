@@ -72,7 +72,20 @@ func openRemote(network, address, location string) *binlog.Conn {
 	if err := conn.Authenticate(user, passwd); err != nil {
 		panic(err)
 	}
-	file, pos := getLocation(location)
+
+	files, err := conn.ListFiles()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("files:", files)
+
+	file, pos, err := conn.MasterStatus()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("master status: %s:%d\n", file, pos)
+
+	file, pos = getLocation(location)
 	fmt.Println("file", file, pos)
 	if err := conn.RequestBinlog(10, file, pos); err != nil {
 		panic(err)

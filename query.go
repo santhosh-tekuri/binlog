@@ -10,6 +10,15 @@ import (
 // okPacket, *resultSet
 type queryResponse interface{}
 
+func (c *Conn) queryRows(q string) ([][]interface{}, error) {
+	resp, err := c.query(q)
+	if err != nil {
+		return nil, err
+	}
+	rs := resp.(*resultSet)
+	return rs.rows()
+}
+
 func (c *Conn) query(q string) (queryResponse, error) {
 	c.seq = 0
 	w := newWriter(c.conn, &c.seq)

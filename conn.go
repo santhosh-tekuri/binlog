@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strconv"
 )
 
 var ErrMalformedPacket = errors.New("malformed packet")
@@ -92,13 +93,32 @@ func (c *Conn) Authenticate(username, password string) error {
 	return r.drain()
 }
 
-func (c *Conn) fetchBinlogChecksum() (string, error) {
-	resp, err := c.query(`show variables like 'binlog_checksum'`)
+func (c *Conn) ListFiles() ([]string, error) {
+	rows, err := c.queryRows(`show binary logs`)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	rs := resp.(*resultSet)
-	rows, err := rs.rows()
+	files := make([]string, len(rows))
+	for i, _ := range files {
+		files[i] = rows[i][0].(string)
+	}
+	return files, nil
+}
+
+func (c *Conn) MasterStatus() (file string, pos uint32, err error) {
+	rows, err := c.queryRows(`show master status`)
+	if err != nil {
+		return "", 0, err
+	}
+	if len(rows) == 0 {
+		return "", 0, nil
+	}
+	off, err := strconv.Atoi(rows[0][1].(string))
+	return rows[0][0].(string), uint32(off), err
+}
+
+func (c *Conn) fetchBinlogChecksum() (string, error) {
+	rows, err := c.queryRows(`show variables like 'binlog_checksum'`)
 	if err != nil {
 		return "", err
 	}
