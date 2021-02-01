@@ -11,13 +11,13 @@ import (
 	"time"
 )
 
-type filesReader struct {
+type dirReader struct {
 	file     *os.File
 	path     *string
 	tmeCache map[uint64]*tableMapEvent
 }
 
-func newFilesReader(file *string) (*filesReader, error) {
+func newDirReader(file *string) (*dirReader, error) {
 	if _, err := nextBinlogFile(*file); err != nil {
 		return nil, err
 	}
@@ -25,10 +25,10 @@ func newFilesReader(file *string) (*filesReader, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &filesReader{f, file, make(map[uint64]*tableMapEvent)}, nil
+	return &dirReader{f, file, make(map[uint64]*tableMapEvent)}, nil
 }
 
-func (r *filesReader) Read(p []byte) (int, error) {
+func (r *dirReader) Read(p []byte) (int, error) {
 	for {
 		n, err := r.file.Read(p)
 		if n > 0 {

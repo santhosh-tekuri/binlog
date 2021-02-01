@@ -6,7 +6,7 @@ import (
 )
 
 type Local struct {
-	conn *filesReader
+	conn *dirReader
 
 	binlogReader *reader
 	binlogFile   string
@@ -18,7 +18,7 @@ func Open(file string) (*Local, error) {
 		binlogFile: file,
 		binlogPos:  4,
 	}
-	r, err := newFilesReader(&f.binlogFile)
+	r, err := newDirReader(&f.binlogFile)
 	if err != nil {
 		return nil, err
 	}
