@@ -12,7 +12,7 @@ var ErrMalformedPacket = errors.New("malformed packet")
 
 type Null struct{}
 
-type Conn struct {
+type Remote struct {
 	conn net.Conn
 	seq  uint8
 	hs   handshake
@@ -23,7 +23,7 @@ type Conn struct {
 	binlogPos    uint32
 }
 
-func Dial(network, address string) (*Conn, error) {
+func Dial(network, address string) (*Remote, error) {
 	netconn, err := net.Dial(network, address)
 	if err != nil {
 		return nil, err
@@ -37,18 +37,18 @@ func Dial(network, address string) (*Conn, error) {
 	}
 	// unset the features we dont support
 	hs.capabilityFlags &= ^uint32(CLIENT_SESSION_TRACK)
-	return &Conn{
+	return &Remote{
 		conn: netconn,
 		seq:  seq,
 		hs:   hs,
 	}, nil
 }
 
-func (c *Conn) IsSSLSupported() bool {
+func (c *Remote) IsSSLSupported() bool {
 	return c.hs.capabilityFlags&CLIENT_SSL != 0
 }
 
-func (c *Conn) UpgradeSSL() error {
+func (c *Remote) UpgradeSSL() error {
 	w := newWriter(c.conn, &c.seq)
 	err := w.writeClose(sslRequest{
 		capabilityFlags: CLIENT_LONG_FLAG | CLIENT_SECURE_CONNECTION,
@@ -62,7 +62,7 @@ func (c *Conn) UpgradeSSL() error {
 	return nil
 }
 
-func (c *Conn) Authenticate(username, password string) error {
+func (c *Remote) Authenticate(username, password string) error {
 	w := newWriter(c.conn, &c.seq)
 	err := w.writeClose(handshakeResponse41{
 		capabilityFlags: CLIENT_LONG_FLAG | CLIENT_SECURE_CONNECTION,
@@ -93,7 +93,7 @@ func (c *Conn) Authenticate(username, password string) error {
 	return r.drain()
 }
 
-func (c *Conn) ListFiles() ([]string, error) {
+func (c *Remote) ListFiles() ([]string, error) {
 	rows, err := c.queryRows(`show binary logs`)
 	if err != nil {
 		return nil, err
@@ -105,7 +105,7 @@ func (c *Conn) ListFiles() ([]string, error) {
 	return files, nil
 }
 
-func (c *Conn) MasterStatus() (file string, pos uint32, err error) {
+func (c *Remote) MasterStatus() (file string, pos uint32, err error) {
 	rows, err := c.queryRows(`show master status`)
 	if err != nil {
 		return "", 0, err
@@ -117,7 +117,7 @@ func (c *Conn) MasterStatus() (file string, pos uint32, err error) {
 	return rows[0][0].(string), uint32(off), err
 }
 
-func (c *Conn) fetchBinlogChecksum() (string, error) {
+func (c *Remote) fetchBinlogChecksum() (string, error) {
 	rows, err := c.queryRows(`show variables like 'binlog_checksum'`)
 	if err != nil {
 		return "", err
@@ -128,12 +128,12 @@ func (c *Conn) fetchBinlogChecksum() (string, error) {
 	return "", nil
 }
 
-func (c *Conn) confirmChecksumSupport() error {
+func (c *Remote) confirmChecksumSupport() error {
 	_, err := c.query(`set @master_binlog_checksum = @@global.binlog_checksum`)
 	return err
 }
 
-func (c *Conn) RequestBinlog(serverID uint32, fileName string, position uint32) error {
+func (c *Remote) RequestBinlog(serverID uint32, fileName string, position uint32) error {
 	checksum, err := c.fetchBinlogChecksum()
 	if err != nil {
 		return err
@@ -157,14 +157,14 @@ func (c *Conn) RequestBinlog(serverID uint32, fileName string, position uint32) 
 	return err
 }
 
-func (c *Conn) nextLocation() (filename string, position uint32) {
+func (c *Remote) nextLocation() (filename string, position uint32) {
 	if c.binlogReader == nil {
 		return c.binlogFile, c.binlogPos
 	}
 	return c.binlogReader.binlogFile, c.binlogReader.binlogPos
 }
 
-func (c *Conn) binlogVersion() (uint16, error) {
+func (c *Remote) binlogVersion() (uint16, error) {
 	sv, err := newServerVersion(c.hs.serverVersion)
 	if err != nil {
 		return 0, err
@@ -172,7 +172,7 @@ func (c *Conn) binlogVersion() (uint16, error) {
 	return sv.binlogVersion(), nil
 }
 
-func (c *Conn) NextEvent() (Event, error) {
+func (c *Remote) NextEvent() (Event, error) {
 	r := c.binlogReader
 	if r == nil {
 		r = newReader(c.conn, &c.seq)
@@ -212,11 +212,11 @@ func (c *Conn) NextEvent() (Event, error) {
 	return nextEvent(r)
 }
 
-func (c *Conn) NextRow() ([][]interface{}, error) {
+func (c *Remote) NextRow() ([][]interface{}, error) {
 	return nextRow(c.binlogReader)
 }
 
-func (c *Conn) Close() error {
+func (c *Remote) Close() error {
 	return c.conn.Close()
 }
 

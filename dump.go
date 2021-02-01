@@ -12,7 +12,7 @@ import (
 	"path"
 )
 
-func (c *Conn) Dump(dir string) error {
+func (c *Remote) Dump(dir string) error {
 	fi, err := os.Stat(dir)
 	if err != nil {
 		return err

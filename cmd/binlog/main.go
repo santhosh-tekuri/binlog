@@ -44,16 +44,16 @@ func main() {
 	}
 }
 
-func openRemote(network, address, location string) *binlog.Conn {
+func openRemote(network, address, location string) *binlog.Remote {
 	tok := strings.Split(address, ",")
-	conn, err := binlog.Dial(network, tok[0])
+	bl, err := binlog.Dial(network, tok[0])
 	if err != nil {
 		panic(err)
 	}
-	if conn.IsSSLSupported() {
+	if bl.IsSSLSupported() {
 		for _, t := range tok[1:] {
 			if t == "ssl" {
-				if err = conn.UpgradeSSL(); err != nil {
+				if err = bl.UpgradeSSL(); err != nil {
 					panic(err)
 				}
 				break
@@ -69,17 +69,17 @@ func openRemote(network, address, location string) *binlog.Conn {
 			passwd = strings.TrimPrefix(t, "passwd=")
 		}
 	}
-	if err := conn.Authenticate(user, passwd); err != nil {
+	if err := bl.Authenticate(user, passwd); err != nil {
 		panic(err)
 	}
 
-	files, err := conn.ListFiles()
+	files, err := bl.ListFiles()
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println("files:", files)
 
-	file, pos, err := conn.MasterStatus()
+	file, pos, err := bl.MasterStatus()
 	if err != nil {
 		panic(err)
 	}
@@ -87,13 +87,13 @@ func openRemote(network, address, location string) *binlog.Conn {
 
 	file, pos = getLocation(location)
 	fmt.Println("file", file, pos)
-	if err := conn.RequestBinlog(10, file, pos); err != nil {
+	if err := bl.RequestBinlog(10, file, pos); err != nil {
 		panic(err)
 	}
-	return conn
+	return bl
 }
 
-func openLocal(address, file string) *binlog.Dir {
+func openLocal(address, file string) *binlog.Local {
 	bl, err := binlog.Open(path.Join(address, file))
 	if err != nil {
 		panic(err)

@@ -10,7 +10,7 @@ import (
 // okPacket, *resultSet
 type queryResponse interface{}
 
-func (c *Conn) queryRows(q string) ([][]interface{}, error) {
+func (c *Remote) queryRows(q string) ([][]interface{}, error) {
 	resp, err := c.query(q)
 	if err != nil {
 		return nil, err
@@ -19,7 +19,7 @@ func (c *Conn) queryRows(q string) ([][]interface{}, error) {
 	return rs.rows()
 }
 
-func (c *Conn) query(q string) (queryResponse, error) {
+func (c *Remote) query(q string) (queryResponse, error) {
 	c.seq = 0
 	w := newWriter(c.conn, &c.seq)
 	if err := w.query(q); err != nil {
