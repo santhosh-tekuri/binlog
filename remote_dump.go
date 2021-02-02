@@ -64,7 +64,7 @@ func (bl *Remote) Dump(dir string) error {
 		eventSize := binary.LittleEndian.Uint32(buf[10:])
 		fmt.Printf("EventType: 0x%02x EventSize: 0x%02x\n", eventType, eventSize)
 		switch eventType {
-		case HEARTBEAT_EVENT:
+		case HEARTBEAT_EVENT, UNKNOWN_EVENT, SLAVE_EVENT:
 			// Ignore this event.
 			if _, err := io.Copy(ioutil.Discard, r); err != nil {
 				return err
