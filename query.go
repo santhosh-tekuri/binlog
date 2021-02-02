@@ -10,8 +10,8 @@ import (
 // okPacket, *resultSet
 type queryResponse interface{}
 
-func (c *Remote) queryRows(q string) ([][]interface{}, error) {
-	resp, err := c.query(q)
+func (bl *Remote) queryRows(q string) ([][]interface{}, error) {
+	resp, err := bl.query(q)
 	if err != nil {
 		return nil, err
 	}
@@ -19,13 +19,13 @@ func (c *Remote) queryRows(q string) ([][]interface{}, error) {
 	return rs.rows()
 }
 
-func (c *Remote) query(q string) (queryResponse, error) {
-	c.seq = 0
-	w := newWriter(c.conn, &c.seq)
+func (bl *Remote) query(q string) (queryResponse, error) {
+	bl.seq = 0
+	w := newWriter(bl.conn, &bl.seq)
 	if err := w.query(q); err != nil {
 		return nil, err
 	}
-	r := newReader(c.conn, &c.seq)
+	r := newReader(bl.conn, &bl.seq)
 	b, err := r.peek()
 	if err != nil {
 		return nil, err
@@ -33,19 +33,19 @@ func (c *Remote) query(q string) (queryResponse, error) {
 	switch b {
 	case okMarker:
 		ok := okPacket{}
-		if err := ok.parse(r, c.hs.capabilityFlags); err != nil {
+		if err := ok.parse(r, bl.hs.capabilityFlags); err != nil {
 			return nil, err
 		}
 		return ok, nil
 	case errMarker:
 		ep := errPacket{}
-		if err := ep.parse(r, c.hs.capabilityFlags); err != nil {
+		if err := ep.parse(r, bl.hs.capabilityFlags); err != nil {
 			return nil, err
 		}
 		return nil, errors.New(ep.errorMessage)
 	default:
 		rs := resultSet{}
-		if err := rs.parse(r, c.hs.capabilityFlags); err != nil {
+		if err := rs.parse(r, bl.hs.capabilityFlags); err != nil {
 			return nil, err
 		}
 		return &rs, nil

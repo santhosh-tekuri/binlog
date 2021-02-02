@@ -26,20 +26,20 @@ func Open(file string) (*Local, error) {
 	return f, nil
 }
 
-func (c *Local) NextEvent() (Event, error) {
-	r := c.binlogReader
+func (bl *Local) NextEvent() (Event, error) {
+	r := bl.binlogReader
 	if r == nil {
-		v, err := findBinlogVersion(c.binlogFile)
+		v, err := findBinlogVersion(bl.binlogFile)
 		if err != nil {
 			return Event{}, err
 		}
 		r = &reader{
-			rd:       c.conn,
-			tmeCache: c.conn.tmeCache,
+			rd:       bl.conn,
+			tmeCache: bl.conn.tmeCache,
 			limit:    -1,
 		}
 		r.fde = formatDescriptionEvent{binlogVersion: v}
-		c.binlogReader = r
+		bl.binlogReader = r
 	} else {
 		r.limit += 4
 		if err := r.drain(); err != nil {
@@ -51,8 +51,8 @@ func (c *Local) NextEvent() (Event, error) {
 	return nextEvent(r)
 }
 
-func (c *Local) NextRow() ([][]interface{}, error) {
-	return nextRow(c.binlogReader)
+func (bl *Local) NextRow() ([][]interface{}, error) {
+	return nextRow(bl.binlogReader)
 }
 
 // todo: https://dev.mysql.com/doc/internals/en/determining-binary-log-version.html

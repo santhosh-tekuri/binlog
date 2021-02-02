@@ -12,7 +12,7 @@ import (
 	"path"
 )
 
-func (c *Remote) Dump(dir string) error {
+func (bl *Remote) Dump(dir string) error {
 	fi, err := os.Stat(dir)
 	if err != nil {
 		return err
@@ -20,7 +20,7 @@ func (c *Remote) Dump(dir string) error {
 	if !fi.IsDir() {
 		return fmt.Errorf("binlog.Dump: %q is not a directory", dir)
 	}
-	v, err := c.binlogVersion()
+	v, err := bl.binlogVersion()
 	if err != nil {
 		return err
 	}
@@ -33,7 +33,7 @@ func (c *Remote) Dump(dir string) error {
 	buf := make([]byte, 14)
 	for {
 		fmt.Println("--------------------------------")
-		r := &packetReader{rd: c.conn, seq: &c.seq}
+		r := &packetReader{rd: bl.conn, seq: &bl.seq}
 		if _, err := io.ReadFull(r, buf); err != nil {
 			return err
 		}
@@ -47,7 +47,7 @@ func (c *Remote) Dump(dir string) error {
 				return fmt.Errorf("binlog.dump: got %0x want OK-byte", errMarker)
 			}
 			buf = buf[3:] // errHeader, errCode
-			if c.hs.capabilityFlags&CLIENT_PROTOCOL_41 != 0 {
+			if bl.hs.capabilityFlags&CLIENT_PROTOCOL_41 != 0 {
 				if len(buf) < 6 {
 					return fmt.Errorf("binlog.dump: got %0x want OK-byte", errMarker)
 				}
