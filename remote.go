@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"time"
 )
 
 var ErrMalformedPacket = errors.New("malformed packet")
@@ -115,6 +116,11 @@ func (bl *Remote) MasterStatus() (file string, pos uint32, err error) {
 	}
 	off, err := strconv.Atoi(rows[0][1].(string))
 	return rows[0][0].(string), uint32(off), err
+}
+
+func (bl *Remote) SetHeartbeatPeriod(d time.Duration) error {
+	_, err := bl.query(fmt.Sprintf("SET @master_heartbeat_period=%d", d))
+	return err
 }
 
 func (bl *Remote) fetchBinlogChecksum() (string, error) {
