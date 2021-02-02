@@ -101,6 +101,13 @@ func (bl *Local) MasterStatus() (file string, pos uint32, err error) {
 	}
 }
 
+func (bl *Local) ReadStatus() (filename string, position uint32) {
+	if bl.binlogReader == nil {
+		return bl.binlogFile, bl.binlogPos
+	}
+	return bl.binlogReader.binlogFile, bl.binlogReader.binlogPos
+}
+
 func (bl *Local) NextEvent() (Event, error) {
 	r := bl.binlogReader
 	if r == nil {

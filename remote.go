@@ -164,7 +164,7 @@ func (bl *Remote) RequestBinlog(serverID uint32, fileName string, position uint3
 	return err
 }
 
-func (bl *Remote) nextLocation() (filename string, position uint32) {
+func (bl *Remote) ReadStatus() (filename string, position uint32) {
 	if bl.binlogReader == nil {
 		return bl.binlogFile, bl.binlogPos
 	}
