@@ -2,9 +2,9 @@ package binlog
 
 import "fmt"
 
-// https://dev.mysql.com/doc/internals/en/status-flags.html
+// Status Flags: https://dev.mysql.com/doc/internals/en/status-flags.html
 const (
-	SERVER_SESSION_STATE_CHANGED = 0x4000
+	sessionStateChanged = 0x4000
 )
 
 // eofPacket ---
@@ -101,7 +101,7 @@ func (p *okPacket) parse(r *reader, capabilities uint32) error {
 	}
 	if capabilities&capSessionTrack != 0 {
 		p.info = r.stringN()
-		if p.statusFlags&SERVER_SESSION_STATE_CHANGED != 0 {
+		if p.statusFlags&sessionStateChanged != 0 {
 			p.sessionStateChanges = r.stringN()
 		}
 	} else {
