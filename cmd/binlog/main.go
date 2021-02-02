@@ -102,6 +102,13 @@ func openLocal(address, file string) *binlog.Local {
 	if err != nil {
 		panic(err)
 	}
+
+	files, err := bl.ListFiles()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("files:", files)
+
 	return bl
 }
 

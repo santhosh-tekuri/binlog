@@ -1,11 +1,14 @@
 package binlog
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"path"
 )
 
 type Local struct {
+	dir  string
 	conn *dirReader
 
 	binlogReader *reader
@@ -15,6 +18,7 @@ type Local struct {
 
 func Open(file string) (*Local, error) {
 	f := &Local{
+		dir:        path.Dir(file),
 		binlogFile: file,
 		binlogPos:  4,
 	}
@@ -24,6 +28,23 @@ func Open(file string) (*Local, error) {
 	}
 	f.conn = r
 	return f, nil
+}
+
+func (bl *Local) ListFiles() ([]string, error) {
+	var files []string
+	f, err := os.Open(path.Join(bl.dir, "binlog.index"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return files, nil
+		}
+		return files, err
+	}
+	defer f.Close()
+	r := bufio.NewScanner(f)
+	for r.Scan() {
+		files = append(files, r.Text())
+	}
+	return files, r.Err()
 }
 
 func (bl *Local) NextEvent() (Event, error) {
