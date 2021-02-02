@@ -46,7 +46,7 @@ func (bl *Remote) Dump(dir string) error {
 				return fmt.Errorf("binlog.dump: got %0x want OK-byte", errMarker)
 			}
 			buf = buf[3:] // errHeader, errCode
-			if bl.hs.capabilityFlags&CLIENT_PROTOCOL_41 != 0 {
+			if bl.hs.capabilityFlags&capProtocol41 != 0 {
 				if len(buf) < 6 {
 					return fmt.Errorf("binlog.dump: got %0x want OK-byte", errMarker)
 				}

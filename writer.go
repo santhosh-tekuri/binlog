@@ -147,11 +147,9 @@ func (w *writer) bytesN(v []byte) error {
 	return err
 }
 
-const COM_QUERY = 0x03
-
 // https://dev.mysql.com/doc/internals/en/com-query.html
 func (w *writer) query(q string) error {
-	w.int1(COM_QUERY)
+	w.int1(0x03) // COM_QUERY
 	w.string(q)
 	return w.Close()
 }

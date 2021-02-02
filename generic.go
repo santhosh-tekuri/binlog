@@ -26,7 +26,7 @@ func (e *eofPacket) parse(r *reader, capabilities uint32) error {
 	if header != eofMarker {
 		return fmt.Errorf("eofPacket.parse: got header %0xd", header)
 	}
-	if capabilities&CLIENT_PROTOCOL_41 != 0 {
+	if capabilities&capProtocol41 != 0 {
 		e.warnings = r.int2()
 		e.statusFlags = r.int2()
 	}
@@ -59,7 +59,7 @@ func (e *errPacket) parse(r *reader, capabilities uint32) error {
 	}
 	e.errorCode = r.int2()
 
-	if capabilities&CLIENT_PROTOCOL_41 != 0 {
+	if capabilities&capProtocol41 != 0 {
 		e.sqlStateMarker = r.string(1)
 		e.sqlState = r.string(5)
 	}
@@ -90,16 +90,16 @@ func (p *okPacket) parse(r *reader, capabilities uint32) error {
 	}
 	p.affectedRows = r.intN()
 	p.lastInsertID = r.intN()
-	if capabilities&CLIENT_PROTOCOL_41 != 0 {
+	if capabilities&capProtocol41 != 0 {
 		p.statusFlags = r.int2()
 		p.numWarnings = r.int2()
-	} else if capabilities&CLIENT_TRANSACTIONS != 0 {
+	} else if capabilities&capTransactions != 0 {
 		p.statusFlags = r.int2()
 	}
 	if r.err != nil {
 		return r.err
 	}
-	if capabilities&CLIENT_SESSION_TRACK != 0 {
+	if capabilities&capSessionTrack != 0 {
 		p.info = r.stringN()
 		if p.statusFlags&SERVER_SESSION_STATE_CHANGED != 0 {
 			p.sessionStateChanges = r.stringN()

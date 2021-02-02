@@ -38,7 +38,7 @@ func Dial(network, address string) (*Remote, error) {
 		return nil, err
 	}
 	// unset the features we dont support
-	hs.capabilityFlags &= ^uint32(CLIENT_SESSION_TRACK)
+	hs.capabilityFlags &= ^uint32(capSessionTrack)
 	return &Remote{
 		conn: conn,
 		seq:  seq,
@@ -47,13 +47,13 @@ func Dial(network, address string) (*Remote, error) {
 }
 
 func (bl *Remote) IsSSLSupported() bool {
-	return bl.hs.capabilityFlags&CLIENT_SSL != 0
+	return bl.hs.capabilityFlags&capSSL != 0
 }
 
 func (bl *Remote) UpgradeSSL() error {
 	w := newWriter(bl.conn, &bl.seq)
 	err := w.writeClose(sslRequest{
-		capabilityFlags: CLIENT_LONG_FLAG | CLIENT_SECURE_CONNECTION,
+		capabilityFlags: capLongFlag | capSecureConnection,
 		maxPacketSize:   maxPacketSize,
 		characterSet:    bl.hs.characterSet,
 	})
@@ -67,7 +67,7 @@ func (bl *Remote) UpgradeSSL() error {
 func (bl *Remote) Authenticate(username, password string) error {
 	w := newWriter(bl.conn, &bl.seq)
 	err := w.writeClose(handshakeResponse41{
-		capabilityFlags: CLIENT_LONG_FLAG | CLIENT_SECURE_CONNECTION,
+		capabilityFlags: capLongFlag | capSecureConnection,
 		maxPacketSize:   maxPacketSize,
 		characterSet:    bl.hs.characterSet,
 		username:        username,

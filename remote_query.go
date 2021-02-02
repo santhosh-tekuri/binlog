@@ -68,7 +68,7 @@ type columnDef struct {
 }
 
 func (cd *columnDef) parse(r *reader, capabilities uint32) error {
-	if capabilities&CLIENT_PROTOCOL_41 != 0 {
+	if capabilities&capProtocol41 != 0 {
 		_ = r.stringN() // catalog (always "def")
 		cd.schema = r.stringN()
 		cd.table = r.stringN()

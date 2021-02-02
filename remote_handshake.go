@@ -4,21 +4,21 @@ import "crypto/sha1"
 
 // Capability Flags: https://dev.mysql.com/doc/internals/en/capability-flags.html#packet-Protocol::CapabilityFlags
 const (
-	CLIENT_LONG_PASSWORD                  = 0x00000001
-	CLIENT_FOUND_ROWS                     = 0x00000002
-	CLIENT_LONG_FLAG                      = 0x00000004
-	CLIENT_CONNECT_WITH_DB                = 0x00000008
-	CLIENT_NO_SCHEMA                      = 0x00000010
-	CLIENT_COMPRESS                       = 0x00000020
-	CLIENT_ODBC                           = 0x00000040
-	CLIENT_PLUGIN_AUTH                    = 0x00080000
-	CLIENT_SSL                            = 0x00000800
-	CLIENT_SECURE_CONNECTION              = 0x00008000
-	CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA = 0x00200000
-	CLIENT_CONNECT_ATTRS                  = 0x00100000
-	CLIENT_PROTOCOL_41                    = 0x00000200
-	CLIENT_TRANSACTIONS                   = 0x00002000
-	CLIENT_SESSION_TRACK                  = 0x00800000
+	capLongPassword               = 0x00000001
+	capFoundRows                  = 0x00000002
+	capLongFlag                   = 0x00000004
+	capConnectWithDB              = 0x00000008
+	capNoSchema                   = 0x00000010
+	capCompress                   = 0x00000020
+	capODBC                       = 0x00000040
+	capPluginAuth                 = 0x00080000
+	capSSL                        = 0x00000800
+	capSecureConnection           = 0x00008000
+	capPluginAuthLenencClientData = 0x00200000
+	capConnectAttrs               = 0x00100000
+	capProtocol41                 = 0x00000200
+	capTransactions               = 0x00002000
+	capSessionTrack               = 0x00800000
 )
 
 // https://dev.mysql.com/doc/internals/en/connection-phase-packets.html
@@ -61,7 +61,7 @@ func (e *handshake) parse(r *reader) error {
 	}
 	var authPluginDataLength uint8
 	// todo: guess no if check needed
-	if e.capabilityFlags&CLIENT_PLUGIN_AUTH != 0 {
+	if e.capabilityFlags&capPluginAuth != 0 {
 		authPluginDataLength = r.int1()
 	} else {
 		r.skip(1)
@@ -70,7 +70,7 @@ func (e *handshake) parse(r *reader) error {
 	if r.err != nil {
 		return r.err
 	}
-	if e.capabilityFlags&CLIENT_SECURE_CONNECTION != 0 {
+	if e.capabilityFlags&capSecureConnection != 0 {
 		if authPluginDataLength > 0 && (13 < authPluginDataLength-8) {
 			authPluginDataLength -= 8
 		} else {
@@ -78,7 +78,7 @@ func (e *handshake) parse(r *reader) error {
 		}
 		e.authPluginData = append(e.authPluginData, r.bytes(int(authPluginDataLength))...)
 	}
-	if e.capabilityFlags&CLIENT_PLUGIN_AUTH != 0 {
+	if e.capabilityFlags&capPluginAuth != 0 {
 		e.authPluginName = r.stringNull()
 	}
 	return r.err
@@ -95,7 +95,7 @@ type sslRequest struct {
 }
 
 func (e sslRequest) writeTo(w *writer) error {
-	w.int4(e.capabilityFlags | CLIENT_PROTOCOL_41 | CLIENT_SSL)
+	w.int4(e.capabilityFlags | capProtocol41 | capSSL)
 	w.int4(e.maxPacketSize)
 	w.int1(e.characterSet)
 	w.Write(make([]byte, 23))
@@ -118,15 +118,15 @@ type handshakeResponse41 struct {
 }
 
 func (e handshakeResponse41) writeTo(w *writer) error {
-	capabilities := e.capabilityFlags | CLIENT_PROTOCOL_41
+	capabilities := e.capabilityFlags | capProtocol41
 	if e.database != "" {
-		capabilities |= CLIENT_CONNECT_WITH_DB
+		capabilities |= capConnectWithDB
 	}
 	if e.authPluginName != "" {
-		capabilities |= CLIENT_PLUGIN_AUTH
+		capabilities |= capPluginAuth
 	}
 	if len(e.connectAttrs) > 0 {
-		capabilities |= CLIENT_CONNECT_ATTRS
+		capabilities |= capConnectAttrs
 	}
 
 	w.int4(capabilities)
@@ -135,20 +135,20 @@ func (e handshakeResponse41) writeTo(w *writer) error {
 	w.Write(make([]byte, 23))
 	w.stringNull(e.username)
 	switch {
-	case capabilities&CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA != 0:
+	case capabilities&capPluginAuthLenencClientData != 0:
 		w.bytesN(e.authResponse)
-	case capabilities&CLIENT_SECURE_CONNECTION != 0:
+	case capabilities&capSecureConnection != 0:
 		w.bytes1(e.authResponse)
 	default:
 		w.bytesNull(e.authResponse)
 	}
-	if capabilities&CLIENT_CONNECT_WITH_DB != 0 {
+	if capabilities&capConnectWithDB != 0 {
 		w.stringNull(e.database)
 	}
-	if capabilities&CLIENT_PLUGIN_AUTH != 0 {
+	if capabilities&capPluginAuth != 0 {
 		w.stringNull(e.authPluginName)
 	}
-	if capabilities&CLIENT_CONNECT_ATTRS != 0 {
+	if capabilities&capConnectAttrs != 0 {
 		w.intN(uint64(len(e.connectAttrs)))
 		for k, v := range e.connectAttrs {
 			w.stringN(k)
