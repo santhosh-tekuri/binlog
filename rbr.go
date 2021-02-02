@@ -7,19 +7,22 @@ import (
 
 // https://dev.mysql.com/doc/internals/en/table-map-event.html
 
+type Column struct {
+	Type     byte
+	Nullable bool
+	Name     *string
+	meta     []byte
+}
+
 type tableMapEvent struct {
-	tableID           uint64
-	flags             uint16
-	SchemaName        string
-	TableName         string
-	numCol            uint64
-	columnTypes       []byte
-	columnMeta        [][]byte
-	columnNullability bitmap
-	signedness        []byte // for numeric columns
-	defaultCharset    []byte
-	columnCharset     []byte
-	columnNames       []string
+	tableID        uint64
+	flags          uint16
+	SchemaName     string
+	TableName      string
+	Columns        []Column
+	signedness     []byte // for numeric columns
+	defaultCharset []byte
+	columnCharset  []byte
 }
 
 func (e *tableMapEvent) parse(r *reader) error {
@@ -29,27 +32,32 @@ func (e *tableMapEvent) parse(r *reader) error {
 	e.SchemaName = r.stringNull()
 	_ = r.int1() // table name length
 	e.TableName = r.stringNull()
-	e.numCol = r.intN()
+	numCol := r.intN()
 	if r.err != nil {
 		return r.err
 	}
-	e.columnTypes = r.bytes(int(e.numCol))
+	e.Columns = make([]Column, numCol)
+	for i := range e.Columns {
+		e.Columns[i].Type = r.int1()
+	}
 
 	_ = r.intN() // meta length
-	e.columnMeta = make([][]byte, e.numCol)
-	for i, columnType := range e.columnTypes {
-		switch columnType {
+	for i, col := range e.Columns {
+		switch col.Type {
 		default:
 		case MYSQL_TYPE_BLOB, MYSQL_TYPE_DOUBLE, MYSQL_TYPE_FLOAT, MYSQL_TYPE_GEOMETRY, MYSQL_TYPE_JSON,
 			MYSQL_TYPE_TIME2, MYSQL_TYPE_DATETIME2, MYSQL_TYPE_TIMESTAMP2:
-			e.columnMeta[i] = r.bytes(1)
+			e.Columns[i].meta = r.bytes(1)
 		case MYSQL_TYPE_VARCHAR, MYSQL_TYPE_BIT, MYSQL_TYPE_DECIMAL, MYSQL_TYPE_NEWDECIMAL,
 			MYSQL_TYPE_SET, MYSQL_TYPE_ENUM, MYSQL_TYPE_STRING, MYSQL_TYPE_VAR_STRING:
-			e.columnMeta[i] = r.bytes(2)
+			e.Columns[i].meta = r.bytes(2)
 		}
 	}
 
-	e.columnNullability = r.bytes(bitmapSize(e.numCol))
+	nullability := bitmap(r.bytes(bitmapSize(numCol)))
+	for i := range e.Columns {
+		e.Columns[i].Nullable = nullability.isTrue(i)
+	}
 
 	for r.more() {
 		typ := r.int1()
@@ -65,9 +73,9 @@ func (e *tableMapEvent) parse(r *reader) error {
 		case 3:
 			e.columnCharset = r.bytes(len)
 		case 4:
-			e.columnNames = make([]string, e.numCol)
-			for i, _ := range e.columnNames {
-				e.columnNames[i] = r.stringN()
+			for i := range e.Columns {
+				name := r.stringN()
+				e.Columns[i].Name = &name
 			}
 		default:
 			r.skip(len)
@@ -177,7 +185,7 @@ func nextRow(r *reader) ([][]interface{}, error) {
 			if nullValue.isTrue(i - skipped) {
 				values = append(values, nil)
 			} else {
-				v, err := parseValue(r, r.tme.columnTypes[i], r.tme.columnMeta[i])
+				v, err := parseValue(r, r.tme.Columns[i].Type, r.tme.Columns[i].meta)
 				if err != nil {
 					return row, err
 				}
