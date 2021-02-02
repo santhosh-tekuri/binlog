@@ -18,18 +18,15 @@ type Local struct {
 	binlogPos    uint32
 }
 
-func Open(file string) (*Local, error) {
-	f := &Local{
-		dir:        path.Dir(file),
-		binlogFile: file,
-		binlogPos:  4,
-	}
-	r, err := newDirReader(&f.binlogFile)
+func Open(dir string) (*Local, error) {
+	fi, err := os.Stat(dir)
 	if err != nil {
 		return nil, err
 	}
-	f.conn = r
-	return f, nil
+	if !fi.IsDir() {
+		return nil, fmt.Errorf("binlog.Open: %q is not a directory", dir)
+	}
+	return &Local{dir: dir}, nil
 }
 
 func (bl *Local) ListFiles() ([]string, error) {
@@ -101,6 +98,16 @@ func (bl *Local) MasterStatus() (file string, pos uint32, err error) {
 	}
 }
 
+func (bl *Local) Seek(file string) error {
+	bl.binlogFile, bl.binlogPos = file, 4
+	r, err := newDirReader(bl.dir, &bl.binlogFile)
+	if err != nil {
+		return err
+	}
+	bl.conn = r
+	return nil
+}
+
 func (bl *Local) ReadStatus() (filename string, position uint32) {
 	if bl.binlogReader == nil {
 		return bl.binlogFile, bl.binlogPos
@@ -111,7 +118,7 @@ func (bl *Local) ReadStatus() (filename string, position uint32) {
 func (bl *Local) NextEvent() (Event, error) {
 	r := bl.binlogReader
 	if r == nil {
-		v, err := findBinlogVersion(bl.binlogFile)
+		v, err := findBinlogVersion(path.Join(bl.dir, bl.binlogFile))
 		if err != nil {
 			return Event{}, err
 		}

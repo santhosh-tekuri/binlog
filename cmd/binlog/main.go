@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -98,7 +97,7 @@ func openRemote(network, address, location string) *binlog.Remote {
 }
 
 func openLocal(address, file string) *binlog.Local {
-	bl, err := binlog.Open(path.Join(address, file))
+	bl, err := binlog.Open(address)
 	if err != nil {
 		panic(err)
 	}
@@ -115,6 +114,9 @@ func openLocal(address, file string) *binlog.Local {
 	}
 	fmt.Printf("master status: %s:%d\n", file, pos)
 
+	if err := bl.Seek(file); err != nil {
+		panic(err)
+	}
 	return bl
 }
 

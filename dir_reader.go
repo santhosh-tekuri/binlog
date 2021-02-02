@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -13,15 +14,15 @@ import (
 
 type dirReader struct {
 	file     *os.File
-	path     *string
+	name     *string
 	tmeCache map[uint64]*tableMapEvent
 }
 
-func newDirReader(file *string) (*dirReader, error) {
-	if _, err := nextBinlogFile(*file); err != nil {
+func newDirReader(dir string, file *string) (*dirReader, error) {
+	if _, err := nextBinlogFile(path.Join(dir, *file)); err != nil {
 		return nil, err
 	}
-	f, err := openBinlogFile(*file)
+	f, err := openBinlogFile(path.Join(dir, *file))
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +52,7 @@ func (r *dirReader) Read(p []byte) (int, error) {
 			}
 			_ = r.file.Close()
 			r.file = f
-			*r.path = next
+			*r.name = path.Base(next)
 			for k, _ := range r.tmeCache {
 				delete(r.tmeCache, k)
 			}
