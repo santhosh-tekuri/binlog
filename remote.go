@@ -33,7 +33,7 @@ func Dial(network, address string) (*Remote, error) {
 	r := newReader(conn, &seq)
 	hs := handshake{}
 	if err = hs.parse(r); err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return nil, err
 	}
 	// unset the features we dont support
@@ -100,7 +100,7 @@ func (bl *Remote) ListFiles() ([]string, error) {
 		return nil, err
 	}
 	files := make([]string, len(rows))
-	for i, _ := range files {
+	for i := range files {
 		files[i] = rows[i][0].(string)
 	}
 	return files, nil

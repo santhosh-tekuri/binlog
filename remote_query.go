@@ -146,7 +146,7 @@ func (rs *resultSet) nextRow() ([]interface{}, error) {
 		return nil, errors.New(ep.errorMessage)
 	default:
 		row := make([]interface{}, len(rs.columnDefs))
-		for i, _ := range row {
+		for i := range row {
 			b, err := r.peek()
 			if err != nil {
 				return nil, err
