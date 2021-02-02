@@ -2,7 +2,9 @@ package binlog
 
 import (
 	"bufio"
+	"encoding/binary"
 	"fmt"
+	"io"
 	"os"
 	"path"
 )
@@ -45,6 +47,58 @@ func (bl *Local) ListFiles() ([]string, error) {
 		files = append(files, r.Text())
 	}
 	return files, r.Err()
+}
+
+func (bl *Local) MasterStatus() (file string, pos uint32, err error) {
+	files, err := bl.ListFiles()
+	if err != nil {
+		return "", 0, err
+	}
+	if len(files) == 0 {
+		return "", 0, nil
+	}
+	file = files[len(files)-1]
+
+	f, err := os.Open(path.Join(bl.dir, file))
+	if err != nil {
+		return "", 0, fmt.Errorf("binlog.Local.MasterStatus: error in open file: %v", err)
+	}
+	defer f.Close()
+	fi, err := f.Stat()
+	if err != nil {
+		return "", 0, err
+	}
+
+	// Skip file header.
+	_, err = f.Seek(4, io.SeekStart)
+	if err != nil {
+		return
+	}
+	pos += 4
+
+	buf := make([]byte, 13)
+	for {
+		_, err = io.ReadFull(f, buf)
+		if err == io.EOF {
+			err = nil
+			return
+		}
+		if err != nil {
+			return
+		}
+		// Timestamp = buf[:4]
+		// EventType := buf[4]
+		// ServerID = buf[5:9]
+		eventSize := binary.LittleEndian.Uint32(buf[9:])
+		if int64(pos+eventSize-13) > fi.Size() {
+			// partial record found
+			return
+		}
+		if _, err = f.Seek(int64(eventSize-13), io.SeekCurrent); err != nil {
+			return
+		}
+		pos += eventSize
+	}
 }
 
 func (bl *Local) NextEvent() (Event, error) {

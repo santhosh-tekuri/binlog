@@ -109,6 +109,12 @@ func openLocal(address, file string) *binlog.Local {
 	}
 	fmt.Println("files:", files)
 
+	file, pos, err := bl.MasterStatus()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("master status: %s:%d\n", file, pos)
+
 	return bl
 }
 

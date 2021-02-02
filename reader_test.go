@@ -185,16 +185,6 @@ func TestDump(t *testing.T) {
 	}
 }
 
-// 415
-//  /Users/santhosh/go/src/binlog/Dump/binlog.000005 1336
-func TestFetchLastLocation(t *testing.T) {
-	file, pos, err := fetchLastLocation("/Users/santhosh/go/src/binlog/Dump")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Log(file, pos)
-}
-
 func TestFileUsage(t *testing.T) {
 	conn, err := Open("/Users/santhosh/go/src/binlog/Dump/binlog.000002")
 	if err != nil {
