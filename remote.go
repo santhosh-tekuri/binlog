@@ -118,12 +118,13 @@ func (bl *Remote) MasterStatus() (file string, pos uint32, err error) {
 }
 
 func (bl *Remote) fetchBinlogChecksum() (string, error) {
-	rows, err := bl.queryRows(`show variables like 'binlog_checksum'`)
+	rows, err := bl.queryRows(`show global variables like 'binlog_checksum'`)
 	if err != nil {
 		return "", err
 	}
 	if len(rows) > 0 {
-		return rows[0][1].(string), nil
+		checksum, _ := rows[0][1].(string)
+		return checksum, nil
 	}
 	return "", nil
 }
@@ -138,7 +139,7 @@ func (bl *Remote) RequestBinlog(serverID uint32, fileName string, position uint3
 	if err != nil {
 		return err
 	}
-	if checksum != "" {
+	if checksum != "" && checksum != "NONE" {
 		if err := bl.confirmChecksumSupport(); err != nil {
 			return err
 		}
