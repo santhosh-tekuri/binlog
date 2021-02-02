@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"strconv"
 	"time"
@@ -206,6 +207,12 @@ func (bl *Remote) NextEvent() (Event, error) {
 	switch b {
 	case okMarker:
 		r.int1()
+	case eofMarker:
+		eof := eofPacket{}
+		if err := eof.parse(r, bl.hs.capabilityFlags); err != nil {
+			return Event{}, err
+		}
+		return Event{}, io.EOF
 	case errMarker:
 		ep := errPacket{}
 		if err := ep.parse(r, bl.hs.capabilityFlags); err != nil {
@@ -229,11 +236,6 @@ func (bl *Remote) Close() error {
 
 // comBinlogDump ---
 
-const (
-	COM_BINLOG_DUMP       = 0x12
-	BINLOG_DUMP_NON_BLOCK = 0x01
-)
-
 type comBinlogDump struct {
 	binlogPos      uint32
 	flags          uint16
@@ -242,7 +244,7 @@ type comBinlogDump struct {
 }
 
 func (e comBinlogDump) writeTo(w *writer) error {
-	w.int1(COM_BINLOG_DUMP)
+	w.int1(0x12) // COM_BINLOG_DUMP
 	w.int4(e.binlogPos)
 	w.int2(e.flags)
 	w.int4(e.serverID)

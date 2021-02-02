@@ -123,6 +123,9 @@ func view(bl binLog) error {
 		fmt.Println("-------------------------")
 		e, err := bl.NextEvent()
 		if err != nil {
+			if err == io.EOF {
+				return nil
+			}
 			panic(err)
 		}
 		fmt.Printf("%#v\n%#v\n", e.Header, e.Data)
