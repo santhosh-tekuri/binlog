@@ -1,14 +1,12 @@
 package binlog
 
 import (
+	"bufio"
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path"
-	"strconv"
-	"strings"
 	"time"
 )
 
@@ -30,6 +28,7 @@ func newDirReader(dir string, file *string) (*dirReader, error) {
 }
 
 func (r *dirReader) Read(p []byte) (int, error) {
+	delay := time.Second
 	for {
 		n, err := r.file.Read(p)
 		if n > 0 {
@@ -44,24 +43,37 @@ func (r *dirReader) Read(p []byte) (int, error) {
 		if err != io.EOF {
 			panic("bug")
 		}
+
+		// Check for next file.
 		next, err := nextBinlogFile(r.file.Name())
-		if _, err := os.Stat(next); err == nil {
-			f, err := openBinlogFile(next)
-			if err != nil {
-				return 0, err
-			}
-			_ = r.file.Close()
-			r.file = f
-			*r.name = path.Base(next)
-			for k, _ := range r.tmeCache {
-				delete(r.tmeCache, k)
-			}
-			fmt.Println("*********************", next)
-		} else if os.IsNotExist(err) {
-			time.Sleep(time.Second)
-		} else {
+		if err != nil {
 			return 0, err
 		}
+		if next == "" {
+			time.Sleep(delay)
+			continue
+		}
+		if _, err = os.Stat(next); err != nil {
+			if os.IsNotExist(err) {
+				time.Sleep(delay)
+				continue
+			} else {
+				return 0, err
+			}
+		}
+
+		// Switch to next file.
+		f, err := openBinlogFile(next)
+		if err != nil {
+			return 0, err
+		}
+		_ = r.file.Close()
+		r.file = f
+		*r.name = path.Base(next)
+		for k := range r.tmeCache {
+			delete(r.tmeCache, k)
+		}
+		fmt.Println("*********************", next)
 	}
 }
 
@@ -82,17 +94,19 @@ func openBinlogFile(file string) (*os.File, error) {
 }
 
 func nextBinlogFile(name string) (string, error) {
-	dot := strings.LastIndexByte(name, '.')
-	if dot == -1 {
-		return "", errors.New("no dot in Dir")
-	}
-	suffix := name[dot+1:]
-	for len(suffix) > 1 && suffix[0] == '0' {
-		suffix = suffix[1:]
-	}
-	i, err := strconv.Atoi(suffix)
+	dir, file := path.Split(name)
+	index, err := os.Open(path.Join(dir, "binlog.index"))
 	if err != nil {
-		return "", errors.New("invalid Dir suffix")
+		return "", err
 	}
-	return fmt.Sprintf("%s%06d", name[:dot+1], i+1), nil
+	defer index.Close()
+	r := bufio.NewScanner(index)
+	var text string
+	for r.Scan() {
+		if text == file {
+			return path.Join(dir, r.Text()), nil
+		}
+		text = r.Text()
+	}
+	return "", nil
 }
