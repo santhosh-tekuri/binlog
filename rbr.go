@@ -61,24 +61,24 @@ func (e *tableMapEvent) parse(r *reader) error {
 
 	for r.more() {
 		typ := r.int1()
-		len := int(r.intN())
+		size := int(r.intN())
 		if r.err != nil {
 			break
 		}
 		switch typ {
 		case 1:
-			e.signedness = r.bytes(len)
+			e.signedness = r.bytes(size)
 		case 2:
-			e.defaultCharset = r.bytes(len)
+			e.defaultCharset = r.bytes(size)
 		case 3:
-			e.columnCharset = r.bytes(len)
+			e.columnCharset = r.bytes(size)
 		case 4:
 			for i := range e.Columns {
 				name := r.stringN()
 				e.Columns[i].Name = &name
 			}
 		default:
-			r.skip(len)
+			r.skip(size)
 		}
 	}
 
@@ -88,13 +88,11 @@ func (e *tableMapEvent) parse(r *reader) error {
 // https://dev.mysql.com/doc/internals/en/rows-event.html
 
 type RowsEvent struct {
-	eventType  EventType
-	tableID    uint64
-	tme        *tableMapEvent
-	flags      uint16
-	numCol     uint64
-	present    []bitmap
-	colOrdinal [][]int
+	eventType EventType
+	tableID   uint64
+	tme       *tableMapEvent
+	flags     uint16
+	Columns   [][]Column
 }
 
 func (e *RowsEvent) parse(r *reader, eventType EventType) error {
@@ -124,29 +122,28 @@ func (e *RowsEvent) parse(r *reader, eventType EventType) error {
 		}
 		_ = r.string(int(extraDataLength - 2))
 	}
-	e.numCol = r.intN()
+	numCol := r.intN()
 	if r.err != nil {
 		return r.err
 	}
-	if e.numCol == 0 {
+	if numCol == 0 {
 		// dummy RowsEvent
 		r.tme = nil
 	}
 
-	e.present = make([]bitmap, 2)
-	e.colOrdinal = make([][]int, 2)
-	e.present[0] = r.bytes(bitmapSize(e.numCol))
-	for i := 0; i < int(e.numCol); i++ {
-		if e.present[0].isTrue(i) {
-			e.colOrdinal[0] = append(e.colOrdinal[0], i)
+	e.Columns = make([][]Column, 2)
+	present := bitmap(r.bytes(bitmapSize(numCol)))
+	for i := 0; i < int(numCol); i++ {
+		if present.isTrue(i) {
+			e.Columns[0] = append(e.Columns[0], e.tme.Columns[i])
 		}
 	}
 	switch eventType {
 	case UPDATE_ROWS_EVENTv1, UPDATE_ROWS_EVENTv2:
-		e.present[1] = r.bytes(bitmapSize(e.numCol))
-		for i := 0; i < int(e.numCol); i++ {
-			if e.present[1].isTrue(i) {
-				e.colOrdinal[1] = append(e.colOrdinal[1], i)
+		present = bitmap(r.bytes(bitmapSize(numCol)))
+		for i := 0; i < int(numCol); i++ {
+			if present.isTrue(i) {
+				e.Columns[1] = append(e.Columns[1], e.tme.Columns[i])
 			}
 		}
 	}
@@ -154,16 +151,16 @@ func (e *RowsEvent) parse(r *reader, eventType EventType) error {
 	return r.err
 }
 
-func nextRow(r *reader) ([][]interface{}, error) {
+func nextRow(r *reader) (values []interface{}, valuesBeforeUpdate []interface{}, err error) {
 	if r.tme == nil {
 		// dummy RowsEvent
-		return nil, io.EOF
+		return nil, nil, io.EOF
 	}
 	if !r.more() {
 		if r.err != nil {
-			return nil, r.err
+			return nil, nil, r.err
 		}
-		return nil, io.EOF
+		return nil, nil, io.EOF
 	}
 	row := make([][]interface{}, 2)
 	n := 1
@@ -172,29 +169,30 @@ func nextRow(r *reader) ([][]interface{}, error) {
 		n = 2
 	}
 	for m := 0; m < n; m++ {
-		nullValue := bitmap(r.bytes(bitmapSize(r.re.numCol)))
+		nullValue := bitmap(r.bytes(bitmapSize(uint64(len(r.re.Columns[m])))))
 		if r.err != nil {
-			return nil, r.err
+			return nil, nil, r.err
 		}
 		var values []interface{}
-		for i, skipped := 0, 0; i < int(r.re.numCol); i++ {
-			if !r.re.present[m].isTrue(i) {
-				skipped++
-				continue
-			}
-			if nullValue.isTrue(i - skipped) {
+		for i := range r.re.Columns[m] {
+			if nullValue.isTrue(i) {
 				values = append(values, nil)
 			} else {
 				v, err := parseValue(r, r.tme.Columns[i].Type, r.tme.Columns[i].meta)
 				if err != nil {
-					return row, err
+					return nil, nil, err
 				}
 				values = append(values, v)
 			}
 		}
 		row[m] = values
 	}
-	return row, nil
+	switch r.re.eventType {
+	case UPDATE_ROWS_EVENTv1, UPDATE_ROWS_EVENTv2:
+		return row[1], row[0], nil
+	default:
+		return row[0], nil, nil
+	}
 }
 
 // system variable binlog_rows_query_log_events must be ON for this event

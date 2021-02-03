@@ -12,7 +12,7 @@ import (
 
 type binLog interface {
 	NextEvent() (binlog.Event, error)
-	NextRow() ([][]interface{}, error)
+	NextRow() (values []interface{}, valuesBeforeUpdate []interface{}, err error)
 }
 
 // binlog view tcp:localhost:3306,ssl,user=root,passwd=password binlog.000002:4
@@ -133,14 +133,14 @@ func view(bl binLog) error {
 		fmt.Printf("%#v\n%#v\n", e.Header, e.Data)
 		if _, ok := e.Data.(binlog.RowsEvent); ok {
 			for {
-				row, err := bl.NextRow()
+				row, before, err := bl.NextRow()
 				if err != nil {
 					if err == io.EOF {
 						break
 					}
 					panic(err)
 				}
-				fmt.Println("        ", row)
+				fmt.Println("        ", row, "        ", before)
 			}
 		}
 	}

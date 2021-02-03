@@ -226,7 +226,7 @@ func (bl *Remote) NextEvent() (Event, error) {
 	return nextEvent(r)
 }
 
-func (bl *Remote) NextRow() ([][]interface{}, error) {
+func (bl *Remote) NextRow() (values []interface{}, valuesBeforeUpdate []interface{}, err error) {
 	return nextRow(bl.binlogReader)
 }
 

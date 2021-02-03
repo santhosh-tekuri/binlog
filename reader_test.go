@@ -147,14 +147,14 @@ func TestUsage(t *testing.T) {
 		t.Logf("%#v", e.Data)
 		if _, ok := e.Data.(RowsEvent); ok {
 			for {
-				row, err := conn.NextRow()
+				row, before, err := conn.NextRow()
 				if err != nil {
 					if err == io.EOF {
 						break
 					}
 					t.Fatal(err)
 				}
-				t.Log("        ", row)
+				t.Log("        ", row, "        ", before)
 			}
 		}
 	}
@@ -200,14 +200,14 @@ func TestFileUsage(t *testing.T) {
 		t.Logf("%#v", e)
 		if _, ok := e.Data.(RowsEvent); ok {
 			for {
-				row, err := conn.NextRow()
+				row, before, err := conn.NextRow()
 				if err != nil {
 					if err == io.EOF {
 						break
 					}
 					t.Fatal(err)
 				}
-				t.Log("        ", row)
+				t.Log("        ", row, "        ", before)
 			}
 		}
 	}

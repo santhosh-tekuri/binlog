@@ -140,7 +140,7 @@ func (bl *Local) NextEvent() (Event, error) {
 	return nextEvent(r)
 }
 
-func (bl *Local) NextRow() ([][]interface{}, error) {
+func (bl *Local) NextRow() (values []interface{}, valuesBeforeUpdate []interface{}, err error) {
 	return nextRow(bl.binlogReader)
 }
 
