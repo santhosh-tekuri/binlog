@@ -115,7 +115,7 @@ func createFile(dir, file string) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err := f.Write([]byte{0xfe, 'b', 'i', 'n'}); err != nil {
+	if _, err := f.Write(fileHeader); err != nil {
 		_ = f.Close()
 		return nil, err
 	}

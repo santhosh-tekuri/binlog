@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+var fileHeader = []byte{0xfe, 'b', 'i', 'n'}
+
 type dirReader struct {
 	file     *os.File
 	name     *string
@@ -87,7 +89,7 @@ func openBinlogFile(file string) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !bytes.Equal(header, []byte{0xfe, 'b', 'i', 'n'}) {
+	if !bytes.Equal(header, fileHeader) {
 		return nil, fmt.Errorf("binlog.Open: %s has invalid fileheader", file)
 	}
 	return f, nil
