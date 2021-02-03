@@ -96,7 +96,7 @@ func openRemote(network, address, location string) *binlog.Remote {
 	return bl
 }
 
-func openLocal(address, file string) *binlog.Local {
+func openLocal(address, location string) *binlog.Local {
 	bl, err := binlog.Open(address)
 	if err != nil {
 		panic(err)
@@ -114,6 +114,8 @@ func openLocal(address, file string) *binlog.Local {
 	}
 	fmt.Printf("master status: %s:%d\n", file, pos)
 
+	file, pos = getLocation(location)
+	fmt.Println("file", file, pos)
 	if err := bl.Seek(file); err != nil {
 		panic(err)
 	}

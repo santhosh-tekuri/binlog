@@ -58,7 +58,7 @@ func (r *dirReader) Read(p []byte) (int, error) {
 			}
 			fmt.Println("*********************", next)
 		} else if os.IsNotExist(err) {
-			time.Sleep(1000)
+			time.Sleep(time.Second)
 		} else {
 			return 0, err
 		}
