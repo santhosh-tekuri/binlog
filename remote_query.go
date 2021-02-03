@@ -152,7 +152,7 @@ func (rs *resultSet) nextRow() ([]interface{}, error) {
 				return nil, err
 			}
 			if b == 0xfb {
-				row[i] = Null{}
+				row[i] = null{}
 			} else {
 				row[i] = r.stringN()
 				if r.err != nil {

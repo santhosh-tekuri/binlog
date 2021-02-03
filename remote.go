@@ -12,7 +12,7 @@ import (
 
 var ErrMalformedPacket = errors.New("malformed packet")
 
-type Null struct{}
+type null struct{}
 
 type Remote struct {
 	conn net.Conn
