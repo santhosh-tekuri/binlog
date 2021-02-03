@@ -16,6 +16,7 @@ type Local struct {
 	binlogReader *reader
 	binlogFile   string
 	binlogPos    uint32
+	checksum     int
 }
 
 func Open(dir string) (*Local, error) {
@@ -26,7 +27,7 @@ func Open(dir string) (*Local, error) {
 	if !fi.IsDir() {
 		return nil, fmt.Errorf("binlog.Open: %q is not a directory", dir)
 	}
-	return &Local{dir: dir}, nil
+	return &Local{dir: dir, checksum: 4}, nil // todo: checksum
 }
 
 func (bl *Local) ListFiles() ([]string, error) {
@@ -130,14 +131,14 @@ func (bl *Local) NextEvent() (Event, error) {
 		r.fde = formatDescriptionEvent{binlogVersion: v}
 		bl.binlogReader = r
 	} else {
-		r.limit += 4
+		r.limit += bl.checksum
 		if err := r.drain(); err != nil {
 			return Event{}, fmt.Errorf("binlog.NextEvent: error in draining event: %v", err)
 		}
 		r.limit = -1
 	}
 
-	return nextEvent(r)
+	return nextEvent(r, bl.checksum)
 }
 
 func (bl *Local) NextRow() (values []interface{}, valuesBeforeUpdate []interface{}, err error) {

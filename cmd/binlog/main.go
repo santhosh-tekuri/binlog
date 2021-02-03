@@ -53,7 +53,7 @@ func openRemote(network, address, location string) *binlog.Remote {
 	if bl.IsSSLSupported() {
 		for _, t := range tok[1:] {
 			if t == "ssl" {
-				if err = bl.UpgradeSSL(); err != nil {
+				if err = bl.UpgradeSSL(nil); err != nil {
 					panic(err)
 				}
 				break

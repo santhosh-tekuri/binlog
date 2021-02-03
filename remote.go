@@ -2,6 +2,7 @@ package binlog
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"io"
@@ -23,6 +24,7 @@ type Remote struct {
 	binlogReader *reader
 	binlogFile   string
 	binlogPos    uint32
+	checksum     int
 }
 
 func Dial(network, address string) (*Remote, error) {
@@ -46,11 +48,15 @@ func Dial(network, address string) (*Remote, error) {
 	}, nil
 }
 
+// IsSSLSupported tells whether MySQL server supports SSL.
 func (bl *Remote) IsSSLSupported() bool {
 	return bl.hs.capabilityFlags&capSSL != 0
 }
 
-func (bl *Remote) UpgradeSSL() error {
+// UpgradeSSL upgrades current connection to SSL. If rootCAs is nil,
+// it will use InsecureSkipVerify true value. This should be done
+// before Authenticate call
+func (bl *Remote) UpgradeSSL(rootCAs *x509.CertPool) error {
 	w := newWriter(bl.conn, &bl.seq)
 	err := w.writeClose(sslRequest{
 		capabilityFlags: capLongFlag | capSecureConnection,
@@ -60,10 +66,17 @@ func (bl *Remote) UpgradeSSL() error {
 	if err != nil {
 		return err
 	}
-	bl.conn = tls.Client(bl.conn, &tls.Config{InsecureSkipVerify: true})
+	tlsConf := &tls.Config{}
+	if rootCAs != nil {
+		tlsConf.RootCAs = rootCAs
+	} else {
+		tlsConf.InsecureSkipVerify = true
+	}
+	bl.conn = tls.Client(bl.conn, tlsConf)
 	return nil
 }
 
+// Authenticate sends the credentials to MySQL.
 func (bl *Remote) Authenticate(username, password string) error {
 	w := newWriter(bl.conn, &bl.seq)
 	err := w.writeClose(handshakeResponse41{
@@ -95,6 +108,9 @@ func (bl *Remote) Authenticate(username, password string) error {
 	return r.drain()
 }
 
+// ListFiles lists the binary log files on the server,
+// in the order they were created. It is equivalent to
+// `SHOW BINARY LOGS` statement.
 func (bl *Remote) ListFiles() ([]string, error) {
 	rows, err := bl.queryRows(`show binary logs`)
 	if err != nil {
@@ -107,6 +123,8 @@ func (bl *Remote) ListFiles() ([]string, error) {
 	return files, nil
 }
 
+// MasterStatus provides status information about the binary log files of the server.
+// It is equivalent to `SHOW MASTER STATUS` statement.
 func (bl *Remote) MasterStatus() (file string, pos uint32, err error) {
 	rows, err := bl.queryRows(`show master status`)
 	if err != nil {
@@ -119,6 +137,9 @@ func (bl *Remote) MasterStatus() (file string, pos uint32, err error) {
 	return rows[0][0].(string), uint32(off), err
 }
 
+// SetHeartbeatPeriod configures the interval to send HeartBeatEvent in absence of data.
+// This avoids connection timeout occurring in the absence of data. Setting interval to 0
+// disables heartbeats altogether.
 func (bl *Remote) SetHeartbeatPeriod(d time.Duration) error {
 	_, err := bl.query(fmt.Sprintf("SET @master_heartbeat_period=%d", d))
 	return err
@@ -150,6 +171,9 @@ func (bl *Remote) RequestBinlog(serverID uint32, fileName string, position uint3
 		if err := bl.confirmChecksumSupport(); err != nil {
 			return err
 		}
+		bl.checksum = 4
+	} else {
+		bl.checksum = 0
 	}
 	bl.seq = 0
 	w := newWriter(bl.conn, &bl.seq)
@@ -191,7 +215,7 @@ func (bl *Remote) NextEvent() (Event, error) {
 		r.fde = formatDescriptionEvent{binlogVersion: v}
 		bl.binlogReader = r
 	} else {
-		r.limit += 4
+		r.limit += bl.checksum
 		if err := r.drain(); err != nil {
 			return Event{}, fmt.Errorf("binlog.NextEvent: error in draining event: %v", err)
 		}
@@ -223,7 +247,7 @@ func (bl *Remote) NextEvent() (Event, error) {
 		return Event{}, fmt.Errorf("binlogStream: got %0x want OK-byte", b)
 	}
 
-	return nextEvent(r)
+	return nextEvent(r, bl.checksum)
 }
 
 func (bl *Remote) NextRow() (values []interface{}, valuesBeforeUpdate []interface{}, err error) {

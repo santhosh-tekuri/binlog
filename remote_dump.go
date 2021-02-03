@@ -75,7 +75,7 @@ func (bl *Remote) Dump(dir string) error {
 				return err
 			}
 			if v > 1 {
-				buf = buf[4+2+8 : len(buf)-4] // LogPos, Flags, position and exclude checksum
+				buf = buf[4+2+8 : len(buf)-bl.checksum] // LogPos, Flags, position and exclude checksum
 			}
 			if f != nil {
 				if err := f.Close(); err != nil {
