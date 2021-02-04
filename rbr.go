@@ -11,7 +11,7 @@ type Column struct {
 	Type     byte
 	Nullable bool
 	Unsigned bool
-	Name     *string
+	Name     string
 	meta     []byte
 }
 
@@ -83,8 +83,7 @@ func (e *tableMapEvent) parse(r *reader) error {
 			e.columnCharset = r.bytes(size)
 		case 4:
 			for i := range e.Columns {
-				name := r.stringN()
-				e.Columns[i].Name = &name
+				e.Columns[i].Name = r.stringN()
 			}
 		default:
 			r.skip(size)
