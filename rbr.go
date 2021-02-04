@@ -100,7 +100,7 @@ type RowsEvent struct {
 	tableID   uint64
 	tme       *tableMapEvent
 	flags     uint16
-	Columns   [][]Column
+	columns   [][]Column
 }
 
 func (e *RowsEvent) parse(r *reader, eventType EventType) error {
@@ -139,11 +139,11 @@ func (e *RowsEvent) parse(r *reader, eventType EventType) error {
 		r.tme = nil
 	}
 
-	e.Columns = make([][]Column, 2)
+	e.columns = make([][]Column, 2)
 	present := bitmap(r.bytes(bitmapSize(numCol)))
 	for i := 0; i < int(numCol); i++ {
 		if present.isTrue(i) {
-			e.Columns[0] = append(e.Columns[0], e.tme.Columns[i])
+			e.columns[0] = append(e.columns[0], e.tme.Columns[i])
 		}
 	}
 	switch eventType {
@@ -151,7 +151,7 @@ func (e *RowsEvent) parse(r *reader, eventType EventType) error {
 		present = bitmap(r.bytes(bitmapSize(numCol)))
 		for i := 0; i < int(numCol); i++ {
 			if present.isTrue(i) {
-				e.Columns[1] = append(e.Columns[1], e.tme.Columns[i])
+				e.columns[1] = append(e.columns[1], e.tme.Columns[i])
 			}
 		}
 	}
@@ -177,12 +177,12 @@ func nextRow(r *reader) (values []interface{}, valuesBeforeUpdate []interface{},
 		n = 2
 	}
 	for m := 0; m < n; m++ {
-		nullValue := bitmap(r.bytes(bitmapSize(uint64(len(r.re.Columns[m])))))
+		nullValue := bitmap(r.bytes(bitmapSize(uint64(len(r.re.columns[m])))))
 		if r.err != nil {
 			return nil, nil, r.err
 		}
 		var values []interface{}
-		for i := range r.re.Columns[m] {
+		for i := range r.re.columns[m] {
 			if nullValue.isTrue(i) {
 				values = append(values, nil)
 			} else {
@@ -200,6 +200,24 @@ func nextRow(r *reader) (values []interface{}, valuesBeforeUpdate []interface{},
 		return row[1], row[0], nil
 	default:
 		return row[0], nil, nil
+	}
+}
+
+func (e RowsEvent) Columns() []Column {
+	switch e.eventType {
+	case UPDATE_ROWS_EVENTv1, UPDATE_ROWS_EVENTv2:
+		return e.columns[1]
+	default:
+		return e.columns[0]
+	}
+}
+
+func (e RowsEvent) ColumnsBeforeUpdate() []Column {
+	switch e.eventType {
+	case UPDATE_ROWS_EVENTv1, UPDATE_ROWS_EVENTv2:
+		return e.columns[0]
+	default:
+		return nil
 	}
 }
 
