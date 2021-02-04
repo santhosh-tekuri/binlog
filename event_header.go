@@ -112,7 +112,8 @@ type EventHeader struct {
 	EventType EventType
 	ServerID  uint32
 	EventSize uint32
-	LogPos    uint32
+	LogFile   string
+	NextPos   uint32
 	Flags     uint16
 }
 
@@ -122,7 +123,7 @@ func (h *EventHeader) parse(r *reader) error {
 	h.ServerID = r.int4()
 	h.EventSize = r.int4()
 	if r.fde.binlogVersion > 1 {
-		h.LogPos = r.int4()
+		h.NextPos = r.int4()
 		h.Flags = r.int2()
 	}
 	return r.err

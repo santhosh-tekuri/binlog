@@ -22,8 +22,6 @@ type Remote struct {
 
 	// binlog related
 	binlogReader *reader
-	binlogFile   string
-	binlogPos    uint32
 	checksum     int
 }
 
@@ -183,17 +181,7 @@ func (bl *Remote) RequestBinlog(serverID uint32, fileName string, position uint3
 		serverID:       serverID,
 		binlogFilename: fileName,
 	})
-	if err != nil {
-		bl.binlogFile, bl.binlogPos = fileName, position
-	}
 	return err
-}
-
-func (bl *Remote) ReadStatus() (filename string, position uint32) {
-	if bl.binlogReader == nil {
-		return bl.binlogFile, bl.binlogPos
-	}
-	return bl.binlogReader.binlogFile, bl.binlogReader.binlogPos
 }
 
 func (bl *Remote) binlogVersion() (uint16, error) {

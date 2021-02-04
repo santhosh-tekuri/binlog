@@ -11,8 +11,9 @@ func nextEvent(r *reader, checksum int) (Event, error) {
 	}
 	r.limit = int(h.EventSize-headerSize) - checksum
 
-	if h.LogPos != 0 {
-		r.binlogPos = h.LogPos
+	if h.NextPos != 0 {
+		r.binlogPos = h.NextPos
+		h.LogFile, h.NextPos = r.binlogFile, r.binlogPos
 	}
 	// Read event body
 	switch h.EventType {
@@ -25,8 +26,9 @@ func nextEvent(r *reader, checksum int) (Event, error) {
 	case ROTATE_EVENT:
 		re := rotateEvent{}
 		err := re.parse(r)
-		if err != nil {
+		if err == nil {
 			r.binlogFile, r.binlogPos = re.nextBinlog, uint32(re.position)
+			h.LogFile, h.NextPos = r.binlogFile, r.binlogPos
 		}
 		r.tmeCache = make(map[uint64]*tableMapEvent)
 		return Event{h, re}, err

@@ -14,8 +14,6 @@ type Local struct {
 	conn *dirReader
 
 	binlogReader *reader
-	binlogFile   string
-	binlogPos    uint32
 	checksum     int
 }
 
@@ -100,8 +98,7 @@ func (bl *Local) MasterStatus() (file string, pos uint32, err error) {
 }
 
 func (bl *Local) Seek(file string) error {
-	bl.binlogFile, bl.binlogPos = file, 4
-	r, err := newDirReader(bl.dir, &bl.binlogFile)
+	r, err := newDirReader(bl.dir, &file)
 	if err != nil {
 		return err
 	}
@@ -109,25 +106,20 @@ func (bl *Local) Seek(file string) error {
 	return nil
 }
 
-func (bl *Local) ReadStatus() (filename string, position uint32) {
-	if bl.binlogReader == nil {
-		return bl.binlogFile, bl.binlogPos
-	}
-	return bl.binlogReader.binlogFile, bl.binlogReader.binlogPos
-}
-
 func (bl *Local) NextEvent() (Event, error) {
 	r := bl.binlogReader
 	if r == nil {
-		v, err := findBinlogVersion(path.Join(bl.dir, bl.binlogFile))
+		v, err := findBinlogVersion(bl.conn.file.Name())
 		if err != nil {
 			return Event{}, err
 		}
 		r = &reader{
-			rd:       bl.conn,
-			tmeCache: bl.conn.tmeCache,
-			limit:    -1,
+			rd:         bl.conn,
+			tmeCache:   bl.conn.tmeCache,
+			binlogFile: *bl.conn.name,
+			limit:      -1,
 		}
+		bl.conn.name = &r.binlogFile
 		r.fde = formatDescriptionEvent{binlogVersion: v}
 		bl.binlogReader = r
 	} else {
