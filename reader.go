@@ -13,7 +13,7 @@ const (
 func newReader(r io.Reader, seq *uint8) *reader {
 	return &reader{
 		rd:       &packetReader{rd: r, seq: seq},
-		tmeCache: make(map[uint64]*tableMapEvent),
+		tmeCache: make(map[uint64]*TableMapEvent),
 		limit:    -1,
 	}
 }
@@ -29,8 +29,8 @@ type reader struct {
 	binlogFile string
 	binlogPos  uint32
 	fde        formatDescriptionEvent
-	tmeCache   map[uint64]*tableMapEvent
-	tme        *tableMapEvent
+	tmeCache   map[uint64]*TableMapEvent
+	tme        *TableMapEvent
 	re         RowsEvent
 }
 

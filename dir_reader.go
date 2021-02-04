@@ -15,7 +15,7 @@ var fileHeader = []byte{0xfe, 'b', 'i', 'n'}
 type dirReader struct {
 	file     *os.File
 	name     *string
-	tmeCache map[uint64]*tableMapEvent
+	tmeCache map[uint64]*TableMapEvent
 }
 
 func newDirReader(dir string, file *string) (*dirReader, error) {
@@ -26,7 +26,7 @@ func newDirReader(dir string, file *string) (*dirReader, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &dirReader{f, file, make(map[uint64]*tableMapEvent)}, nil
+	return &dirReader{f, file, make(map[uint64]*TableMapEvent)}, nil
 }
 
 func (r *dirReader) Read(p []byte) (int, error) {

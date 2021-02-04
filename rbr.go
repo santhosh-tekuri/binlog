@@ -15,7 +15,7 @@ type Column struct {
 	meta     []byte
 }
 
-type tableMapEvent struct {
+type TableMapEvent struct {
 	tableID        uint64
 	flags          uint16
 	SchemaName     string
@@ -25,7 +25,7 @@ type tableMapEvent struct {
 	columnCharset  []byte
 }
 
-func (e *tableMapEvent) parse(r *reader) error {
+func (e *TableMapEvent) parse(r *reader) error {
 	e.tableID = r.int6()
 	e.flags = r.int2()
 	_ = r.int1() // schema name length
@@ -98,7 +98,7 @@ func (e *tableMapEvent) parse(r *reader) error {
 type RowsEvent struct {
 	eventType EventType
 	tableID   uint64
-	tme       *tableMapEvent
+	TableMap  *TableMapEvent
 	flags     uint16
 	columns   [][]Column
 }
@@ -115,10 +115,10 @@ func (e *RowsEvent) parse(r *reader, eventType EventType) error {
 		r.tme = nil
 	} else {
 		var ok bool
-		if e.tme, ok = r.tmeCache[e.tableID]; !ok {
+		if e.TableMap, ok = r.tmeCache[e.tableID]; !ok {
 			return fmt.Errorf("no tableMapEvent for tableID %d", e.tableID)
 		}
-		r.tme = e.tme
+		r.tme = e.TableMap
 	}
 
 	e.flags = r.int2()
@@ -143,7 +143,7 @@ func (e *RowsEvent) parse(r *reader, eventType EventType) error {
 	present := bitmap(r.bytes(bitmapSize(numCol)))
 	for i := 0; i < int(numCol); i++ {
 		if present.isTrue(i) {
-			e.columns[0] = append(e.columns[0], e.tme.Columns[i])
+			e.columns[0] = append(e.columns[0], e.TableMap.Columns[i])
 		}
 	}
 	switch eventType {
@@ -151,7 +151,7 @@ func (e *RowsEvent) parse(r *reader, eventType EventType) error {
 		present = bitmap(r.bytes(bitmapSize(numCol)))
 		for i := 0; i < int(numCol); i++ {
 			if present.isTrue(i) {
-				e.columns[1] = append(e.columns[1], e.tme.Columns[i])
+				e.columns[1] = append(e.columns[1], e.TableMap.Columns[i])
 			}
 		}
 	}

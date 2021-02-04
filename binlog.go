@@ -30,10 +30,10 @@ func nextEvent(r *reader, checksum int) (Event, error) {
 			r.binlogFile, r.binlogPos = re.nextBinlog, uint32(re.position)
 			h.LogFile, h.NextPos = r.binlogFile, r.binlogPos
 		}
-		r.tmeCache = make(map[uint64]*tableMapEvent)
+		r.tmeCache = make(map[uint64]*TableMapEvent)
 		return Event{h, re}, err
 	case TABLE_MAP_EVENT:
-		tme := tableMapEvent{}
+		tme := TableMapEvent{}
 		err := tme.parse(r)
 		r.tmeCache[tme.tableID] = &tme
 		return Event{h, tme}, err
