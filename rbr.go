@@ -10,6 +10,7 @@ import (
 type Column struct {
 	Type     byte
 	Nullable bool
+	Unsigned bool
 	Name     *string
 	meta     []byte
 }
@@ -20,7 +21,6 @@ type tableMapEvent struct {
 	SchemaName     string
 	TableName      string
 	Columns        []Column
-	signedness     []byte // for numeric columns
 	defaultCharset []byte
 	columnCharset  []byte
 }
@@ -67,7 +67,16 @@ func (e *tableMapEvent) parse(r *reader) error {
 		}
 		switch typ {
 		case 1:
-			e.signedness = r.bytes(size)
+			signedness := bitmap(r.bytes(size))
+			inum := 0
+			for i := range e.Columns {
+				switch e.Columns[i].Type {
+				case MYSQL_TYPE_TINY, MYSQL_TYPE_SHORT, MYSQL_TYPE_INT24, MYSQL_TYPE_LONG, MYSQL_TYPE_LONGLONG,
+					MYSQL_TYPE_FLOAT, MYSQL_TYPE_DOUBLE, MYSQL_TYPE_DECIMAL, MYSQL_TYPE_NEWDECIMAL:
+					e.Columns[i].Unsigned = signedness.isTrue(inum)
+					inum++
+				}
+			}
 		case 2:
 			e.defaultCharset = r.bytes(size)
 		case 3:
@@ -178,7 +187,7 @@ func nextRow(r *reader) (values []interface{}, valuesBeforeUpdate []interface{},
 			if nullValue.isTrue(i) {
 				values = append(values, nil)
 			} else {
-				v, err := parseValue(r, r.tme.Columns[i].Type, r.tme.Columns[i].meta)
+				v, err := parseValue(r, r.tme.Columns[i])
 				if err != nil {
 					return nil, nil, err
 				}
@@ -217,5 +226,5 @@ func bitmapSize(numCol uint64) int {
 }
 
 func (bm bitmap) isTrue(colID int) bool {
-	return (bm[colID/8]>>uint8(colID%8))&1 == 1
+	return bm[colID/8]&(1<<uint(7-colID%8)) != 0
 }

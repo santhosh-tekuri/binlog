@@ -43,32 +43,51 @@ const (
 
 // https://dev.mysql.com/doc/internals/en/binary-protocol-value.html
 // todo: test with table with all types, especially negative numbers
-func parseValue(r *reader, typ byte, meta []byte) (interface{}, error) {
-	switch typ {
+func parseValue(r *reader, col Column) (interface{}, error) {
+	switch col.Type {
 	case MYSQL_TYPE_TINY:
-		return r.int1(), r.err
+		if col.Unsigned {
+			return r.int1(), r.err
+		}
+		return int8(r.int1()), r.err
 	case MYSQL_TYPE_SHORT:
-		return r.int2(), r.err
+		if col.Unsigned {
+			return r.int2(), r.err
+		}
+		return int16(r.int2()), r.err
 	case MYSQL_TYPE_INT24:
-		return r.int3(), r.err
+		v := r.int3()
+		if v&0x00800000 != 0 {
+			v |= 0xFF000000
+		}
+		if col.Unsigned {
+			return v, r.err
+		}
+		return int32(v), r.err
 	case MYSQL_TYPE_LONG:
-		return r.int4(), r.err
+		if col.Unsigned {
+			return r.int4(), r.err
+		}
+		return int32(r.int4()), r.err
 	case MYSQL_TYPE_LONGLONG:
-		return r.int8(), r.err
+		if col.Unsigned {
+			return r.int8(), r.err
+		}
+		return int64(r.int8()), r.err
 	case MYSQL_TYPE_FLOAT:
 		return math.Float32frombits(r.int4()), r.err
 	case MYSQL_TYPE_DOUBLE:
 		return math.Float64frombits(r.int8()), r.err
 	case MYSQL_TYPE_VARCHAR:
 		var len int
-		if binary.LittleEndian.Uint16(meta) < 256 {
+		if binary.LittleEndian.Uint16(col.meta) < 256 {
 			len = int(r.int1())
 		} else {
 			len = int(r.int2())
 		}
 		return r.string(len), r.err
-	case MYSQL_TYPE_BLOB:
-		len := r.intFixed(int(meta[0]))
+	case MYSQL_TYPE_BLOB, MYSQL_TYPE_JSON:
+		len := r.intFixed(int(col.meta[0]))
 		return r.bytes(int(len)), r.err
 	case MYSQL_TYPE_DATETIME2:
 		b := r.bytesInternal(5)
@@ -87,7 +106,7 @@ func parseValue(r *reader, typ byte, meta []byte) (interface{}, error) {
 		minute := slice(28, 6)
 		second := slice(34, 6)
 
-		frac, err := fractionalSeconds(meta[0], r)
+		frac, err := fractionalSeconds(col.meta[0], r)
 		if err != nil {
 			return nil, err
 		}
@@ -99,7 +118,7 @@ func parseValue(r *reader, typ byte, meta []byte) (interface{}, error) {
 		}
 		sec := binary.BigEndian.Uint32(b)
 
-		frac, err := fractionalSeconds(meta[0], r)
+		frac, err := fractionalSeconds(col.meta[0], r)
 		if err != nil {
 			return nil, err
 		}
@@ -118,7 +137,7 @@ func parseValue(r *reader, typ byte, meta []byte) (interface{}, error) {
 		hour := slice(2, 10)
 		min := slice(12, 6)
 		sec := slice(18, 6)
-		frac, err := fractionalSeconds(meta[0], r)
+		frac, err := fractionalSeconds(col.meta[0], r)
 		if err != nil {
 			return nil, err
 		}
@@ -131,7 +150,7 @@ func parseValue(r *reader, typ byte, meta []byte) (interface{}, error) {
 		}
 		return v, r.err
 	}
-	return nil, fmt.Errorf("unmarshal of mysql type 0x%x is not implemented", typ)
+	return nil, fmt.Errorf("unmarshal of mysql type 0x%x is not implemented", col.Type)
 }
 
 func fractionalSeconds(meta byte, r *reader) (int, error) {

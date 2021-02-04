@@ -36,7 +36,7 @@ func nextEvent(r *reader, checksum int) (Event, error) {
 		tme := tableMapEvent{}
 		err := tme.parse(r)
 		r.tmeCache[tme.tableID] = &tme
-		return Event{h, r.tme}, err
+		return Event{h, tme}, err
 	case WRITE_ROWS_EVENTv0, WRITE_ROWS_EVENTv1, WRITE_ROWS_EVENTv2,
 		UPDATE_ROWS_EVENTv0, UPDATE_ROWS_EVENTv1, UPDATE_ROWS_EVENTv2,
 		DELETE_ROWS_EVENTv0, DELETE_ROWS_EVENTv1, DELETE_ROWS_EVENTv2:

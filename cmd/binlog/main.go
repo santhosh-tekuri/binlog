@@ -85,10 +85,17 @@ func openRemote(network, address, location string) *binlog.Remote {
 	}
 	fmt.Printf("master status: %s:%d\n", file, pos)
 
-	if err := bl.SetHeartbeatPeriod(5 * time.Second); err != nil {
+	if err := bl.SetHeartbeatPeriod(30 * time.Second); err != nil {
 		panic(err)
 	}
-	file, pos = getLocation(location)
+	switch location {
+	case "earliest":
+		file, pos = files[0], 4
+	case "latest":
+	// we already have masterStatus
+	default:
+		file, pos = getLocation(location)
+	}
 	fmt.Println("file", file, pos)
 	if err := bl.RequestBinlog(10, file, pos); err != nil {
 		panic(err)
