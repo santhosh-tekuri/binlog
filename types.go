@@ -43,7 +43,7 @@ const (
 
 // https://dev.mysql.com/doc/internals/en/binary-protocol-value.html
 // todo: test with table with all types, especially negative numbers
-func parseValue(r *reader, col Column) (interface{}, error) {
+func (col Column) decode(r *reader) (interface{}, error) {
 	switch col.Type {
 	case MYSQL_TYPE_TINY:
 		if col.Unsigned {

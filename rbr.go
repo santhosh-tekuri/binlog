@@ -186,7 +186,7 @@ func nextRow(r *reader) (values []interface{}, valuesBeforeUpdate []interface{},
 			if nullValue.isTrue(i) {
 				values = append(values, nil)
 			} else {
-				v, err := parseValue(r, r.tme.Columns[i])
+				v, err := r.tme.Columns[i].decode(r)
 				if err != nil {
 					return nil, nil, err
 				}
