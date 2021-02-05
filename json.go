@@ -2,6 +2,7 @@ package binlog
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -200,9 +201,9 @@ func (d *jsonDecoder) decodeUInt64(data []byte) (uint64, error) {
 }
 
 func (d *jsonDecoder) decodeDataLen(data []byte) (uint64, []byte, error) {
-	i := 0
+	const max = 5 // math.MaxUint32 can be encoded in 5 bytes
 	var size uint64
-	for {
+	for i := 0; i < max; i++ {
 		if len(data) == 0 {
 			return 0, data, io.ErrUnexpectedEOF
 		}
@@ -214,6 +215,7 @@ func (d *jsonDecoder) decodeDataLen(data []byte) (uint64, []byte, error) {
 			return size, data, nil
 		}
 	}
+	return 0, nil, errors.New("invalid dataLen")
 }
 
 func (d *jsonDecoder) decodeString(data []byte) (string, error) {
