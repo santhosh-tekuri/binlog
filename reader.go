@@ -228,6 +228,7 @@ func (r *reader) intFixed(n int) uint64 {
 	for i, b := range buf {
 		v |= uint64(b) << (uint(i) * 8)
 	}
+	r.skip(n)
 	return v
 }
 
