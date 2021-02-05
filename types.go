@@ -86,9 +86,16 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 			len = int(r.int2())
 		}
 		return r.string(len), r.err
-	case MYSQL_TYPE_BLOB, MYSQL_TYPE_JSON:
+	case MYSQL_TYPE_BLOB:
 		len := r.intFixed(int(col.meta[0]))
 		return r.bytes(int(len)), r.err
+	case MYSQL_TYPE_JSON:
+		len := r.intFixed(int(col.meta[0]))
+		data := r.bytesInternal(int(len))
+		if r.err != nil {
+			return nil, r.err
+		}
+		return new(jsonDecoder).decodeValue(data)
 	case MYSQL_TYPE_DATETIME2:
 		b := r.bytesInternal(5)
 		if r.err != nil {
