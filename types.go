@@ -163,21 +163,17 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 }
 
 func fractionalSeconds(meta byte, r *reader) (int, error) {
-	dec := int(meta+1) / 2
-	if dec == 0 {
+	switch meta {
+	case 0:
 		return 0, nil
-	}
-	b := r.bytesInternal(dec)
-	if r.err != nil {
-		return 0, r.err
-	}
-	switch dec {
 	case 1, 2:
-		return int(b[0]) * 10000, nil
+		return int(r.int1()) * 10000, r.err
 	case 3, 4:
-		return int(uint16(b[1])|uint16(b[0])<<8) * 100, nil
+		b := r.bytesInternal(2)
+		return int(uint16(b[1])|uint16(b[0])<<8) * 100, r.err
 	case 5, 6:
-		return int(uint32(b[2]) | uint32(b[1])<<8 | uint32(b[0])<<16), nil
+		b := r.bytesInternal(3)
+		return int(uint32(b[2]) | uint32(b[1])<<8 | uint32(b[0])<<16), r.err
 	}
 	return 0, fmt.Errorf("binlog.fractionalSeconds: meta=%d must be less than 6", meta)
 }
