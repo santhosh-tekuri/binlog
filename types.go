@@ -156,6 +156,8 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 			v = -v
 		}
 		return v, r.err
+	case MYSQL_TYPE_YEAR:
+		return 1900 + int(r.int1()), r.err
 	}
 	return nil, fmt.Errorf("unmarshal of mysql type 0x%x is not implemented", col.Type)
 }
