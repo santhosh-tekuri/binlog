@@ -79,19 +79,19 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 	case TypeDouble:
 		return math.Float64frombits(r.int8()), r.err
 	case TypeVarchar:
-		var len int
+		var size int
 		if binary.LittleEndian.Uint16(col.meta) < 256 {
-			len = int(r.int1())
+			size = int(r.int1())
 		} else {
-			len = int(r.int2())
+			size = int(r.int2())
 		}
-		return r.string(len), r.err
+		return r.string(size), r.err
 	case TypeBlob:
-		len := r.intFixed(int(col.meta[0]))
-		return r.bytes(int(len)), r.err
+		size := r.intFixed(int(col.meta[0]))
+		return r.bytes(int(size)), r.err
 	case TypeJSON:
-		len := r.intFixed(int(col.meta[0]))
-		data := r.bytesInternal(int(len))
+		size := r.intFixed(int(col.meta[0]))
+		data := r.bytesInternal(int(size))
 		if r.err != nil {
 			return nil, r.err
 		}
