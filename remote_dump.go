@@ -98,7 +98,7 @@ func (bl *Remote) Dump(dir string) error {
 		default:
 			var ignore bool
 			switch eventType {
-			case HEARTBEAT_EVENT, UNKNOWN_EVENT, SLAVE_EVENT:
+			case HEARTBEAT_EVENT, UNKNOWN_EVENT, SLAVE_EVENT, IGNORABLE_EVENT:
 				ignore = true
 			case FORMAT_DESCRIPTION_EVENT:
 				ignore = ignoreFME
