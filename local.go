@@ -97,8 +97,9 @@ func (bl *Local) MasterStatus() (file string, pos uint32, err error) {
 	}
 }
 
-func (bl *Local) Seek(file string) error {
-	r, err := newDirReader(bl.dir, &file)
+func (bl *Local) Seek(serverID uint32, fileName string, position uint32) error {
+	//todo: what about serverID and position
+	r, err := newDirReader(bl.dir, &fileName)
 	if err != nil {
 		return err
 	}

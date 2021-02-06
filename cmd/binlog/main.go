@@ -11,40 +11,63 @@ import (
 )
 
 type binLog interface {
+	ListFiles() ([]string, error)
+	MasterStatus() (file string, pos uint32, err error)
+	Seek(serverID uint32, fileName string, position uint32) error
 	NextEvent() (binlog.Event, error)
 	NextRow() (values []interface{}, valuesBeforeUpdate []interface{}, err error)
 }
 
 // binlog view tcp:localhost:3306,ssl,user=root,passwd=password binlog.000002:4
 // binlog view dir:/Users/santhosh/go/src/binlog/dump binlog.000002
-// binlog dump tcp:localhost:3306,ssl,user=root,passwd=password /Users/santhosh/go/src/binlog/dump binlog.000001
+// binlog dump tcp:localhost:3306,ssl,user=root,passwd=password /Users/santhosh/go/src/binlog/dump
 func main() {
+	address := os.Args[2]
+	colon := strings.IndexByte(address, ':')
+	network, address := address[:colon], address[colon+1:]
 	switch os.Args[1] {
 	case "view":
-		address := os.Args[2]
-		colon := strings.IndexByte(address, ':')
-		network, address := address[:colon], address[colon+1:]
 		var bl binLog
 		if network == "dir" {
-			bl = openLocal(address, os.Args[3])
+			bl = openLocal(address)
 		} else {
-			bl = openRemote(network, address, os.Args[3])
+			bl = openRemote(network, address)
+		}
+		file, pos := getLocation(bl, os.Args[3])
+		if err := bl.Seek(10, file, pos); err != nil {
+			panic(err)
 		}
 		if err := view(bl); err != nil {
 			panic(err)
 		}
 	case "dump":
-		address := os.Args[2]
-		colon := strings.IndexByte(address, ':')
-		network, address := address[:colon], address[colon+1:]
-		bl := openRemote(network, address, os.Args[4])
-		if err := bl.Dump(os.Args[3]); err != nil {
+		remote := openRemote(network, address)
+		dir := os.Args[3]
+		var file string
+		var pos uint32
+		local := openLocal(dir)
+		file, pos, err := local.MasterStatus()
+		if err != nil {
+			panic(err)
+		}
+		if file == "" {
+			files, err := remote.ListFiles()
+			if err != nil {
+				panic(err)
+			}
+			file, pos = files[0], 4
+		}
+		fmt.Printf("dumping from %s:0x%02x\n", file, pos)
+		if err := remote.Seek(0, file, pos); err != nil {
+			panic(err)
+		}
+		if err := remote.Dump(dir); err != nil && err != io.EOF {
 			panic(err)
 		}
 	}
 }
 
-func openRemote(network, address, location string) *binlog.Remote {
+func openRemote(network, address string) *binlog.Remote {
 	tok := strings.Split(address, ",")
 	bl, err := binlog.Dial(network, tok[0])
 	if err != nil {
@@ -72,58 +95,43 @@ func openRemote(network, address, location string) *binlog.Remote {
 	if err := bl.Authenticate(user, passwd); err != nil {
 		panic(err)
 	}
-
-	files, err := bl.ListFiles()
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("files:", files)
-
-	file, pos, err := bl.MasterStatus()
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("master status: %s:%d\n", file, pos)
-
 	if err := bl.SetHeartbeatPeriod(30 * time.Second); err != nil {
-		panic(err)
-	}
-	switch location {
-	case "earliest":
-		file, pos = files[0], 4
-	case "latest":
-	// we already have masterStatus
-	default:
-		file, pos = getLocation(location)
-	}
-	fmt.Println("file", file, pos)
-	if err := bl.RequestBinlog(10, file, pos); err != nil {
 		panic(err)
 	}
 	return bl
 }
 
-func openLocal(address, location string) *binlog.Local {
+func getLocation(bl binLog, arg string) (file string, pos uint32) {
+	switch arg {
+	case "earliest":
+		files, err := bl.ListFiles()
+		if err != nil {
+			panic(err)
+		}
+		return files[0], 4
+	case "latest":
+		file, pos, err := bl.MasterStatus()
+		if err != nil {
+			panic(err)
+		}
+		return file, pos
+	default:
+		colon := strings.IndexByte(arg, ':')
+		if colon == -1 {
+			return arg, 4
+		}
+		file = arg[:colon]
+		off, err := strconv.Atoi(arg[colon+1:])
+		if err != nil {
+			panic(err)
+		}
+		return file, uint32(off)
+	}
+}
+
+func openLocal(address string) *binlog.Local {
 	bl, err := binlog.Open(address)
 	if err != nil {
-		panic(err)
-	}
-
-	files, err := bl.ListFiles()
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("files:", files)
-
-	file, pos, err := bl.MasterStatus()
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("master status: %s:%d\n", file, pos)
-
-	file, pos = getLocation(location)
-	fmt.Println("file", file, pos)
-	if err := bl.Seek(file); err != nil {
 		panic(err)
 	}
 	return bl
@@ -153,17 +161,4 @@ func view(bl binLog) error {
 			}
 		}
 	}
-}
-
-func getLocation(arg string) (file string, pos uint32) {
-	colon := strings.IndexByte(arg, ':')
-	if colon == -1 {
-		return arg, 4
-	}
-	file = arg[:colon]
-	off, err := strconv.Atoi(arg[colon+1:])
-	if err != nil {
-		panic(err)
-	}
-	return file, uint32(off)
 }

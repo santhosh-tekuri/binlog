@@ -29,45 +29,61 @@ func (bl *Remote) Dump(dir string) error {
 			f.Close()
 		}
 	}()
+	// ignore FormatDescriptionEvent if it is not the first event in file
+	ignoreFME := bl.requestPos > 4
 	buf := make([]byte, 14)
 	for {
 		fmt.Println("--------------------------------")
 		r := &packetReader{rd: bl.conn, seq: &bl.seq}
-		if _, err := io.ReadFull(r, buf); err != nil {
-			return err
+		if n, err := io.ReadFull(r, buf); err != nil {
+			if err != io.ErrUnexpectedEOF { // non-ok packets can have size <14
+				return err
+			}
+			buf = buf[:n]
 		}
-		if buf[0] == errMarker {
+		if buf[0] != okMarker {
+			// Read complete packet.
 			buff := bytes.NewBuffer(buf)
 			if _, err := buff.ReadFrom(r); err != nil {
 				return err
 			}
 			buf := buff.Bytes()
-			if len(buf) < 3 {
-				return fmt.Errorf("binlog.dump: got %0x want OK-byte", errMarker)
-			}
-			buf = buf[3:] // errHeader, errCode
-			if bl.hs.capabilityFlags&capProtocol41 != 0 {
-				if len(buf) < 6 {
-					return fmt.Errorf("binlog.dump: got %0x want OK-byte", errMarker)
+
+			// Decode packet.
+			switch buf[0] {
+			case errMarker:
+				if len(buf) < 3 {
+					return ErrMalformedPacket
 				}
-				buf = buf[6:] // sqlStateMarker, sqlState
+				buf = buf[3:] // errHeader, errCode
+				if bl.hs.capabilityFlags&capProtocol41 != 0 {
+					if len(buf) < 6 {
+						return ErrMalformedPacket
+					}
+					buf = buf[6:] // sqlStateMarker, sqlState
+				}
+				return errors.New(string(buf))
+			case eofMarker:
+				buf = buf[1:] // eofHeader
+				if bl.hs.capabilityFlags&capProtocol41 != 0 {
+					if len(buf) < 4 {
+						return ErrMalformedPacket
+					}
+					buf = buf[4:] // warnings, statusFlags
+				}
+				return io.EOF
 			}
-			return errors.New(string(buf))
-		}
-		if buf[0] != okMarker {
 			return fmt.Errorf("binlog.Dump: got %0x want OK-byte", buf[0])
+		}
+		if len(buf) != 14 {
+			return io.ErrUnexpectedEOF
 		}
 		// Timestamp = buf[1:5]
 		eventType := EventType(buf[5])
 		// ServerID = buf[6:10]
 		eventSize := binary.LittleEndian.Uint32(buf[10:])
-		fmt.Printf("EventType: 0x%02x EventSize: 0x%02x\n", eventType, eventSize)
+		fmt.Printf("EventType: %s EventSize: 0x%02x\n", eventType, eventSize)
 		switch eventType {
-		case HEARTBEAT_EVENT, UNKNOWN_EVENT, SLAVE_EVENT:
-			// Ignore this event.
-			if _, err := io.Copy(ioutil.Discard, r); err != nil {
-				return err
-			}
 		case ROTATE_EVENT:
 			lr := io.LimitReader(r, int64(eventSize-13))
 			buf, err := ioutil.ReadAll(lr)
@@ -75,24 +91,42 @@ func (bl *Remote) Dump(dir string) error {
 				return err
 			}
 			if v > 1 {
-				buf = buf[4+2+8 : len(buf)-bl.checksum] // LogPos, Flags, position and exclude checksum
+				buf = buf[4+2+8 : len(buf)-bl.checksum] // skip EventHeader{LogPos, Flags}, RotateEvent.position
 			}
 			if f != nil {
 				if err := f.Close(); err != nil {
 					return err
 				}
 			}
-			f, err = createFile(dir, string(buf))
+			fileName := string(buf)
+			if bl.requestFile != fileName {
+				ignoreFME = false
+			}
+			f, err = createFile(dir, fileName)
 			if err != nil {
 				return err
 			}
 		default:
-			lr := io.LimitReader(r, int64(eventSize-13))
-			if _, err := f.Write(buf[1:]); err != nil {
-				return err
+			var ignore bool
+			switch eventType {
+			case HEARTBEAT_EVENT, UNKNOWN_EVENT, SLAVE_EVENT:
+				ignore = true
+			case FORMAT_DESCRIPTION_EVENT:
+				ignore = ignoreFME
+				ignoreFME = false
 			}
-			if _, err := io.Copy(f, lr); err != nil {
-				return err
+			if ignore {
+				if _, err := io.Copy(ioutil.Discard, r); err != nil {
+					return err
+				}
+			} else {
+				lr := io.LimitReader(r, int64(eventSize-13))
+				if _, err := f.Write(buf[1:]); err != nil {
+					return err
+				}
+				if _, err := io.Copy(f, lr); err != nil {
+					return err
+				}
 			}
 		}
 	}

@@ -134,7 +134,7 @@ func TestUsage(t *testing.T) {
 	if err := conn.Authenticate("root", "password"); err != nil {
 		t.Fatal(err)
 	}
-	if err := conn.RequestBinlog(10, "binlog.000002", 4); err != nil {
+	if err := conn.Seek(10, "binlog.000002", 4); err != nil {
 		t.Fatal(err)
 	}
 	for {
@@ -177,7 +177,7 @@ func TestDump(t *testing.T) {
 	if err := conn.confirmChecksumSupport(); err != nil {
 		t.Fatal(err)
 	}
-	if err := conn.RequestBinlog(10, "binlog.000001", 4); err != nil {
+	if err := conn.Seek(10, "binlog.000001", 4); err != nil {
 		t.Fatal(err)
 	}
 	if err := conn.Dump("/Users/santhosh/go/src/binlog/Dump"); err != nil {

@@ -11,6 +11,7 @@ import (
 	"time"
 )
 
+// todo: include packet type
 var ErrMalformedPacket = errors.New("malformed packet")
 
 type null struct{}
@@ -21,6 +22,8 @@ type Remote struct {
 	hs   handshake
 
 	// binlog related
+	requestFile  string
+	requestPos   uint32
 	binlogReader *reader
 	checksum     int
 }
@@ -160,7 +163,7 @@ func (bl *Remote) confirmChecksumSupport() error {
 	return err
 }
 
-func (bl *Remote) RequestBinlog(serverID uint32, fileName string, position uint32) error {
+func (bl *Remote) Seek(serverID uint32, fileName string, position uint32) error {
 	checksum, err := bl.fetchBinlogChecksum()
 	if err != nil {
 		return err
@@ -181,6 +184,7 @@ func (bl *Remote) RequestBinlog(serverID uint32, fileName string, position uint3
 		serverID:       serverID,
 		binlogFilename: fileName,
 	})
+	bl.requestFile, bl.requestPos = fileName, position
 	return err
 }
 
