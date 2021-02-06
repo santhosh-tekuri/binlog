@@ -8,7 +8,7 @@ import (
 // https://dev.mysql.com/doc/internals/en/table-map-event.html
 
 type Column struct {
-	Type     byte
+	Type     ColumnType
 	Nullable bool
 	Unsigned bool
 	Name     string
@@ -38,7 +38,7 @@ func (e *TableMapEvent) parse(r *reader) error {
 	}
 	e.Columns = make([]Column, numCol)
 	for i := range e.Columns {
-		e.Columns[i].Type = r.int1()
+		e.Columns[i].Type = ColumnType(r.int1())
 	}
 
 	_ = r.intN() // meta length

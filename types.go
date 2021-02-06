@@ -7,39 +7,82 @@ import (
 	"time"
 )
 
+type ColumnType uint8
+
 const (
-	TypeDecimal    = 0x00
-	TypeTiny       = 0x01
-	TypeShort      = 0x02
-	TypeLong       = 0x03
-	TypeFloat      = 0x04
-	TypeDouble     = 0x05
-	TypeNull       = 0x06
-	TypeTimestamp  = 0x07
-	TypeLongLong   = 0x08
-	TypeInt24      = 0x09
-	TypeDate       = 0x0a
-	TypeTime       = 0x0b
-	TypeDateTime   = 0x0c
-	TypeYear       = 0x0d
-	TypeNewDate    = 0x0e
-	TypeVarchar    = 0x0f
-	TypeBit        = 0x10
-	TypeTimestamp2 = 0x11
-	TypeDateTime2  = 0x12
-	TypeTime2      = 0x13
-	TypeJSON       = 0xf5
-	TypeNewDecimal = 0xf6
-	TypeEnum       = 0xf7
-	TypeSet        = 0xf8
-	TypeTinyBlob   = 0xf9
-	TypeMediumBlob = 0xfa
-	TypeLongBlob   = 0xfb
-	TypeBlob       = 0xfc
-	TypeVarString  = 0xfd
-	TypeString     = 0xfe
-	TypeGeometry   = 0xff
+	TypeDecimal    ColumnType = 0x00
+	TypeTiny       ColumnType = 0x01
+	TypeShort      ColumnType = 0x02
+	TypeLong       ColumnType = 0x03
+	TypeFloat      ColumnType = 0x04
+	TypeDouble     ColumnType = 0x05
+	TypeNull       ColumnType = 0x06
+	TypeTimestamp  ColumnType = 0x07
+	TypeLongLong   ColumnType = 0x08
+	TypeInt24      ColumnType = 0x09
+	TypeDate       ColumnType = 0x0a
+	TypeTime       ColumnType = 0x0b
+	TypeDateTime   ColumnType = 0x0c
+	TypeYear       ColumnType = 0x0d
+	TypeNewDate    ColumnType = 0x0e
+	TypeVarchar    ColumnType = 0x0f
+	TypeBit        ColumnType = 0x10
+	TypeTimestamp2 ColumnType = 0x11
+	TypeDateTime2  ColumnType = 0x12
+	TypeTime2      ColumnType = 0x13
+	TypeJSON       ColumnType = 0xf5
+	TypeNewDecimal ColumnType = 0xf6
+	TypeEnum       ColumnType = 0xf7
+	TypeSet        ColumnType = 0xf8
+	TypeTinyBlob   ColumnType = 0xf9
+	TypeMediumBlob ColumnType = 0xfa
+	TypeLongBlob   ColumnType = 0xfb
+	TypeBlob       ColumnType = 0xfc
+	TypeVarString  ColumnType = 0xfd
+	TypeString     ColumnType = 0xfe
+	TypeGeometry   ColumnType = 0xff
 )
+
+var typeNames = map[ColumnType]string{
+	TypeDecimal:    "decimal",
+	TypeTiny:       "tiny",
+	TypeShort:      "short",
+	TypeLong:       "long",
+	TypeFloat:      "float",
+	TypeDouble:     "double",
+	TypeNull:       "null",
+	TypeTimestamp:  "timestamp",
+	TypeLongLong:   "longLong",
+	TypeInt24:      "int24",
+	TypeDate:       "date",
+	TypeTime:       "time",
+	TypeDateTime:   "dateTime",
+	TypeYear:       "year",
+	TypeNewDate:    "newDate",
+	TypeVarchar:    "varchar",
+	TypeBit:        "bit",
+	TypeTimestamp2: "timestamp2",
+	TypeDateTime2:  "dateTime2",
+	TypeTime2:      "time2",
+	TypeJSON:       "json",
+	TypeNewDecimal: "newDecimal",
+	TypeEnum:       "enum",
+	TypeSet:        "set",
+	TypeTinyBlob:   "tinyBlob",
+	TypeMediumBlob: "mediumBlob",
+	TypeLongBlob:   "longBlob",
+	TypeBlob:       "blob",
+	TypeVarString:  "varString",
+	TypeString:     "string",
+	TypeGeometry:   "geometry",
+}
+
+func (t ColumnType) String() string {
+	if s, ok := typeNames[t]; ok {
+		return s
+	}
+	return fmt.Sprintf("0x%02x", uint8(t))
+}
 
 // https://dev.mysql.com/doc/internals/en/binary-protocol-value.html
 // todo: test with table with all types, especially negative numbers
