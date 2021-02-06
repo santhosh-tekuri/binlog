@@ -5,8 +5,6 @@ import (
 	"io"
 )
 
-// https://dev.mysql.com/doc/internals/en/table-map-event.html
-
 type Column struct {
 	Type     ColumnType
 	Nullable bool
@@ -15,6 +13,10 @@ type Column struct {
 	meta     []byte
 }
 
+// TableMapEvent is first event used in Row Based Replication declares
+// how a table that is about to be changed is defined.
+//
+// see https://dev.mysql.com/doc/internals/en/table-map-event.html
 type TableMapEvent struct {
 	tableID        uint64
 	flags          uint16
@@ -93,8 +95,9 @@ func (e *TableMapEvent) parse(r *reader) error {
 	return r.err
 }
 
-// https://dev.mysql.com/doc/internals/en/rows-event.html
-
+// RowsEvent captures changed rows in a table.
+//
+// see https://dev.mysql.com/doc/internals/en/rows-event.html
 type RowsEvent struct {
 	eventType EventType
 	tableID   uint64
@@ -227,12 +230,12 @@ func (e RowsEvent) ColumnsBeforeUpdate() []Column {
 // system variable binlog_rows_query_log_events must be ON for this event.
 // see https://dev.mysql.com/doc/refman/5.7/en/replication-options-binary-log.html#sysvar_binlog_rows_query_log_events
 type RowsQueryEvent struct {
-	query string
+	Query string
 }
 
 func (e *RowsQueryEvent) parse(r *reader) error {
 	r.int1() // length ignored
-	e.query = r.stringEOF()
+	e.Query = r.stringEOF()
 	return r.err
 }
 
