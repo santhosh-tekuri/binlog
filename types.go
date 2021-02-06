@@ -8,54 +8,54 @@ import (
 )
 
 const (
-	MYSQL_TYPE_DECIMAL     = 0x00
-	MYSQL_TYPE_TINY        = 0x01
-	MYSQL_TYPE_SHORT       = 0x02
-	MYSQL_TYPE_LONG        = 0x03
-	MYSQL_TYPE_FLOAT       = 0x04
-	MYSQL_TYPE_DOUBLE      = 0x05
-	MYSQL_TYPE_NULL        = 0x06
-	MYSQL_TYPE_TIMESTAMP   = 0x07
-	MYSQL_TYPE_LONGLONG    = 0x08
-	MYSQL_TYPE_INT24       = 0x09
-	MYSQL_TYPE_DATE        = 0x0a
-	MYSQL_TYPE_TIME        = 0x0b
-	MYSQL_TYPE_DATETIME    = 0x0c
-	MYSQL_TYPE_YEAR        = 0x0d
-	MYSQL_TYPE_NEWDATE     = 0x0e
-	MYSQL_TYPE_VARCHAR     = 0x0f
-	MYSQL_TYPE_BIT         = 0x10
-	MYSQL_TYPE_TIMESTAMP2  = 0x11
-	MYSQL_TYPE_DATETIME2   = 0x12
-	MYSQL_TYPE_TIME2       = 0x13
-	MYSQL_TYPE_JSON        = 0xf5
-	MYSQL_TYPE_NEWDECIMAL  = 0xf6
-	MYSQL_TYPE_ENUM        = 0xf7
-	MYSQL_TYPE_SET         = 0xf8
-	MYSQL_TYPE_TINY_BLOB   = 0xf9
-	MYSQL_TYPE_MEDIUM_BLOB = 0xfa
-	MYSQL_TYPE_LONG_BLOB   = 0xfb
-	MYSQL_TYPE_BLOB        = 0xfc
-	MYSQL_TYPE_VAR_STRING  = 0xfd
-	MYSQL_TYPE_STRING      = 0xfe
-	MYSQL_TYPE_GEOMETRY    = 0xff
+	TypeDecimal    = 0x00
+	TypeTiny       = 0x01
+	TypeShort      = 0x02
+	TypeLong       = 0x03
+	TypeFloat      = 0x04
+	TypeDouble     = 0x05
+	TypeNull       = 0x06
+	TypeTimestamp  = 0x07
+	TypeLongLong   = 0x08
+	TypeInt24      = 0x09
+	TypeDate       = 0x0a
+	TypeTime       = 0x0b
+	TypeDateTime   = 0x0c
+	TypeYear       = 0x0d
+	TypeNewDate    = 0x0e
+	TypeVarchar    = 0x0f
+	TypeBit        = 0x10
+	TypeTimestamp2 = 0x11
+	TypeDateTime2  = 0x12
+	TypeTime2      = 0x13
+	TypeJSON       = 0xf5
+	TypeNewDecimal = 0xf6
+	TypeEnum       = 0xf7
+	TypeSet        = 0xf8
+	TypeTinyBlob   = 0xf9
+	TypeMediumBlob = 0xfa
+	TypeLongBlob   = 0xfb
+	TypeBlob       = 0xfc
+	TypeVarString  = 0xfd
+	TypeString     = 0xfe
+	TypeGeometry   = 0xff
 )
 
 // https://dev.mysql.com/doc/internals/en/binary-protocol-value.html
 // todo: test with table with all types, especially negative numbers
 func (col Column) decodeValue(r *reader) (interface{}, error) {
 	switch col.Type {
-	case MYSQL_TYPE_TINY:
+	case TypeTiny:
 		if col.Unsigned {
 			return r.int1(), r.err
 		}
 		return int8(r.int1()), r.err
-	case MYSQL_TYPE_SHORT:
+	case TypeShort:
 		if col.Unsigned {
 			return r.int2(), r.err
 		}
 		return int16(r.int2()), r.err
-	case MYSQL_TYPE_INT24:
+	case TypeInt24:
 		v := r.int3()
 		if v&0x00800000 != 0 {
 			v |= 0xFF000000
@@ -64,21 +64,21 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 			return v, r.err
 		}
 		return int32(v), r.err
-	case MYSQL_TYPE_LONG:
+	case TypeLong:
 		if col.Unsigned {
 			return r.int4(), r.err
 		}
 		return int32(r.int4()), r.err
-	case MYSQL_TYPE_LONGLONG:
+	case TypeLongLong:
 		if col.Unsigned {
 			return r.int8(), r.err
 		}
 		return int64(r.int8()), r.err
-	case MYSQL_TYPE_FLOAT:
+	case TypeFloat:
 		return math.Float32frombits(r.int4()), r.err
-	case MYSQL_TYPE_DOUBLE:
+	case TypeDouble:
 		return math.Float64frombits(r.int8()), r.err
-	case MYSQL_TYPE_VARCHAR:
+	case TypeVarchar:
 		var len int
 		if binary.LittleEndian.Uint16(col.meta) < 256 {
 			len = int(r.int1())
@@ -86,17 +86,17 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 			len = int(r.int2())
 		}
 		return r.string(len), r.err
-	case MYSQL_TYPE_BLOB:
+	case TypeBlob:
 		len := r.intFixed(int(col.meta[0]))
 		return r.bytes(int(len)), r.err
-	case MYSQL_TYPE_JSON:
+	case TypeJSON:
 		len := r.intFixed(int(col.meta[0]))
 		data := r.bytesInternal(int(len))
 		if r.err != nil {
 			return nil, r.err
 		}
 		return new(jsonDecoder).decodeValue(data)
-	case MYSQL_TYPE_DATETIME2:
+	case TypeDateTime2:
 		b := r.bytesInternal(5)
 		if r.err != nil {
 			return nil, r.err
@@ -118,7 +118,7 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 			return nil, err
 		}
 		return time.Date(year, time.Month(month), day, hour, minute, second, frac*1000, time.UTC), r.err
-	case MYSQL_TYPE_TIMESTAMP2:
+	case TypeTimestamp2:
 		b := r.bytesInternal(4)
 		if r.err != nil {
 			return nil, r.err
@@ -130,7 +130,7 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 			return nil, err
 		}
 		return time.Unix(int64(sec), int64(frac)*1000), r.err
-	case MYSQL_TYPE_TIME2:
+	case TypeTime2:
 		b := r.bytesInternal(3)
 		if r.err != nil {
 			return nil, r.err
@@ -156,7 +156,7 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 			v = -v
 		}
 		return v, r.err
-	case MYSQL_TYPE_YEAR:
+	case TypeYear:
 		return 1900 + int(r.int1()), r.err
 	}
 	return nil, fmt.Errorf("unmarshal of mysql type 0x%x is not implemented", col.Type)

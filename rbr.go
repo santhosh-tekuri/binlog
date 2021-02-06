@@ -45,11 +45,11 @@ func (e *TableMapEvent) parse(r *reader) error {
 	for i, col := range e.Columns {
 		switch col.Type {
 		default:
-		case MYSQL_TYPE_BLOB, MYSQL_TYPE_DOUBLE, MYSQL_TYPE_FLOAT, MYSQL_TYPE_GEOMETRY, MYSQL_TYPE_JSON,
-			MYSQL_TYPE_TIME2, MYSQL_TYPE_DATETIME2, MYSQL_TYPE_TIMESTAMP2:
+		case TypeBlob, TypeDouble, TypeFloat, TypeGeometry, TypeJSON,
+			TypeTime2, TypeDateTime2, TypeTimestamp2:
 			e.Columns[i].meta = r.bytes(1)
-		case MYSQL_TYPE_VARCHAR, MYSQL_TYPE_BIT, MYSQL_TYPE_DECIMAL, MYSQL_TYPE_NEWDECIMAL,
-			MYSQL_TYPE_SET, MYSQL_TYPE_ENUM, MYSQL_TYPE_STRING, MYSQL_TYPE_VAR_STRING:
+		case TypeVarchar, TypeBit, TypeDecimal, TypeNewDecimal,
+			TypeSet, TypeEnum, TypeString, TypeVarString:
 			e.Columns[i].meta = r.bytes(2)
 		}
 	}
@@ -71,8 +71,8 @@ func (e *TableMapEvent) parse(r *reader) error {
 			inum := 0
 			for i := range e.Columns {
 				switch e.Columns[i].Type {
-				case MYSQL_TYPE_TINY, MYSQL_TYPE_SHORT, MYSQL_TYPE_INT24, MYSQL_TYPE_LONG, MYSQL_TYPE_LONGLONG,
-					MYSQL_TYPE_FLOAT, MYSQL_TYPE_DOUBLE, MYSQL_TYPE_DECIMAL, MYSQL_TYPE_NEWDECIMAL:
+				case TypeTiny, TypeShort, TypeInt24, TypeLong, TypeLongLong,
+					TypeFloat, TypeDouble, TypeDecimal, TypeNewDecimal:
 					e.Columns[i].Unsigned = signedness.isTrue(inum)
 					inum++
 				}
