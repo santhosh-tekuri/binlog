@@ -34,42 +34,29 @@ func (bl *Remote) Dump(dir string) error {
 	buf := make([]byte, 14)
 	for {
 		fmt.Println("--------------------------------")
-		r := &packetReader{rd: bl.conn, seq: &bl.seq}
-		if n, err := io.ReadFull(r, buf); err != nil {
+		pr := &packetReader{rd: bl.conn, seq: &bl.seq}
+		if n, err := io.ReadFull(pr, buf); err != nil {
 			if err != io.ErrUnexpectedEOF { // non-ok packets can have size <14
 				return err
 			}
 			buf = buf[:n]
 		}
 		if buf[0] != okMarker {
-			// Read complete packet.
-			buff := bytes.NewBuffer(buf)
-			if _, err := buff.ReadFrom(r); err != nil {
-				return err
+			r := &reader{
+				rd:    io.MultiReader(bytes.NewReader(buf), pr),
+				limit: -1,
 			}
-			buf := buff.Bytes()
-
-			// Decode packet.
 			switch buf[0] {
 			case errMarker:
-				if len(buf) < 3 {
-					return ErrMalformedPacket
+				ep := errPacket{}
+				if err := ep.parse(r, bl.hs.capabilityFlags); err != nil {
+					return err
 				}
-				buf = buf[3:] // errHeader, errCode
-				if bl.hs.capabilityFlags&capProtocol41 != 0 {
-					if len(buf) < 6 {
-						return ErrMalformedPacket
-					}
-					buf = buf[6:] // sqlStateMarker, sqlState
-				}
-				return errors.New(string(buf))
+				return errors.New(ep.errorMessage)
 			case eofMarker:
-				buf = buf[1:] // eofHeader
-				if bl.hs.capabilityFlags&capProtocol41 != 0 {
-					if len(buf) < 4 {
-						return ErrMalformedPacket
-					}
-					buf = buf[4:] // warnings, statusFlags
+				ep := eofPacket{}
+				if err := ep.parse(r, bl.hs.capabilityFlags); err != nil {
+					return err
 				}
 				return io.EOF
 			}
@@ -85,7 +72,7 @@ func (bl *Remote) Dump(dir string) error {
 		fmt.Printf("EventType: %s EventSize: 0x%02x\n", eventType, eventSize)
 		switch eventType {
 		case ROTATE_EVENT:
-			lr := io.LimitReader(r, int64(eventSize-13))
+			lr := io.LimitReader(pr, int64(eventSize-13))
 			buf, err := ioutil.ReadAll(lr)
 			if err != nil {
 				return err
@@ -116,11 +103,11 @@ func (bl *Remote) Dump(dir string) error {
 				ignoreFME = false
 			}
 			if ignore {
-				if _, err := io.Copy(ioutil.Discard, r); err != nil {
+				if _, err := io.Copy(ioutil.Discard, pr); err != nil {
 					return err
 				}
 			} else {
-				lr := io.LimitReader(r, int64(eventSize-13))
+				lr := io.LimitReader(pr, int64(eventSize-13))
 				if _, err := f.Write(buf[1:]); err != nil {
 					return err
 				}
