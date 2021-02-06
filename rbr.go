@@ -221,14 +221,16 @@ func (e RowsEvent) ColumnsBeforeUpdate() []Column {
 	}
 }
 
-// system variable binlog_rows_query_log_events must be ON for this event
-// https://dev.mysql.com/doc/refman/5.7/en/replication-options-binary-log.html#sysvar_binlog_rows_query_log_events
-
-type rowsQueryEvent struct {
+// RowsQueryEvent captures the query that caused the following ROWS_EVENT.
+// see https://dev.mysql.com/doc/internals/en/rows-query-event.html
+//
+// system variable binlog_rows_query_log_events must be ON for this event.
+// see https://dev.mysql.com/doc/refman/5.7/en/replication-options-binary-log.html#sysvar_binlog_rows_query_log_events
+type RowsQueryEvent struct {
 	query string
 }
 
-func (e *rowsQueryEvent) parse(r *reader) error {
+func (e *RowsQueryEvent) parse(r *reader) error {
 	r.int1() // length ignored
 	e.query = r.stringEOF()
 	return r.err

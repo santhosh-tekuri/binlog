@@ -86,7 +86,7 @@ func nextEvent(r *reader, checksum int) (Event, error) {
 	case IGNORABLE_EVENT:
 		return Event{h, ignorableEvent{}}, nil
 	case ROWS_QUERY_EVENT:
-		rqe := rowsQueryEvent{}
+		rqe := RowsQueryEvent{}
 		err := rqe.parse(r)
 		return Event{h, rqe}, err
 	default:
