@@ -26,7 +26,7 @@ func (bl *Remote) Dump(dir string) error {
 	var f *os.File
 	defer func() {
 		if f != nil {
-			f.Close()
+			_ = f.Close()
 		}
 	}()
 	// ignore FormatDescriptionEvent if it is not the first event in file
@@ -119,14 +119,23 @@ func (bl *Remote) Dump(dir string) error {
 	}
 }
 
-func appendLine(file, line string) error {
+func addLine(file, line string) error {
+	lines, err := readLines(file)
+	if err != nil {
+		return err
+	}
+	if contains(lines, line) {
+		return nil
+	}
+
+	// Append line.
 	f, err := os.OpenFile(file, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
 	if err != nil {
 		return err
 	}
 	if _, err := f.WriteString(line + "\n"); err != nil {
 		_ = f.Close()
-		return fmt.Errorf("binlog.appendLine: error in appending to binlog.index: %v", err)
+		return fmt.Errorf("binlog.addLine: error in appending to binlog.index: %v", err)
 	}
 	return f.Close()
 }
@@ -140,7 +149,7 @@ func createFile(dir, file string) (*os.File, error) {
 		_ = f.Close()
 		return nil, err
 	}
-	if err := appendLine(path.Join(dir, "binlog.index"), file); err != nil {
+	if err := addLine(path.Join(dir, "binlog.index"), file); err != nil {
 		_ = f.Close()
 		return nil, err
 	}

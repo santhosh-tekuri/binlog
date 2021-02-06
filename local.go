@@ -29,20 +29,7 @@ func Open(dir string) (*Local, error) {
 }
 
 func (bl *Local) ListFiles() ([]string, error) {
-	var files []string
-	f, err := os.Open(path.Join(bl.dir, "binlog.index"))
-	if err != nil {
-		if os.IsNotExist(err) {
-			return files, nil
-		}
-		return files, err
-	}
-	defer f.Close()
-	r := bufio.NewScanner(f)
-	for r.Scan() {
-		files = append(files, r.Text())
-	}
-	return files, r.Err()
+	return readLines(path.Join(bl.dir, "binlog.index"))
 }
 
 func (bl *Local) MasterStatus() (file string, pos uint32, err error) {
@@ -167,4 +154,31 @@ func findBinlogVersion(file string) (uint16, error) {
 		return 4, nil
 	}
 	return 0, fmt.Errorf("binlog.findBinlogVersion: cannot determine for %q", file)
+}
+
+func readLines(file string) ([]string, error) {
+	f, err := os.Open(file)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	defer f.Close()
+
+	var lines []string
+	r := bufio.NewScanner(f)
+	for r.Scan() {
+		lines = append(lines, r.Text())
+	}
+	return lines, r.Err()
+}
+
+func contains(list []string, s string) bool {
+	for _, v := range list {
+		if v == s {
+			return true
+		}
+	}
+	return false
 }
