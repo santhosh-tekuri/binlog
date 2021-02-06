@@ -1,5 +1,7 @@
 package binlog
 
+import "fmt"
+
 // https://dev.mysql.com/doc/internals/en/binlog-event-type.html
 // https://dev.mysql.com/doc/internals/en/event-meanings.html
 
@@ -89,7 +91,10 @@ var eventTypeNames = map[EventType]string{
 }
 
 func (t EventType) String() string {
-	return eventTypeNames[t]
+	if s, ok := eventTypeNames[t]; ok {
+		return s
+	}
+	return fmt.Sprintf("0x%02x", uint8(t))
 }
 
 func (t EventType) IsWriteRows() bool {
