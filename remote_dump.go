@@ -86,10 +86,12 @@ func (bl *Remote) Dump(dir string) error {
 				}
 			}
 			fileName := string(buf)
+			pos := bl.requestPos
 			if bl.requestFile != fileName {
 				ignoreFME = false
+				pos = 4
 			}
-			f, err = createFile(dir, fileName)
+			f, err = openFileSeek(dir, fileName, pos)
 			if err != nil {
 				return err
 			}
@@ -103,6 +105,7 @@ func (bl *Remote) Dump(dir string) error {
 				ignoreFME = false
 			}
 			if ignore {
+				fmt.Println("ignoring...")
 				if _, err := io.Copy(ioutil.Discard, pr); err != nil {
 					return err
 				}
@@ -140,7 +143,18 @@ func addLine(file, line string) error {
 	return f.Close()
 }
 
-func createFile(dir, file string) (*os.File, error) {
+func openFileSeek(dir, file string, pos uint32) (*os.File, error) {
+	if pos > 4 {
+		f, err := os.OpenFile(path.Join(dir, file), os.O_RDWR, 0)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := f.Seek(int64(pos), io.SeekStart); err != nil {
+			_ = f.Close()
+			return nil, err
+		}
+		return f, nil
+	}
 	f, err := os.Create(path.Join(dir, file))
 	if err != nil {
 		return nil, err

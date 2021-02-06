@@ -57,7 +57,7 @@ func (bl *Local) MasterStatus() (file string, pos uint32, err error) {
 	if err != nil {
 		return
 	}
-	pos += 4
+	pos = 4
 
 	buf := make([]byte, 13)
 	for {
@@ -73,14 +73,15 @@ func (bl *Local) MasterStatus() (file string, pos uint32, err error) {
 		// EventType := buf[4]
 		// ServerID = buf[5:9]
 		eventSize := binary.LittleEndian.Uint32(buf[9:])
-		if int64(pos+eventSize-13) > fi.Size() {
+		if int64(pos+eventSize) > fi.Size() {
 			// partial record found
 			return
 		}
-		if _, err = f.Seek(int64(eventSize-13), io.SeekCurrent); err != nil {
+		pos += eventSize
+		if _, err = f.Seek(int64(pos), io.SeekStart); err != nil {
 			return
 		}
-		pos += eventSize
+
 	}
 }
 
