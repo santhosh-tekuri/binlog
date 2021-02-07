@@ -139,7 +139,6 @@ func openLocal(address string) *binlog.Local {
 
 func view(bl binLog) error {
 	for {
-		fmt.Println("-------------------------")
 		e, err := bl.NextEvent()
 		if err != nil {
 			if err == io.EOF {
@@ -147,7 +146,20 @@ func view(bl binLog) error {
 			}
 			panic(err)
 		}
-		fmt.Printf("%#v\n%#v\n", e.Header, e.Data)
+		fmt.Printf("%s %17s %s:0x%04x",
+			time.Unix(int64(e.Header.Timestamp), 0).Format("2006-01-02 15:04:05"),
+			e.Header.EventType,
+			e.Header.LogFile,
+			e.Header.NextPos)
+		switch d := e.Data.(type) {
+		case binlog.TableMapEvent:
+			fmt.Print(" ", d.SchemaName+"."+d.TableName)
+		case binlog.RowsEvent:
+			if d.TableMap != nil {
+				fmt.Print(" ", d.TableMap.SchemaName+"."+d.TableMap.TableName)
+			}
+		}
+		fmt.Println()
 		if _, ok := e.Data.(binlog.RowsEvent); ok {
 			for {
 				row, before, err := bl.NextRow()
@@ -157,7 +169,10 @@ func view(bl binLog) error {
 					}
 					panic(err)
 				}
-				fmt.Println("        ", row, "        ", before)
+				fmt.Println("       ", row)
+				if before != nil {
+					fmt.Println("before:", before)
+				}
 			}
 		}
 	}
