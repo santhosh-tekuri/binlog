@@ -171,17 +171,41 @@ func view(bl binLog) error {
 					panic(err)
 				}
 				if e.Header.EventType.IsDeleteRows() {
-					fmt.Print("   WHERE: ")
+					fmt.Print("   WHERE:")
 				} else {
-					fmt.Print("     SET: ")
+					fmt.Print("     SET:")
 				}
-				fmt.Println(row)
+				for i, v := range row {
+					col := d.Columns()[i].Name
+					if col == "" {
+						col = "@" + strconv.Itoa(d.Columns()[i].Ordinal)
+					}
+					fmt.Printf(" %s=%s", col, literal(v))
+				}
+				fmt.Println()
 				if before != nil {
-					fmt.Println("   WHERE:", before)
+					fmt.Print("   WHERE:")
+					for i, v := range before {
+						col := d.ColumnsBeforeUpdate()[i].Name
+						if col == "" {
+							col = "@" + strconv.Itoa(d.ColumnsBeforeUpdate()[i].Ordinal)
+						}
+						fmt.Printf(" %s=%s", col, literal(v))
+					}
+					fmt.Println()
 				}
 			}
 		default:
 			fmt.Println()
 		}
+	}
+}
+
+func literal(v interface{}) string {
+	switch v := v.(type) {
+	case time.Time:
+		return v.String()
+	default:
+		return fmt.Sprintf("%#v", v)
 	}
 }
