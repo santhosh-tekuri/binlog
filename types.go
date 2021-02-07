@@ -39,7 +39,7 @@ const (
 	TypeLongBlob   ColumnType = 0xfb
 	TypeBlob       ColumnType = 0xfc
 	TypeVarString  ColumnType = 0xfd
-	TypeString     ColumnType = 0xfe // CHAR(255)
+	TypeString     ColumnType = 0xfe // CHAR(255) ENUM(65535)
 	TypeGeometry   ColumnType = 0xff
 )
 
@@ -87,7 +87,22 @@ func (t ColumnType) String() string {
 // https://dev.mysql.com/doc/internals/en/binary-protocol-value.html
 // todo: test with table with all types, especially negative numbers
 func (col Column) decodeValue(r *reader) (interface{}, error) {
-	switch col.Type {
+	length := 0
+	tp := col.Type
+	if tp == TypeString {
+		if binary.LittleEndian.Uint16(col.meta) >= 256 {
+			b0, b1 := col.meta[0], col.meta[1]
+			if b0&0x30 != 0x30 {
+				length = int(uint16(b1) | (uint16((b0&0x30)^0x30) << 4))
+				tp = ColumnType(b0 | 0x30)
+			} else {
+				length = int(b1)
+				tp = ColumnType(b0)
+			}
+		}
+	}
+	fmt.Println("tp", tp, length)
+	switch tp {
 	case TypeTiny:
 		if col.Unsigned {
 			return r.int1(), r.err
@@ -129,6 +144,15 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 			size = int(r.int2())
 		}
 		return r.string(size), r.err
+	case TypeEnum:
+		switch length {
+		case 1:
+			return r.int1(), r.err
+		case 2:
+			return r.int2(), r.err
+		default:
+			return nil, fmt.Errorf("binlog.decodeValue: invalid enum length %d", length)
+		}
 	case TypeBlob:
 		size := r.intFixed(int(col.meta[0]))
 		return r.bytes(int(size)), r.err
@@ -202,7 +226,7 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 	case TypeYear:
 		return 1900 + int(r.int1()), r.err
 	}
-	return nil, fmt.Errorf("unmarshal of mysql type %s is not implemented", col.Type)
+	return nil, fmt.Errorf("unmarshal of mysql type %s is not implemented", tp)
 }
 
 func fractionalSeconds(meta byte, r *reader) (int, error) {
