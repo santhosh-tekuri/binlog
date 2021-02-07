@@ -69,13 +69,13 @@ func (e *TableMapEvent) parse(r *reader) error {
 		}
 		switch typ {
 		case 1:
-			signedness := bitmap(r.bytes(size))
+			signedness := r.bytes(size)
 			inum := 0
 			for i := range e.Columns {
 				switch e.Columns[i].Type {
 				case TypeTiny, TypeShort, TypeInt24, TypeLong, TypeLongLong,
 					TypeFloat, TypeDouble, TypeDecimal, TypeNewDecimal:
-					e.Columns[i].Unsigned = signedness.isTrue(inum)
+					e.Columns[i].Unsigned = signedness[inum/8]&(1<<uint(7-inum%8)) != 0
 					inum++
 				}
 			}
@@ -241,6 +241,8 @@ func (e *RowsQueryEvent) parse(r *reader) error {
 
 // bitmap ---
 
+// https://dev.mysql.com/doc/internals/en/null-bitmap.html
+
 type bitmap []byte
 
 func bitmapSize(numCol uint64) int {
@@ -248,5 +250,5 @@ func bitmapSize(numCol uint64) int {
 }
 
 func (bm bitmap) isTrue(colID int) bool {
-	return bm[colID/8]&(1<<uint(7-colID%8)) != 0
+	return (bm[colID/8]>>uint8(colID%8))&1 == 1
 }
