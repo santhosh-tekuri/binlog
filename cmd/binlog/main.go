@@ -154,16 +154,14 @@ func view(bl binLog) error {
 		)
 		switch d := e.Data.(type) {
 		case binlog.FormatDescriptionEvent:
-			fmt.Print(" v", d.BinlogVersion, " ", d.ServerVersion)
+			fmt.Println(" ", "v"+strconv.Itoa(int(d.BinlogVersion)), d.ServerVersion)
 		case binlog.TableMapEvent:
-			fmt.Print(" ", d.SchemaName+"."+d.TableName)
+			fmt.Println(d.SchemaName + "." + d.TableName)
 		case binlog.RowsEvent:
 			if d.TableMap != nil {
-				fmt.Print(" ", d.TableMap.SchemaName+"."+d.TableMap.TableName)
+				fmt.Print(d.TableMap.SchemaName + "." + d.TableMap.TableName)
 			}
-		}
-		fmt.Println()
-		if _, ok := e.Data.(binlog.RowsEvent); ok {
+			fmt.Println()
 			for {
 				row, before, err := bl.NextRow()
 				if err != nil {
@@ -177,6 +175,8 @@ func view(bl binLog) error {
 					fmt.Println("  before:", before)
 				}
 			}
+		default:
+			fmt.Println()
 		}
 	}
 }

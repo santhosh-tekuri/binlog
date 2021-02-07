@@ -48,7 +48,9 @@ func nextEvent(r *reader, checksum int) (Event, error) {
 	case ANONYMOUS_GTID_EVENT:
 		return Event{h, anonymousGTIDEvent{}}, nil
 	case QUERY_EVENT:
-		return Event{h, queryEvent{}}, nil
+		qe := QueryEvent{}
+		err := qe.parse(r)
+		return Event{h, qe}, err
 	case XID_EVENT:
 		return Event{h, xidEvent{}}, nil
 	case GTID_EVENT:

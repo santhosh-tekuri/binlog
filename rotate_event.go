@@ -48,12 +48,39 @@ func (e *RotateEvent) parse(r *reader) error {
 	return r.err
 }
 
+type QueryEvent struct {
+	SlaveProxyID  uint32
+	ExecutionTIme uint32
+	ErrorCode     uint16
+	StatusVars    []byte
+	Schema        string
+	Query         string
+}
+
+func (e *QueryEvent) parse(r *reader) error {
+	e.SlaveProxyID = r.int4()
+	e.ExecutionTIme = r.int4()
+	schemaLen := r.int1()
+	if r.err != nil {
+		return r.err
+	}
+	e.ErrorCode = r.int2()
+	statusVarsLen := r.int2()
+	if r.err != nil {
+		return r.err
+	}
+	e.StatusVars = r.bytes(int(statusVarsLen))
+	e.Schema = r.string(int(schemaLen))
+	r.skip(1)
+	e.Query = r.stringEOF()
+	return r.err
+}
+
 // https://dev.mysql.com/doc/internals/en/stop-event.html
 
 type stopEvent struct{}
 type previousGTIDsEvent struct{}
 type anonymousGTIDEvent struct{}
-type queryEvent struct{}
 type xidEvent struct{}
 type gtidEvent struct{}
 type unknownEvent struct{}
