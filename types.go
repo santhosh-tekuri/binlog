@@ -25,7 +25,7 @@ const (
 	TypeDateTime   ColumnType = 0x0c
 	TypeYear       ColumnType = 0x0d
 	TypeNewDate    ColumnType = 0x0e
-	TypeVarchar    ColumnType = 0x0f
+	TypeVarchar    ColumnType = 0x0f // VARCHAR(65535)
 	TypeBit        ColumnType = 0x10
 	TypeTimestamp2 ColumnType = 0x11
 	TypeDateTime2  ColumnType = 0x12
@@ -39,7 +39,7 @@ const (
 	TypeLongBlob   ColumnType = 0xfb
 	TypeBlob       ColumnType = 0xfc
 	TypeVarString  ColumnType = 0xfd
-	TypeString     ColumnType = 0xfe
+	TypeString     ColumnType = 0xfe // CHAR(255)
 	TypeGeometry   ColumnType = 0xff
 )
 
@@ -121,7 +121,7 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 		return math.Float32frombits(r.int4()), r.err
 	case TypeDouble:
 		return math.Float64frombits(r.int8()), r.err
-	case TypeVarchar:
+	case TypeVarchar, TypeString:
 		var size int
 		if binary.LittleEndian.Uint16(col.meta) < 256 {
 			size = int(r.int1())
@@ -202,7 +202,7 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 	case TypeYear:
 		return 1900 + int(r.int1()), r.err
 	}
-	return nil, fmt.Errorf("unmarshal of mysql type 0x%x is not implemented", col.Type)
+	return nil, fmt.Errorf("unmarshal of mysql type %s is not implemented", col.Type)
 }
 
 func fractionalSeconds(meta byte, r *reader) (int, error) {
