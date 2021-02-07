@@ -28,7 +28,7 @@ type reader struct {
 	// context for unmarshallers
 	binlogFile string
 	binlogPos  uint32
-	fde        formatDescriptionEvent
+	fde        FormatDescriptionEvent
 	tmeCache   map[uint64]*TableMapEvent
 	tme        *TableMapEvent
 	re         RowsEvent

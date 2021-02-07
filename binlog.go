@@ -6,7 +6,7 @@ func nextEvent(r *reader, checksum int) (Event, error) {
 		return Event{}, err
 	}
 	headerSize := uint32(13)
-	if r.fde.binlogVersion > 1 {
+	if r.fde.BinlogVersion > 1 {
 		headerSize = 19
 	}
 	r.limit = int(h.EventSize-headerSize) - checksum
@@ -18,16 +18,16 @@ func nextEvent(r *reader, checksum int) (Event, error) {
 	// Read event body
 	switch h.EventType {
 	case FORMAT_DESCRIPTION_EVENT:
-		r.fde = formatDescriptionEvent{}
+		r.fde = FormatDescriptionEvent{}
 		err := r.fde.parse(r)
 		return Event{h, r.fde}, err
 	case STOP_EVENT:
 		return Event{h, stopEvent{}}, nil
 	case ROTATE_EVENT:
-		re := rotateEvent{}
+		re := RotateEvent{}
 		err := re.parse(r)
 		if err == nil {
-			r.binlogFile, r.binlogPos = re.nextBinlog, uint32(re.position)
+			r.binlogFile, r.binlogPos = re.NextBinlog, uint32(re.Position)
 			h.LogFile, h.NextPos = r.binlogFile, r.binlogPos
 		}
 		r.tmeCache = make(map[uint64]*TableMapEvent)

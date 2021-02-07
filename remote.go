@@ -204,7 +204,7 @@ func (bl *Remote) NextEvent() (Event, error) {
 		if err != nil {
 			return Event{}, err
 		}
-		r.fde = formatDescriptionEvent{binlogVersion: v}
+		r.fde = FormatDescriptionEvent{BinlogVersion: v}
 		bl.binlogReader = r
 	} else {
 		r.limit += bl.checksum

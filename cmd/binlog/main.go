@@ -153,6 +153,8 @@ func view(bl binLog) error {
 			e.Header.EventType,
 		)
 		switch d := e.Data.(type) {
+		case binlog.FormatDescriptionEvent:
+			fmt.Print(" v", d.BinlogVersion, " ", d.ServerVersion)
 		case binlog.TableMapEvent:
 			fmt.Print(" ", d.SchemaName+"."+d.TableName)
 		case binlog.RowsEvent:

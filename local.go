@@ -109,7 +109,7 @@ func (bl *Local) NextEvent() (Event, error) {
 			limit:      -1,
 		}
 		bl.conn.name = &r.binlogFile
-		r.fde = formatDescriptionEvent{binlogVersion: v}
+		r.fde = FormatDescriptionEvent{BinlogVersion: v}
 		bl.binlogReader = r
 	} else {
 		r.limit += bl.checksum

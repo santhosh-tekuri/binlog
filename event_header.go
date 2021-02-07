@@ -127,7 +127,7 @@ func (h *EventHeader) parse(r *reader) error {
 	h.EventType = EventType(r.int1())
 	h.ServerID = r.int4()
 	h.EventSize = r.int4()
-	if r.fde.binlogVersion > 1 {
+	if r.fde.BinlogVersion > 1 {
 		h.NextPos = r.int4()
 		h.Flags = r.int2()
 	}

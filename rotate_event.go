@@ -6,45 +6,45 @@ import (
 
 // https://dev.mysql.com/doc/internals/en/format-description-event.html
 
-type formatDescriptionEvent struct {
-	binlogVersion          uint16
-	serverVersion          string
-	createTimestamp        uint32
-	eventHeaderLength      uint8
-	eventTypeHeaderLengths []byte
+type FormatDescriptionEvent struct {
+	BinlogVersion          uint16
+	ServerVersion          string
+	CreateTimestamp        uint32
+	EventHeaderLength      uint8
+	EventTypeHeaderLengths []byte
 }
 
-func (e *formatDescriptionEvent) parse(r *reader) error {
-	e.binlogVersion = r.int2()
-	e.serverVersion = r.string(50)
-	if i := strings.IndexByte(e.serverVersion, 0); i != -1 {
-		e.serverVersion = e.serverVersion[:i]
+func (e *FormatDescriptionEvent) parse(r *reader) error {
+	e.BinlogVersion = r.int2()
+	e.ServerVersion = r.string(50)
+	if i := strings.IndexByte(e.ServerVersion, 0); i != -1 {
+		e.ServerVersion = e.ServerVersion[:i]
 	}
-	e.createTimestamp = r.int4()
-	e.eventHeaderLength = r.int1()
-	e.eventTypeHeaderLengths = r.bytesEOF()
+	e.CreateTimestamp = r.int4()
+	e.EventHeaderLength = r.int1()
+	e.EventTypeHeaderLengths = r.bytesEOF()
 	return r.err
 }
 
-func (e *formatDescriptionEvent) postHeaderLength(typ EventType, def int) int {
-	if len(e.eventTypeHeaderLengths) >= int(typ) {
-		return int(e.eventTypeHeaderLengths[typ])
+func (e *FormatDescriptionEvent) postHeaderLength(typ EventType, def int) int {
+	if len(e.EventTypeHeaderLengths) >= int(typ) {
+		return int(e.EventTypeHeaderLengths[typ])
 	}
 	return def
 }
 
 // https://dev.mysql.com/doc/internals/en/rotate-event.html
 
-type rotateEvent struct {
-	position   uint64
-	nextBinlog string
+type RotateEvent struct {
+	Position   uint64
+	NextBinlog string
 }
 
-func (e *rotateEvent) parse(r *reader) error {
-	if r.fde.binlogVersion > 1 {
-		e.position = r.int8()
+func (e *RotateEvent) parse(r *reader) error {
+	if r.fde.BinlogVersion > 1 {
+		e.Position = r.int8()
 	}
-	e.nextBinlog = r.stringEOF()
+	e.NextBinlog = r.stringEOF()
 	return r.err
 }
 
