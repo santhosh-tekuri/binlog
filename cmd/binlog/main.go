@@ -170,7 +170,12 @@ func view(bl binLog) error {
 					}
 					panic(err)
 				}
-				fmt.Println("      SET", row)
+				if e.Header.EventType.IsDeleteRows() {
+					fmt.Print("   WHERE: ")
+				} else {
+					fmt.Print("     SET: ")
+				}
+				fmt.Println(row)
 				if before != nil {
 					fmt.Println("   WHERE:", before)
 				}
