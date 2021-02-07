@@ -6,6 +6,7 @@ import (
 )
 
 type Column struct {
+	Ordinal  int
 	Type     ColumnType
 	Nullable bool
 	Unsigned bool
@@ -40,6 +41,7 @@ func (e *TableMapEvent) parse(r *reader) error {
 	}
 	e.Columns = make([]Column, numCol)
 	for i := range e.Columns {
+		e.Columns[i].Ordinal = i
 		e.Columns[i].Type = ColumnType(r.int1())
 	}
 
@@ -69,7 +71,7 @@ func (e *TableMapEvent) parse(r *reader) error {
 		}
 		switch typ {
 		case 1:
-			signedness := r.bytes(size)
+			signedness := r.bytesInternal(size)
 			inum := 0
 			for i := range e.Columns {
 				switch e.Columns[i].Type {
