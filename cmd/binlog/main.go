@@ -146,11 +146,12 @@ func view(bl binLog) error {
 			}
 			panic(err)
 		}
-		fmt.Printf("%s %17s %s:0x%04x",
+		fmt.Printf("%s %s:0x%04x %-17s",
 			time.Unix(int64(e.Header.Timestamp), 0).Format("2006-01-02 15:04:05"),
-			e.Header.EventType,
 			e.Header.LogFile,
-			e.Header.NextPos)
+			e.Header.NextPos,
+			e.Header.EventType,
+		)
 		switch d := e.Data.(type) {
 		case binlog.TableMapEvent:
 			fmt.Print(" ", d.SchemaName+"."+d.TableName)
@@ -169,9 +170,9 @@ func view(bl binLog) error {
 					}
 					panic(err)
 				}
-				fmt.Println("       ", row)
+				fmt.Println("         ", row)
 				if before != nil {
-					fmt.Println("before:", before)
+					fmt.Println("  before:", before)
 				}
 			}
 		}
