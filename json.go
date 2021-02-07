@@ -210,7 +210,6 @@ func (d *jsonDecoder) decodeDataLen(data []byte) (uint64, []byte, error) {
 		v := data[0]
 		data = data[1:]
 		size |= uint64(v&0x7F) << uint(7*i)
-		i++
 		if highBit := v & (1 << 7); highBit == 0 {
 			return size, data, nil
 		}
