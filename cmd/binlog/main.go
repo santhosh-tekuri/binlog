@@ -170,9 +170,9 @@ func view(bl binLog) error {
 					}
 					panic(err)
 				}
-				fmt.Println("         ", row)
+				fmt.Println("      SET", row)
 				if before != nil {
-					fmt.Println("  before:", before)
+					fmt.Println("   WHERE:", before)
 				}
 			}
 		default:
