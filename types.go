@@ -39,7 +39,7 @@ const (
 	TypeLongBlob   ColumnType = 0xfb
 	TypeBlob       ColumnType = 0xfc
 	TypeVarString  ColumnType = 0xfd
-	TypeString     ColumnType = 0xfe // CHAR(255) ENUM(65535)
+	TypeString     ColumnType = 0xfe // CHAR(255) ENUM(65535) SET(64)
 	TypeGeometry   ColumnType = 0xff
 )
 
@@ -153,6 +153,12 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 		default:
 			return nil, fmt.Errorf("binlog.decodeValue: invalid enum length %d", length)
 		}
+	case TypeSet:
+		n := col.meta[1]
+		if n == 0 || n > 8 {
+			return nil, fmt.Errorf("binlog.decodeValue: invalid num bits in set %d", n)
+		}
+		return r.intFixed(int(n)), r.err
 	case TypeBlob:
 		size := r.intFixed(int(col.meta[0]))
 		return r.bytes(int(size)), r.err
