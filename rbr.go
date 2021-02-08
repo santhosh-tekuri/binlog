@@ -61,8 +61,7 @@ func (e *TableMapEvent) parse(r *reader) error {
 			meta := r.bytes(2)
 			e.Columns[i].Meta = binary.BigEndian.Uint16(meta)
 			if e.Columns[i].Meta >= 256 {
-				b0 := uint8(e.Columns[i].Meta >> 8)
-				b1 := uint8(e.Columns[i].Meta & 0xFF)
+				b0, b1 := meta[0], meta[1]
 				if b0&0x30 != 0x30 {
 					e.Columns[i].Meta = uint16(b1) | (uint16((b0&0x30)^0x30) << 4)
 					e.Columns[i].Type = ColumnType(b0 | 0x30)
