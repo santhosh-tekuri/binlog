@@ -22,12 +22,11 @@ type Column struct {
 //
 // see https://dev.mysql.com/doc/internals/en/table-map-event.html
 type TableMapEvent struct {
-	tableID       uint64
-	flags         uint16
-	SchemaName    string
-	TableName     string
-	Columns       []Column
-	columnCharset []uint64
+	tableID    uint64
+	flags      uint16
+	SchemaName string
+	TableName  string
+	Columns    []Column
 }
 
 func (e *TableMapEvent) parse(r *reader) error {
@@ -102,16 +101,8 @@ func (e *TableMapEvent) parse(r *reader) error {
 				return err
 			}
 		case 3: // Character set of string columns
-			for size > 0 {
-				charset, n := r.intPacked()
-				e.columnCharset = append(e.columnCharset, charset)
-				size -= n
-				if r.err != nil {
-					return r.err
-				}
-			}
-			if size != 0 {
-				fmt.Errorf("invalid columnCharset of columns")
+			if err := e.decodeCharset(r, size, ColumnType.isString); err != nil {
+				return err
 			}
 		case 4: // Column name
 			for i := range e.Columns {
@@ -141,7 +132,6 @@ func (e *TableMapEvent) parse(r *reader) error {
 
 func (e *TableMapEvent) decodeDefaultCharset(r *reader, size int, f func(ColumnType) bool) error {
 	defCharset, n := r.intPacked()
-	fmt.Println("defaultCharset:", defCharset)
 	size -= n
 	if r.err != nil {
 		return r.err
@@ -158,16 +148,31 @@ func (e *TableMapEvent) decodeDefaultCharset(r *reader, size int, f func(ColumnT
 		if r.err != nil {
 			return r.err
 		}
-		fmt.Println("ord", ord, charset)
 	}
 	if size != 0 {
 		fmt.Errorf("invalid defaultCharset of columns")
 	}
-	fmt.Println(e.Columns)
 	for i := range e.Columns {
 		if f(e.Columns[i].Type) && e.Columns[i].charset == 0 {
 			e.Columns[i].charset = defCharset
 		}
+	}
+	return nil
+}
+
+func (e *TableMapEvent) decodeCharset(r *reader, size int, f func(ColumnType) bool) error {
+	for i := range e.Columns {
+		if f(e.Columns[i].Type) {
+			charset, n := r.intPacked()
+			e.Columns[i].charset = charset
+			size -= n
+			if r.err != nil {
+				return r.err
+			}
+		}
+	}
+	if size != 0 {
+		fmt.Errorf("invalid columnCharset of columns")
 	}
 	return nil
 }
