@@ -23,7 +23,7 @@ const (
 	TypeDate       ColumnType = 0x0a
 	TypeTime       ColumnType = 0x0b
 	TypeDateTime   ColumnType = 0x0c
-	TypeYear       ColumnType = 0x0d
+	TypeYear       ColumnType = 0x0d //YEAR(1901 to 2155, and 0000)
 	TypeNewDate    ColumnType = 0x0e
 	TypeVarchar    ColumnType = 0x0f // VARCHAR(65535)
 	TypeBit        ColumnType = 0x10
@@ -215,7 +215,11 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 		}
 		return v, r.err
 	case TypeYear:
-		return 1900 + int(r.int1()), r.err
+		v := int(r.int1())
+		if v == 0 {
+			return 0, r.err
+		}
+		return 1900 + v, r.err
 	}
 	return nil, fmt.Errorf("unmarshal of mysql type %s is not implemented", col.Type)
 }
