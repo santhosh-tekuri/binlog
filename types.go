@@ -23,7 +23,7 @@ const (
 	TypeDate       ColumnType = 0x0a
 	TypeTime       ColumnType = 0x0b
 	TypeDateTime   ColumnType = 0x0c
-	TypeYear       ColumnType = 0x0d //YEAR(1901 to 2155, and 0000)
+	TypeYear       ColumnType = 0x0d // YEAR(1901 to 2155, and 0000)
 	TypeNewDate    ColumnType = 0x0e
 	TypeVarchar    ColumnType = 0x0f // VARCHAR(65535)
 	TypeBit        ColumnType = 0x10
@@ -238,4 +238,13 @@ func fractionalSeconds(meta uint16, r *reader) (int, error) {
 		return int(uint32(b[2]) | uint32(b[1])<<8 | uint32(b[0])<<16), r.err
 	}
 	return 0, fmt.Errorf("binlog.fractionalSeconds: meta=%d must be less than 6", meta)
+}
+
+func (col Column) ValueLiteral(v interface{}) string {
+	switch v := v.(type) {
+	case time.Time:
+		return v.String()
+	default:
+		return fmt.Sprintf("%#v", v)
+	}
 }

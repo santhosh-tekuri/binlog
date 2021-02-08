@@ -181,7 +181,7 @@ func view(bl binLog) error {
 					if col == "" {
 						col = "@" + strconv.Itoa(d.Columns()[i].Ordinal)
 					}
-					fmt.Printf(" %s=%s", col, literal(v))
+					fmt.Printf(" %s=%s", col, d.Columns()[i].ValueLiteral(v))
 				}
 				fmt.Println()
 				if before != nil {
@@ -191,7 +191,7 @@ func view(bl binLog) error {
 						if col == "" {
 							col = "@" + strconv.Itoa(d.ColumnsBeforeUpdate()[i].Ordinal)
 						}
-						fmt.Printf(" %s=%s", col, literal(v))
+						fmt.Printf(" %s=%s", col, d.ColumnsBeforeUpdate()[i].ValueLiteral(v))
 					}
 					fmt.Println()
 				}
@@ -199,14 +199,5 @@ func view(bl binLog) error {
 		default:
 			fmt.Println()
 		}
-	}
-}
-
-func literal(v interface{}) string {
-	switch v := v.(type) {
-	case time.Time:
-		return v.String()
-	default:
-		return fmt.Sprintf("%#v", v)
 	}
 }
