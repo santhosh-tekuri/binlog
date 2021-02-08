@@ -68,7 +68,9 @@ func (e *TableMapEvent) parse(r *reader) error {
 		e.Columns[i].Nullable = nullability.isTrue(i)
 	}
 
-	// extended table metadata: https://dev.mysql.com/worklog/task/?id=4618
+	// extended table metadata
+	// see https://dev.mysql.com/worklog/task/?id=4618
+	// see https://github.com/mysql/mysql-server/blob/8.0/libbinlogevents/include/rows_event.h#L544
 	for r.more() {
 		typ := r.int1()
 		size := int(r.intN())
@@ -129,9 +131,12 @@ func (e *TableMapEvent) parse(r *reader) error {
 		default:
 			// 5 - String value of SET columns
 			// 6 - String value of ENUM columns
-			// 7 - Primary key without prefix
-			// 8 - Primary key with prefix
-			// 9 - Geometry type of geometry columns
+			// 7 - Geometry type of geometry columns
+			// 8 - Primary key without prefix
+			// 9 - Primary key with prefix
+			// 11 - Enum and Set default charset
+			// 12 - Enum and Set column charset
+			// 13 - Column Visibility
 			r.skip(size)
 		}
 	}
