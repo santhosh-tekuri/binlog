@@ -14,6 +14,7 @@ type Column struct {
 	Name     string
 	Meta     uint16
 	charset  uint64
+	Values   []string
 }
 
 // TableMapEvent is first event used in Row Based Replication declares
@@ -28,8 +29,6 @@ type TableMapEvent struct {
 	Columns        []Column
 	defaultCharset uint64
 	columnCharset  []uint64
-	setValues      [][]string
-	enumValues     [][]string
 }
 
 func (e *TableMapEvent) parse(r *reader) error {
@@ -141,15 +140,11 @@ func (e *TableMapEvent) parse(r *reader) error {
 				e.Columns[i].Name = r.stringN()
 			}
 		case 5: // String value of SET columns
-			var err error
-			e.setValues, err = decodeValues(r, size)
-			if err != nil {
+			if err := e.decodeValues(r, size, TypeSet); err != nil {
 				return err
 			}
 		case 6: // String value of ENUM columns
-			var err error
-			e.enumValues, err = decodeValues(r, size)
-			if err != nil {
+			if err := e.decodeValues(r, size, TypeEnum); err != nil {
 				return err
 			}
 		default:
@@ -166,33 +161,37 @@ func (e *TableMapEvent) parse(r *reader) error {
 	return r.err
 }
 
-func decodeValues(r *reader, size int) ([][]string, error) {
-	var res [][]string
+func (e *TableMapEvent) decodeValues(r *reader, size int, typ ColumnType) error {
+	var icol int
 	for size > 0 {
 		nVal, n := r.intPacked()
 		size -= n
 		if r.err != nil {
-			return nil, r.err
+			return r.err
 		}
 		vals := make([]string, nVal)
 		for i := range vals {
 			l, n := r.intPacked()
 			size -= n
 			if r.err != nil {
-				return nil, r.err
+				return r.err
 			}
 			vals[i] = r.string(int(l))
 			size -= int(l)
 			if r.err != nil {
-				return nil, r.err
+				return r.err
 			}
 		}
-		res = append(res, vals)
+		for e.Columns[icol].Type != typ {
+			icol++
+		}
+		e.Columns[icol].Values = vals
+		icol++
 	}
 	if size != 0 {
-		return nil, fmt.Errorf("invalid enum/set values")
+		return fmt.Errorf("invalid enum/set values")
 	}
-	return res, r.err
+	return r.err
 }
 
 // RowsEvent captures changed rows in a table.

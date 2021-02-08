@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
+	"strconv"
 	"time"
 )
 
@@ -132,7 +133,7 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 	case TypeEnum:
 		switch col.Meta {
 		case 1:
-			return r.int1(), r.err
+			return uint16(r.int1()), r.err
 		case 2:
 			return r.int2(), r.err
 		default:
@@ -241,10 +242,22 @@ func fractionalSeconds(meta uint16, r *reader) (int, error) {
 }
 
 func (col Column) ValueLiteral(v interface{}) string {
+	if v == nil {
+		return "NULL"
+	}
+	switch col.Type {
+	case TypeEnum:
+		v := int(v.(uint16))
+		if v == 0 {
+			return `""`
+		}
+		if v-1 < len(col.Values) {
+			return strconv.Quote(col.Values[v-1])
+		}
+	}
 	switch v := v.(type) {
 	case time.Time:
-		return v.String()
-	default:
-		return fmt.Sprintf("%#v", v)
+		return strconv.Quote(v.String())
 	}
+	return fmt.Sprintf("%#v", v)
 }
