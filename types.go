@@ -137,7 +137,7 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 		return math.Float64frombits(r.int8()), r.err
 	case TypeVarchar, TypeString:
 		var size int
-		if binary.LittleEndian.Uint16(col.meta) < 256 {
+		if col.Meta < 256 {
 			size = int(r.int1())
 		} else {
 			size = int(r.int2())
@@ -159,10 +159,10 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 		}
 		return r.intFixed(int(n)), r.err
 	case TypeBlob:
-		size := r.intFixed(int(col.meta[0]))
+		size := r.intFixed(int(col.Meta))
 		return r.bytes(int(size)), r.err
 	case TypeJSON:
-		size := r.intFixed(int(col.meta[0]))
+		size := r.intFixed(int(col.Meta))
 		data := r.bytesInternal(int(size))
 		if r.err != nil {
 			return nil, r.err
@@ -185,7 +185,7 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 		minute := slice(28, 6)
 		second := slice(34, 6)
 
-		frac, err := fractionalSeconds(col.meta[0], r)
+		frac, err := fractionalSeconds(col.Meta, r)
 		if err != nil {
 			return nil, err
 		}
@@ -197,7 +197,7 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 		}
 		sec := binary.BigEndian.Uint32(b)
 
-		frac, err := fractionalSeconds(col.meta[0], r)
+		frac, err := fractionalSeconds(col.Meta, r)
 		if err != nil {
 			return nil, err
 		}
@@ -216,7 +216,7 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 		hour := slice(2, 10)
 		min := slice(12, 6)
 		sec := slice(18, 6)
-		frac, err := fractionalSeconds(col.meta[0], r)
+		frac, err := fractionalSeconds(col.Meta, r)
 		if err != nil {
 			return nil, err
 		}
@@ -234,7 +234,7 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 	return nil, fmt.Errorf("unmarshal of mysql type %s is not implemented", tp)
 }
 
-func fractionalSeconds(meta byte, r *reader) (int, error) {
+func fractionalSeconds(meta uint16, r *reader) (int, error) {
 	switch meta {
 	case 0:
 		return 0, nil

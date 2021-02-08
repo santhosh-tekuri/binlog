@@ -1,6 +1,7 @@
 package binlog
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
 )
@@ -12,6 +13,7 @@ type Column struct {
 	Unsigned bool
 	Name     string
 	meta     []byte
+	Meta     uint16
 	charset  uint64
 }
 
@@ -53,9 +55,11 @@ func (e *TableMapEvent) parse(r *reader) error {
 		case TypeBlob, TypeDouble, TypeFloat, TypeGeometry, TypeJSON,
 			TypeTime2, TypeDateTime2, TypeTimestamp2:
 			e.Columns[i].meta = r.bytes(1)
+			e.Columns[i].Meta = uint16(e.Columns[i].meta[0])
 		case TypeVarchar, TypeBit, TypeDecimal, TypeNewDecimal,
 			TypeSet, TypeEnum, TypeString, TypeVarString:
 			e.Columns[i].meta = r.bytes(2)
+			e.Columns[i].Meta = binary.LittleEndian.Uint16(e.Columns[i].meta)
 		}
 	}
 
