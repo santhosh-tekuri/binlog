@@ -28,6 +28,8 @@ type TableMapEvent struct {
 	Columns        []Column
 	defaultCharset uint64
 	columnCharset  []uint64
+	setValues      [][]string
+	enumValues     [][]string
 }
 
 func (e *TableMapEvent) parse(r *reader) error {
@@ -138,9 +140,19 @@ func (e *TableMapEvent) parse(r *reader) error {
 			for i := range e.Columns {
 				e.Columns[i].Name = r.stringN()
 			}
+		case 5: // String value of SET columns
+			var err error
+			e.setValues, err = decodeValues(r, size)
+			if err != nil {
+				return err
+			}
+		case 6: // String value of ENUM columns
+			var err error
+			e.enumValues, err = decodeValues(r, size)
+			if err != nil {
+				return err
+			}
 		default:
-			// 5 - String value of SET columns
-			// 6 - String value of ENUM columns
 			// 7 - Geometry type of geometry columns
 			// 8 - Primary key without prefix
 			// 9 - Primary key with prefix
@@ -152,6 +164,35 @@ func (e *TableMapEvent) parse(r *reader) error {
 	}
 
 	return r.err
+}
+
+func decodeValues(r *reader, size int) ([][]string, error) {
+	var res [][]string
+	for size > 0 {
+		nVal, n := r.intPacked()
+		size -= n
+		if r.err != nil {
+			return nil, r.err
+		}
+		vals := make([]string, nVal)
+		for i := range vals {
+			l, n := r.intPacked()
+			size -= n
+			if r.err != nil {
+				return nil, r.err
+			}
+			vals[i] = r.string(int(l))
+			size -= int(l)
+			if r.err != nil {
+				return nil, r.err
+			}
+		}
+		res = append(res, vals)
+	}
+	if size != 0 {
+		return nil, fmt.Errorf("invalid enum/set values")
+	}
+	return res, r.err
 }
 
 // RowsEvent captures changed rows in a table.
