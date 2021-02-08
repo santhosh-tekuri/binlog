@@ -153,7 +153,7 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 			return nil, fmt.Errorf("binlog.decodeValue: invalid enum length %d", length)
 		}
 	case TypeSet:
-		n := col.meta[1]
+		n := col.meta[1] // == length
 		if n == 0 || n > 8 {
 			return nil, fmt.Errorf("binlog.decodeValue: invalid num bits in set %d", n)
 		}

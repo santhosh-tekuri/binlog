@@ -72,7 +72,7 @@ func (e *TableMapEvent) parse(r *reader) error {
 			break
 		}
 		switch typ {
-		case 1:
+		case 1: // UNSIGNED flag of numeric columns
 			signedness := r.bytesInternal(size)
 			inum := 0
 			for i := range e.Columns {
@@ -83,7 +83,7 @@ func (e *TableMapEvent) parse(r *reader) error {
 					inum++
 				}
 			}
-		case 2:
+		case 2: // Default character set of string columns
 			charset, n := r.intPacked()
 			e.defaultCharset = charset
 			size -= n
@@ -106,7 +106,7 @@ func (e *TableMapEvent) parse(r *reader) error {
 			if size != 0 {
 				fmt.Errorf("invalid defaultCharset of columns")
 			}
-		case 3:
+		case 3: // Character set of string columns
 			for size > 0 {
 				charset, n := r.intPacked()
 				e.columnCharset = append(e.columnCharset, charset)
@@ -118,11 +118,16 @@ func (e *TableMapEvent) parse(r *reader) error {
 			if size != 0 {
 				fmt.Errorf("invalid columnCharset of columns")
 			}
-		case 4:
+		case 4: // Column name
 			for i := range e.Columns {
 				e.Columns[i].Name = r.stringN()
 			}
 		default:
+			// 5 - String value of SET columns
+			// 6 - String value of ENUM columns
+			// 7 - Primary key without prefix
+			// 8 - Primary key with prefix
+			// 9 - Geometry type of geometry columns
 			r.skip(size)
 		}
 	}
