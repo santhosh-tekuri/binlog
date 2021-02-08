@@ -22,13 +22,12 @@ type Column struct {
 //
 // see https://dev.mysql.com/doc/internals/en/table-map-event.html
 type TableMapEvent struct {
-	tableID        uint64
-	flags          uint16
-	SchemaName     string
-	TableName      string
-	Columns        []Column
-	defaultCharset uint64
-	columnCharset  []uint64
+	tableID       uint64
+	flags         uint16
+	SchemaName    string
+	TableName     string
+	Columns       []Column
+	columnCharset []uint64
 }
 
 func (e *TableMapEvent) parse(r *reader) error {
@@ -93,35 +92,14 @@ func (e *TableMapEvent) parse(r *reader) error {
 			signedness := r.bytesInternal(size)
 			inum := 0
 			for i := range e.Columns {
-				switch e.Columns[i].Type {
-				case TypeTiny, TypeShort, TypeInt24, TypeLong, TypeLongLong,
-					TypeFloat, TypeDouble, TypeDecimal, TypeNewDecimal:
+				if e.Columns[i].Type.isNumeric() {
 					e.Columns[i].Unsigned = signedness[inum/8]&(1<<uint(7-inum%8)) != 0
 					inum++
 				}
 			}
 		case 2: // Default character set of string columns
-			charset, n := r.intPacked()
-			e.defaultCharset = charset
-			size -= n
-			if r.err != nil {
-				return r.err
-			}
-			for size > 0 {
-				ord, n := r.intPacked()
-				size -= n
-				if r.err != nil {
-					return r.err
-				}
-				charset, n := r.intPacked()
-				size -= n
-				e.Columns[ord].charset = charset
-				if r.err != nil {
-					return r.err
-				}
-			}
-			if size != 0 {
-				fmt.Errorf("invalid defaultCharset of columns")
+			if err := e.decodeDefaultCharset(r, size, ColumnType.isString); err != nil {
+				return err
 			}
 		case 3: // Character set of string columns
 			for size > 0 {
@@ -159,6 +137,39 @@ func (e *TableMapEvent) parse(r *reader) error {
 	}
 
 	return r.err
+}
+
+func (e *TableMapEvent) decodeDefaultCharset(r *reader, size int, f func(ColumnType) bool) error {
+	defCharset, n := r.intPacked()
+	fmt.Println("defaultCharset:", defCharset)
+	size -= n
+	if r.err != nil {
+		return r.err
+	}
+	for size > 0 {
+		ord, n := r.intPacked()
+		size -= n
+		if r.err != nil {
+			return r.err
+		}
+		charset, n := r.intPacked()
+		size -= n
+		e.Columns[ord].charset = charset
+		if r.err != nil {
+			return r.err
+		}
+		fmt.Println("ord", ord, charset)
+	}
+	if size != 0 {
+		fmt.Errorf("invalid defaultCharset of columns")
+	}
+	fmt.Println(e.Columns)
+	for i := range e.Columns {
+		if f(e.Columns[i].Type) && e.Columns[i].charset == 0 {
+			e.Columns[i].charset = defCharset
+		}
+	}
+	return nil
 }
 
 func (e *TableMapEvent) decodeValues(r *reader, size int, typ ColumnType) error {

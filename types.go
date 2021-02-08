@@ -41,7 +41,7 @@ const (
 	TypeTinyBlob   ColumnType = 0xf9
 	TypeMediumBlob ColumnType = 0xfa
 	TypeLongBlob   ColumnType = 0xfb
-	TypeBlob       ColumnType = 0xfc
+	TypeBlob       ColumnType = 0xfc // TINYTEXT TEXT MEDIUMTEXT LONGTEXT TINYBLOB BLOB MEDIUMBLOB LONGBLOB
 	TypeVarString  ColumnType = 0xfd
 	TypeString     ColumnType = 0xfe // CHAR(255) ENUM(65535) SET(64)
 	TypeGeometry   ColumnType = 0xff
@@ -79,6 +79,31 @@ var typeNames = map[ColumnType]string{
 	TypeVarString:  "varString",
 	TypeString:     "string",
 	TypeGeometry:   "geometry",
+}
+
+func (t ColumnType) isNumeric() bool {
+	switch t {
+	case TypeTiny, TypeShort, TypeInt24, TypeLong, TypeLongLong,
+		TypeFloat, TypeDouble, TypeDecimal, TypeNewDecimal:
+		return true
+	}
+	return false
+}
+
+func (t ColumnType) isString() bool {
+	switch t {
+	case TypeVarchar, TypeBlob, TypeVarString, TypeString:
+		return true
+	}
+	return false
+}
+
+func (t ColumnType) isSet() bool {
+	return t == TypeSet
+}
+
+func (t ColumnType) isEnum() bool {
+	return t == TypeEnum
 }
 
 func (t ColumnType) String() string {
