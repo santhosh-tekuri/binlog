@@ -1,7 +1,9 @@
 package binlog
 
 import (
+	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"math"
 	"strconv"
@@ -269,6 +271,11 @@ func (col Column) ValueLiteral(v interface{}) string {
 			}
 			return strconv.Quote(buf.String())
 		}
+	case TypeJSON:
+		var buf bytes.Buffer
+		_ = json.NewEncoder(&buf).Encode(v)
+		s := buf.String()
+		return strconv.Quote(s[:len(s)-1]) // remove trailing newline
 	}
 	switch v := v.(type) {
 	case time.Time:
