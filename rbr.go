@@ -12,7 +12,6 @@ type Column struct {
 	Nullable bool
 	Unsigned bool
 	Name     string
-	meta     []byte
 	Meta     uint16
 	charset  uint64
 }
@@ -49,17 +48,29 @@ func (e *TableMapEvent) parse(r *reader) error {
 	}
 
 	_ = r.intN() // meta length
-	for i, col := range e.Columns {
-		switch col.Type {
+	for i := range e.Columns {
+		switch e.Columns[i].Type {
 		default:
 		case TypeBlob, TypeDouble, TypeFloat, TypeGeometry, TypeJSON,
 			TypeTime2, TypeDateTime2, TypeTimestamp2:
-			e.Columns[i].meta = r.bytes(1)
-			e.Columns[i].Meta = uint16(e.Columns[i].meta[0])
+			e.Columns[i].Meta = uint16(r.int1())
 		case TypeVarchar, TypeBit, TypeDecimal, TypeNewDecimal,
-			TypeSet, TypeEnum, TypeString, TypeVarString:
-			e.Columns[i].meta = r.bytes(2)
-			e.Columns[i].Meta = binary.LittleEndian.Uint16(e.Columns[i].meta)
+			TypeSet, TypeEnum, TypeVarString:
+			e.Columns[i].Meta = r.int2()
+		case TypeString:
+			meta := r.bytes(2)
+			e.Columns[i].Meta = binary.BigEndian.Uint16(meta)
+			if e.Columns[i].Meta >= 256 {
+				b0 := uint8(e.Columns[i].Meta >> 8)
+				b1 := uint8(e.Columns[i].Meta & 0xFF)
+				if b0&0x30 != 0x30 {
+					e.Columns[i].Meta = uint16(b1) | (uint16((b0&0x30)^0x30) << 4)
+					e.Columns[i].Type = ColumnType(b0 | 0x30)
+				} else {
+					e.Columns[i].Meta = uint16(b1)
+					e.Columns[i].Type = ColumnType(b0)
+				}
+			}
 		}
 	}
 

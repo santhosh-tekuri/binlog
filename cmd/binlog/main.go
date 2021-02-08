@@ -152,6 +152,7 @@ func view(bl binLog) error {
 			e.Header.NextPos,
 			e.Header.EventType,
 		)
+		//fmt.Printf(" %#v\n", e.Data)
 		switch d := e.Data.(type) {
 		case binlog.FormatDescriptionEvent:
 			fmt.Println(" ", "v"+strconv.Itoa(int(d.BinlogVersion)), d.ServerVersion)

@@ -87,21 +87,7 @@ func (t ColumnType) String() string {
 // https://dev.mysql.com/doc/internals/en/binary-protocol-value.html
 // todo: test with table with all types, especially negative numbers
 func (col Column) decodeValue(r *reader) (interface{}, error) {
-	length := 0
-	tp := col.Type
-	if tp == TypeString {
-		if binary.LittleEndian.Uint16(col.meta) >= 256 {
-			b0, b1 := col.meta[0], col.meta[1]
-			if b0&0x30 != 0x30 {
-				length = int(uint16(b1) | (uint16((b0&0x30)^0x30) << 4))
-				tp = ColumnType(b0 | 0x30)
-			} else {
-				length = int(b1)
-				tp = ColumnType(b0)
-			}
-		}
-	}
-	switch tp {
+	switch col.Type {
 	case TypeTiny:
 		if col.Unsigned {
 			return r.int1(), r.err
@@ -144,16 +130,16 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 		}
 		return r.string(size), r.err
 	case TypeEnum:
-		switch length {
+		switch col.Meta {
 		case 1:
 			return r.int1(), r.err
 		case 2:
 			return r.int2(), r.err
 		default:
-			return nil, fmt.Errorf("binlog.decodeValue: invalid enum length %d", length)
+			return nil, fmt.Errorf("binlog.decodeValue: invalid enum length %d", col.Meta)
 		}
 	case TypeSet:
-		n := col.meta[1] // == length
+		n := col.Meta // == length
 		if n == 0 || n > 8 {
 			return nil, fmt.Errorf("binlog.decodeValue: invalid num bits in set %d", n)
 		}
@@ -231,7 +217,7 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 	case TypeYear:
 		return 1900 + int(r.int1()), r.err
 	}
-	return nil, fmt.Errorf("unmarshal of mysql type %s is not implemented", tp)
+	return nil, fmt.Errorf("unmarshal of mysql type %s is not implemented", col.Type)
 }
 
 func fractionalSeconds(meta uint16, r *reader) (int, error) {
