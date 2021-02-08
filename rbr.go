@@ -12,6 +12,7 @@ type Column struct {
 	Unsigned bool
 	Name     string
 	meta     []byte
+	charset  uint64
 }
 
 // TableMapEvent is first event used in Row Based Replication declares
@@ -24,8 +25,8 @@ type TableMapEvent struct {
 	SchemaName     string
 	TableName      string
 	Columns        []Column
-	defaultCharset []byte
-	columnCharset  []byte
+	defaultCharset uint64
+	columnCharset  []uint64
 }
 
 func (e *TableMapEvent) parse(r *reader) error {
@@ -63,6 +64,7 @@ func (e *TableMapEvent) parse(r *reader) error {
 		e.Columns[i].Nullable = nullability.isTrue(i)
 	}
 
+	// extended table metadata: https://dev.mysql.com/worklog/task/?id=4618
 	for r.more() {
 		typ := r.int1()
 		size := int(r.intN())
@@ -82,9 +84,40 @@ func (e *TableMapEvent) parse(r *reader) error {
 				}
 			}
 		case 2:
-			e.defaultCharset = r.bytes(size)
+			charset, n := r.intPacked()
+			e.defaultCharset = charset
+			size -= n
+			if r.err != nil {
+				return r.err
+			}
+			for size > 0 {
+				ord, n := r.intPacked()
+				size -= n
+				if r.err != nil {
+					return r.err
+				}
+				charset, n := r.intPacked()
+				size -= n
+				e.Columns[ord].charset = charset
+				if r.err != nil {
+					return r.err
+				}
+			}
+			if size != 0 {
+				fmt.Errorf("invalid defaultCharset of columns")
+			}
 		case 3:
-			e.columnCharset = r.bytes(size)
+			for size > 0 {
+				charset, n := r.intPacked()
+				e.columnCharset = append(e.columnCharset, charset)
+				size -= n
+				if r.err != nil {
+					return r.err
+				}
+			}
+			if size != 0 {
+				fmt.Errorf("invalid columnCharset of columns")
+			}
 		case 4:
 			for i := range e.Columns {
 				e.Columns[i].Name = r.stringN()

@@ -232,21 +232,27 @@ func (r *reader) intFixed(n int) uint64 {
 	return v
 }
 
-func (r *reader) intN() uint64 {
+// https://dev.mysql.com/doc/internals/en/integer.html#length-encoded-integer
+func (r *reader) intPacked() (num uint64, n int) {
 	b := r.int1()
 	if r.err != nil {
-		return 0
+		return 0, 0
 	}
 	switch b {
 	case 0xfc:
-		return uint64(r.int2())
+		return uint64(r.int2()), 3
 	case 0xfd:
-		return uint64(r.int3())
+		return uint64(r.int3()), 4
 	case 0xfe:
-		return r.int8()
+		return r.int8(), 9
 	default:
-		return uint64(b)
+		return uint64(b), 1
 	}
+}
+
+func (r *reader) intN() uint64 {
+	num, _ := r.intPacked()
+	return num
 }
 
 // bytes, strings ---

@@ -101,7 +101,6 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 			}
 		}
 	}
-	fmt.Println("tp", tp, length)
 	switch tp {
 	case TypeTiny:
 		if col.Unsigned {
