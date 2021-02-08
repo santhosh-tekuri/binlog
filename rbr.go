@@ -116,13 +116,19 @@ func (e *TableMapEvent) parse(r *reader) error {
 			if err := e.decodeValues(r, size, TypeEnum); err != nil {
 				return err
 			}
+		case 10: // Enum and Set default charset
+			if err := e.decodeDefaultCharset(r, size, ColumnType.isEnumSet); err != nil {
+				return err
+			}
+		case 11: // Enum and Set column charset
+			if err := e.decodeCharset(r, size, ColumnType.isEnumSet); err != nil {
+				return err
+			}
 		default:
 			// 7 - Geometry type of geometry columns
 			// 8 - Primary key without prefix
 			// 9 - Primary key with prefix
-			// 11 - Enum and Set default charset
-			// 12 - Enum and Set column charset
-			// 13 - Column Visibility
+			// 12 - Column Visibility
 			r.skip(size)
 		}
 	}

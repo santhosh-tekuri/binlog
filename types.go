@@ -98,12 +98,8 @@ func (t ColumnType) isString() bool {
 	return false
 }
 
-func (t ColumnType) isSet() bool {
-	return t == TypeSet
-}
-
-func (t ColumnType) isEnum() bool {
-	return t == TypeEnum
+func (t ColumnType) isEnumSet() bool {
+	return t == TypeEnum || t == TypeSet
 }
 
 func (t ColumnType) String() string {
