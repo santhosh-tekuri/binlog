@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -253,6 +254,20 @@ func (col Column) ValueLiteral(v interface{}) string {
 		}
 		if v-1 < len(col.Values) {
 			return strconv.Quote(col.Values[v-1])
+		}
+	case TypeSet:
+		if len(col.Values) > 0 {
+			v := v.(uint64)
+			var buf strings.Builder
+			for i, val := range col.Values {
+				if v&(1<<i) != 0 {
+					if buf.Len() > 0 {
+						buf.WriteByte(',')
+					}
+					buf.WriteString(val)
+				}
+			}
+			return strconv.Quote(buf.String())
 		}
 	}
 	switch v := v.(type) {
