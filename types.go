@@ -3,6 +3,7 @@ package binlog
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -297,6 +298,12 @@ func (col Column) ValueLiteral(v interface{}) string {
 		_ = json.NewEncoder(&buf).Encode(v)
 		s := buf.String()
 		return strconv.Quote(s[:len(s)-1]) // remove trailing newline
+	case TypeBlob:
+		v := v.([]byte)
+		if col.charset == 0 || col.charset == 63 { // 63 = binary charset
+			return fmt.Sprintf(`x"%s"`, hex.EncodeToString(v))
+		}
+		return strconv.Quote(string(v))
 	}
 	switch v := v.(type) {
 	case time.Time:
