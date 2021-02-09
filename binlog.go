@@ -82,7 +82,9 @@ func nextEvent(r *reader, checksum int) (Event, error) {
 	case APPEND_BLOCK_EVENT:
 		return Event{h, appendBlockEvent{}}, nil
 	case INCIDENT_EVENT:
-		return Event{h, incidentEvent{}}, nil
+		ie := IncidentEvent{}
+		err := ie.parse(r)
+		return Event{h, ie}, err
 	case HEARTBEAT_EVENT:
 		return Event{h, heartbeatEvent{}}, nil
 	case IGNORABLE_EVENT:

@@ -76,6 +76,20 @@ func (e *QueryEvent) parse(r *reader) error {
 	return r.err
 }
 
+// https://dev.mysql.com/doc/internals/en/incident-event.html
+
+type IncidentEvent struct {
+	Type    uint16
+	Message string
+}
+
+func (e *IncidentEvent) parse(r *reader) error {
+	e.Type = r.int2()
+	size := r.int1()
+	e.Message = r.string(int(size))
+	return r.err
+}
+
 // https://dev.mysql.com/doc/internals/en/stop-event.html
 
 type stopEvent struct{}
@@ -96,6 +110,5 @@ type userVarEvent struct{}
 type newLoadEvent struct{}
 type execLoadEvent struct{}
 type appendBlockEvent struct{}
-type incidentEvent struct{}
 type heartbeatEvent struct{}
 type ignorableEvent struct{}
