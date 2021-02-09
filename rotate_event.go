@@ -90,6 +90,20 @@ func (e *IncidentEvent) parse(r *reader) error {
 	return r.err
 }
 
+// RandEvent captures internal state of the RAND() function.
+//
+// https://dev.mysql.com/doc/internals/en/rand-event.html
+type RandEvent struct {
+	Seed1 uint64
+	Seed2 uint64
+}
+
+func (e *RandEvent) parse(r *reader) error {
+	e.Seed1 = r.int8()
+	e.Seed2 = r.int8()
+	return r.err
+}
+
 // https://dev.mysql.com/doc/internals/en/stop-event.html
 
 type stopEvent struct{}
@@ -105,7 +119,6 @@ type createFileEvent struct{}
 type deleteFileEvent struct{}
 type beginLoadQueryEvent struct{}
 type executeLoadQueryEvent struct{}
-type randEvent struct{}
 type userVarEvent struct{}
 type newLoadEvent struct{}
 type execLoadEvent struct{}

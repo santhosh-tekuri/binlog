@@ -72,7 +72,9 @@ func nextEvent(r *reader, checksum int) (Event, error) {
 	case EXECUTE_LOAD_QUERY_EVENT:
 		return Event{h, executeLoadQueryEvent{}}, nil
 	case RAND_EVENT:
-		return Event{h, randEvent{}}, nil
+		re := RandEvent{}
+		err := re.parse(r)
+		return Event{h, re}, err
 	case USER_VAR_EVENT:
 		return Event{h, userVarEvent{}}, nil
 	case NEW_LOAD_EVENT:
