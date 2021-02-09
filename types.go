@@ -300,7 +300,7 @@ func (col Column) ValueLiteral(v interface{}) string {
 		return strconv.Quote(s[:len(s)-1]) // remove trailing newline
 	case TypeBlob:
 		v := v.([]byte)
-		if col.charset == 0 || col.charset == 63 { // 63 = binary charset
+		if col.Charset == 0 || col.Charset == 63 { // 63 = binary charset
 			return fmt.Sprintf(`x"%s"`, hex.EncodeToString(v))
 		}
 		return strconv.Quote(string(v))

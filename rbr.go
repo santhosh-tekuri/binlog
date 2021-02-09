@@ -11,10 +11,10 @@ type Column struct {
 	Type     ColumnType
 	Nullable bool
 	Unsigned bool
-	Name     string
+	Name     string // empty strings means unknown.
 	Meta     uint16
-	charset  uint64
-	Values   []string
+	Charset  uint64   // value zero means unknown.
+	Values   []string // valid values for Enum and Set type.
 }
 
 // TableMapEvent is first event used in Row Based Replication declares
@@ -150,7 +150,7 @@ func (e *TableMapEvent) decodeDefaultCharset(r *reader, size int, f func(ColumnT
 		}
 		charset, n := r.intPacked()
 		size -= n
-		e.Columns[ord].charset = charset
+		e.Columns[ord].Charset = charset
 		if r.err != nil {
 			return r.err
 		}
@@ -159,8 +159,8 @@ func (e *TableMapEvent) decodeDefaultCharset(r *reader, size int, f func(ColumnT
 		fmt.Errorf("invalid defaultCharset of columns")
 	}
 	for i := range e.Columns {
-		if f(e.Columns[i].Type) && e.Columns[i].charset == 0 {
-			e.Columns[i].charset = defCharset
+		if f(e.Columns[i].Type) && e.Columns[i].Charset == 0 {
+			e.Columns[i].Charset = defCharset
 		}
 	}
 	return nil
@@ -170,7 +170,7 @@ func (e *TableMapEvent) decodeCharset(r *reader, size int, f func(ColumnType) bo
 	for i := range e.Columns {
 		if f(e.Columns[i].Type) {
 			charset, n := r.intPacked()
-			e.Columns[i].charset = charset
+			e.Columns[i].Charset = charset
 			size -= n
 			if r.err != nil {
 				return r.err
