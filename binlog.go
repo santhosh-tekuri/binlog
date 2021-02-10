@@ -2,7 +2,7 @@ package binlog
 
 func nextEvent(r *reader, checksum int) (Event, error) {
 	h := EventHeader{}
-	if err := h.parse(r); err != nil {
+	if err := h.decode(r); err != nil {
 		return Event{}, err
 	}
 	headerSize := uint32(13)
@@ -19,13 +19,13 @@ func nextEvent(r *reader, checksum int) (Event, error) {
 	switch h.EventType {
 	case FORMAT_DESCRIPTION_EVENT:
 		r.fde = FormatDescriptionEvent{}
-		err := r.fde.parse(r)
+		err := r.fde.decode(r)
 		return Event{h, r.fde}, err
 	case STOP_EVENT:
 		return Event{h, stopEvent{}}, nil
 	case ROTATE_EVENT:
 		re := RotateEvent{}
-		err := re.parse(r)
+		err := re.decode(r)
 		if err == nil {
 			r.binlogFile, r.binlogPos = re.NextBinlog, uint32(re.Position)
 			h.LogFile, h.NextPos = r.binlogFile, r.binlogPos
@@ -34,14 +34,14 @@ func nextEvent(r *reader, checksum int) (Event, error) {
 		return Event{h, re}, err
 	case TABLE_MAP_EVENT:
 		tme := TableMapEvent{}
-		err := tme.parse(r)
+		err := tme.decode(r)
 		r.tmeCache[tme.tableID] = &tme
 		return Event{h, tme}, err
 	case WRITE_ROWS_EVENTv0, WRITE_ROWS_EVENTv1, WRITE_ROWS_EVENTv2,
 		UPDATE_ROWS_EVENTv0, UPDATE_ROWS_EVENTv1, UPDATE_ROWS_EVENTv2,
 		DELETE_ROWS_EVENTv0, DELETE_ROWS_EVENTv1, DELETE_ROWS_EVENTv2:
 		r.re = RowsEvent{}
-		err := r.re.parse(r, h.EventType)
+		err := r.re.decode(r, h.EventType)
 		return Event{h, r.re}, err
 	case PREVIOUS_GTIDS_EVENT:
 		return Event{h, previousGTIDsEvent{}}, nil
@@ -49,7 +49,7 @@ func nextEvent(r *reader, checksum int) (Event, error) {
 		return Event{h, anonymousGTIDEvent{}}, nil
 	case QUERY_EVENT:
 		qe := QueryEvent{}
-		err := qe.parse(r)
+		err := qe.decode(r)
 		return Event{h, qe}, err
 	case XID_EVENT:
 		return Event{h, xidEvent{}}, nil
@@ -73,7 +73,7 @@ func nextEvent(r *reader, checksum int) (Event, error) {
 		return Event{h, executeLoadQueryEvent{}}, nil
 	case RAND_EVENT:
 		re := RandEvent{}
-		err := re.parse(r)
+		err := re.decode(r)
 		return Event{h, re}, err
 	case USER_VAR_EVENT:
 		return Event{h, userVarEvent{}}, nil
@@ -85,7 +85,7 @@ func nextEvent(r *reader, checksum int) (Event, error) {
 		return Event{h, appendBlockEvent{}}, nil
 	case INCIDENT_EVENT:
 		ie := IncidentEvent{}
-		err := ie.parse(r)
+		err := ie.decode(r)
 		return Event{h, ie}, err
 	case HEARTBEAT_EVENT:
 		return Event{h, heartbeatEvent{}}, nil
@@ -93,7 +93,7 @@ func nextEvent(r *reader, checksum int) (Event, error) {
 		return Event{h, ignorableEvent{}}, nil
 	case ROWS_QUERY_EVENT:
 		rqe := RowsQueryEvent{}
-		err := rqe.parse(r)
+		err := rqe.decode(r)
 		return Event{h, rqe}, err
 	default:
 		return Event{h, unknownEvent{}}, nil

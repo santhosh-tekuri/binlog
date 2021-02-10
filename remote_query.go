@@ -33,19 +33,19 @@ func (bl *Remote) query(q string) (queryResponse, error) {
 	switch b {
 	case okMarker:
 		ok := okPacket{}
-		if err := ok.parse(r, bl.hs.capabilityFlags); err != nil {
+		if err := ok.decode(r, bl.hs.capabilityFlags); err != nil {
 			return nil, err
 		}
 		return ok, nil
 	case errMarker:
 		ep := errPacket{}
-		if err := ep.parse(r, bl.hs.capabilityFlags); err != nil {
+		if err := ep.decode(r, bl.hs.capabilityFlags); err != nil {
 			return nil, err
 		}
 		return nil, errors.New(ep.errorMessage)
 	default:
 		rs := resultSet{}
-		if err := rs.parse(r, bl.hs.capabilityFlags); err != nil {
+		if err := rs.decode(r, bl.hs.capabilityFlags); err != nil {
 			return nil, err
 		}
 		return &rs, nil
@@ -67,7 +67,7 @@ type columnDef struct {
 	decimals     uint8
 }
 
-func (cd *columnDef) parse(r *reader, capabilities uint32) error {
+func (cd *columnDef) decode(r *reader, capabilities uint32) error {
 	if capabilities&capProtocol41 != 0 {
 		_ = r.stringN() // catalog (always "def")
 		cd.schema = r.stringN()
@@ -94,7 +94,7 @@ type resultSet struct {
 	columnDefs   []columnDef
 }
 
-func (rs *resultSet) parse(r *reader, capabilities uint32) error {
+func (rs *resultSet) decode(r *reader, capabilities uint32) error {
 	rs.r, rs.capabilities = r, capabilities
 
 	ncol := r.intN()
@@ -109,7 +109,7 @@ func (rs *resultSet) parse(r *reader, capabilities uint32) error {
 	for i := uint64(0); i < ncol; i++ {
 		r.rd.(*packetReader).reset()
 		cd := columnDef{}
-		if err := cd.parse(r, capabilities); err != nil {
+		if err := cd.decode(r, capabilities); err != nil {
 			return err
 		}
 		if r.more() {
@@ -121,7 +121,7 @@ func (rs *resultSet) parse(r *reader, capabilities uint32) error {
 	// Parse EOF Packet.
 	r.rd.(*packetReader).reset()
 	eof := eofPacket{}
-	return eof.parse(r, capabilities)
+	return eof.decode(r, capabilities)
 }
 
 func (rs *resultSet) nextRow() ([]interface{}, error) {
@@ -134,13 +134,13 @@ func (rs *resultSet) nextRow() ([]interface{}, error) {
 	switch b {
 	case eofMarker:
 		eof := eofPacket{}
-		if err := eof.parse(r, rs.capabilities); err != nil {
+		if err := eof.decode(r, rs.capabilities); err != nil {
 			return nil, err
 		}
 		return nil, io.EOF
 	case errMarker:
 		ep := errPacket{}
-		if err := ep.parse(r, rs.capabilities); err != nil {
+		if err := ep.decode(r, rs.capabilities); err != nil {
 			return nil, err
 		}
 		return nil, errors.New(ep.errorMessage)

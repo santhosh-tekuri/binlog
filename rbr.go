@@ -29,7 +29,7 @@ type TableMapEvent struct {
 	Columns    []Column
 }
 
-func (e *TableMapEvent) parse(r *reader) error {
+func (e *TableMapEvent) decode(r *reader) error {
 	e.tableID = r.int6()
 	e.flags = r.int2()
 	_ = r.int1() // schema name length
@@ -227,7 +227,7 @@ type RowsEvent struct {
 	columns   [][]Column
 }
 
-func (e *RowsEvent) parse(r *reader, eventType EventType) error {
+func (e *RowsEvent) decode(r *reader, eventType EventType) error {
 	e.eventType = eventType
 	if r.fde.postHeaderLength(eventType, 8) == 6 {
 		e.tableID = uint64(r.int4())
@@ -354,7 +354,7 @@ type RowsQueryEvent struct {
 	Query string
 }
 
-func (e *RowsQueryEvent) parse(r *reader) error {
+func (e *RowsQueryEvent) decode(r *reader) error {
 	r.int1() // length ignored
 	e.Query = r.stringEOF()
 	return r.err

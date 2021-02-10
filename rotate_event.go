@@ -14,7 +14,7 @@ type FormatDescriptionEvent struct {
 	EventTypeHeaderLengths []byte
 }
 
-func (e *FormatDescriptionEvent) parse(r *reader) error {
+func (e *FormatDescriptionEvent) decode(r *reader) error {
 	e.BinlogVersion = r.int2()
 	e.ServerVersion = r.string(50)
 	if i := strings.IndexByte(e.ServerVersion, 0); i != -1 {
@@ -40,7 +40,7 @@ type RotateEvent struct {
 	NextBinlog string
 }
 
-func (e *RotateEvent) parse(r *reader) error {
+func (e *RotateEvent) decode(r *reader) error {
 	if r.fde.BinlogVersion > 1 {
 		e.Position = r.int8()
 	}
@@ -57,7 +57,7 @@ type QueryEvent struct {
 	Query         string
 }
 
-func (e *QueryEvent) parse(r *reader) error {
+func (e *QueryEvent) decode(r *reader) error {
 	e.SlaveProxyID = r.int4()
 	e.ExecutionTIme = r.int4()
 	schemaLen := r.int1()
@@ -83,7 +83,7 @@ type IncidentEvent struct {
 	Message string
 }
 
-func (e *IncidentEvent) parse(r *reader) error {
+func (e *IncidentEvent) decode(r *reader) error {
 	e.Type = r.int2()
 	size := r.int1()
 	e.Message = r.string(int(size))
@@ -98,7 +98,7 @@ type RandEvent struct {
 	Seed2 uint64
 }
 
-func (e *RandEvent) parse(r *reader) error {
+func (e *RandEvent) decode(r *reader) error {
 	e.Seed1 = r.int8()
 	e.Seed2 = r.int8()
 	return r.err

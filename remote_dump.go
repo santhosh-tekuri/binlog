@@ -49,13 +49,13 @@ func (bl *Remote) Dump(dir string) error {
 			switch buf[0] {
 			case errMarker:
 				ep := errPacket{}
-				if err := ep.parse(r, bl.hs.capabilityFlags); err != nil {
+				if err := ep.decode(r, bl.hs.capabilityFlags); err != nil {
 					return err
 				}
 				return errors.New(ep.errorMessage)
 			case eofMarker:
 				ep := eofPacket{}
-				if err := ep.parse(r, bl.hs.capabilityFlags); err != nil {
+				if err := ep.decode(r, bl.hs.capabilityFlags); err != nil {
 					return err
 				}
 				return io.EOF

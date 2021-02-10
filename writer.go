@@ -154,8 +154,8 @@ func (w *writer) query(q string) error {
 	return w.Close()
 }
 
-func (w *writer) writeClose(event interface{ writeTo(w *writer) error }) error {
-	if err := event.writeTo(w); err != nil {
+func (w *writer) encodeClose(event interface{ encode(w *writer) error }) error {
+	if err := event.encode(w); err != nil {
 		return err
 	}
 	return w.Close()

@@ -18,13 +18,13 @@ type eofPacket struct {
 	statusFlags uint16
 }
 
-func (e *eofPacket) parse(r *reader, capabilities uint32) error {
+func (e *eofPacket) decode(r *reader, capabilities uint32) error {
 	header := r.int1()
 	if r.err != nil {
 		return r.err
 	}
 	if header != eofMarker {
-		return fmt.Errorf("eofPacket.parse: got header %0xd", header)
+		return fmt.Errorf("eofPacket.decode: got header %0xd", header)
 	}
 	if capabilities&capProtocol41 != 0 {
 		e.warnings = r.int2()
@@ -49,13 +49,13 @@ type errPacket struct {
 	errorMessage   string
 }
 
-func (e *errPacket) parse(r *reader, capabilities uint32) error {
+func (e *errPacket) decode(r *reader, capabilities uint32) error {
 	header := r.int1()
 	if r.err != nil {
 		return r.err
 	}
 	if header != errMarker {
-		return fmt.Errorf("errorPacket.parse: got header %0xd", header)
+		return fmt.Errorf("errorPacket.decode: got header %0xd", header)
 	}
 	e.errorCode = r.int2()
 
@@ -80,13 +80,13 @@ type okPacket struct {
 	sessionStateChanges string
 }
 
-func (p *okPacket) parse(r *reader, capabilities uint32) error {
+func (p *okPacket) decode(r *reader, capabilities uint32) error {
 	header := r.int1()
 	if r.err != nil {
 		return r.err
 	}
 	if header != okMarker {
-		return fmt.Errorf("okPacket.parse: got header %0xd", header)
+		return fmt.Errorf("okPacket.decode: got header %0xd", header)
 	}
 	p.affectedRows = r.intN()
 	p.lastInsertID = r.intN()

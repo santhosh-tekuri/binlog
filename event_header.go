@@ -122,7 +122,7 @@ type EventHeader struct {
 	Flags     uint16
 }
 
-func (h *EventHeader) parse(r *reader) error {
+func (h *EventHeader) decode(r *reader) error {
 	h.Timestamp = r.int4()
 	h.EventType = EventType(r.int1())
 	h.ServerID = r.int4()

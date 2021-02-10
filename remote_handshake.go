@@ -37,7 +37,7 @@ type handshake struct {
 	authPluginName  string
 }
 
-func (e *handshake) parse(r *reader) error {
+func (e *handshake) decode(r *reader) error {
 	e.protocolVersion = r.int1()
 	e.serverVersion = r.stringNull()
 	e.connectionID = r.int4()
@@ -94,7 +94,7 @@ type sslRequest struct {
 	characterSet    uint8
 }
 
-func (e sslRequest) writeTo(w *writer) error {
+func (e sslRequest) encode(w *writer) error {
 	w.int4(e.capabilityFlags | capProtocol41 | capSSL)
 	w.int4(e.maxPacketSize)
 	w.int1(e.characterSet)
@@ -117,7 +117,7 @@ type handshakeResponse41 struct {
 	connectAttrs    map[string]string
 }
 
-func (e handshakeResponse41) writeTo(w *writer) error {
+func (e handshakeResponse41) encode(w *writer) error {
 	capabilities := e.capabilityFlags | capProtocol41
 	if e.database != "" {
 		capabilities |= capConnectWithDB

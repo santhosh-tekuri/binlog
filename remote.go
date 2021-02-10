@@ -36,7 +36,7 @@ func Dial(network, address string) (*Remote, error) {
 	var seq uint8
 	r := newReader(conn, &seq)
 	hs := handshake{}
-	if err = hs.parse(r); err != nil {
+	if err = hs.decode(r); err != nil {
 		_ = conn.Close()
 		return nil, err
 	}
@@ -59,7 +59,7 @@ func (bl *Remote) IsSSLSupported() bool {
 // before Authenticate call
 func (bl *Remote) UpgradeSSL(rootCAs *x509.CertPool) error {
 	w := newWriter(bl.conn, &bl.seq)
-	err := w.writeClose(sslRequest{
+	err := w.encodeClose(sslRequest{
 		capabilityFlags: capLongFlag | capSecureConnection,
 		maxPacketSize:   maxPacketSize,
 		characterSet:    bl.hs.characterSet,
@@ -80,7 +80,7 @@ func (bl *Remote) UpgradeSSL(rootCAs *x509.CertPool) error {
 // Authenticate sends the credentials to MySQL.
 func (bl *Remote) Authenticate(username, password string) error {
 	w := newWriter(bl.conn, &bl.seq)
-	err := w.writeClose(handshakeResponse41{
+	err := w.encodeClose(handshakeResponse41{
 		capabilityFlags: capLongFlag | capSecureConnection,
 		maxPacketSize:   maxPacketSize,
 		characterSet:    bl.hs.characterSet,
@@ -101,7 +101,7 @@ func (bl *Remote) Authenticate(username, password string) error {
 	}
 	if marker == errMarker {
 		ep := errPacket{}
-		if err := ep.parse(r, bl.hs.capabilityFlags); err != nil {
+		if err := ep.decode(r, bl.hs.capabilityFlags); err != nil {
 			return err
 		}
 		return errors.New(ep.errorMessage)
@@ -178,7 +178,7 @@ func (bl *Remote) Seek(serverID uint32, fileName string, position uint32) error 
 	}
 	bl.seq = 0
 	w := newWriter(bl.conn, &bl.seq)
-	err = w.writeClose(comBinlogDump{
+	err = w.encodeClose(comBinlogDump{
 		binlogPos:      position,
 		flags:          0,
 		serverID:       serverID,
@@ -225,13 +225,13 @@ func (bl *Remote) NextEvent() (Event, error) {
 		r.int1()
 	case eofMarker:
 		eof := eofPacket{}
-		if err := eof.parse(r, bl.hs.capabilityFlags); err != nil {
+		if err := eof.decode(r, bl.hs.capabilityFlags); err != nil {
 			return Event{}, err
 		}
 		return Event{}, io.EOF
 	case errMarker:
 		ep := errPacket{}
-		if err := ep.parse(r, bl.hs.capabilityFlags); err != nil {
+		if err := ep.decode(r, bl.hs.capabilityFlags); err != nil {
 			return Event{}, err
 		}
 		return Event{}, errors.New(ep.errorMessage)
@@ -259,7 +259,7 @@ type comBinlogDump struct {
 	binlogFilename string
 }
 
-func (e comBinlogDump) writeTo(w *writer) error {
+func (e comBinlogDump) encode(w *writer) error {
 	w.int1(0x12) // COM_BINLOG_DUMP
 	w.int4(e.binlogPos)
 	w.int2(e.flags)
