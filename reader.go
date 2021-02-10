@@ -282,7 +282,10 @@ func (r *reader) bytesNullInternal() []byte {
 	i := 0
 	for {
 		if i == len(r.buffer()) {
-			if r.readMore() != nil {
+			if r.readMore() == io.EOF {
+				r.err = io.ErrUnexpectedEOF
+			}
+			if r.err != nil {
 				return nil
 			}
 		}
