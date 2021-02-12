@@ -12,12 +12,9 @@ import (
 )
 
 func (bl *Remote) Dump(dir string) error {
-	fi, err := os.Stat(dir)
+	local, err := Open(dir)
 	if err != nil {
 		return err
-	}
-	if !fi.IsDir() {
-		return fmt.Errorf("binlog.Dump: %q is not a directory", dir)
 	}
 	v, err := bl.binlogVersion()
 	if err != nil {
@@ -91,8 +88,14 @@ func (bl *Remote) Dump(dir string) error {
 				ignoreFME = false
 				pos = 4
 			}
-			f, err = openFileSeek(dir, fileName, pos)
+			if err := local.addFile(fileName); err != nil {
+				return err
+			}
+			f, err = os.OpenFile(path.Join(dir, fileName), os.O_RDWR, 0)
 			if err != nil {
+				return err
+			}
+			if _, err := f.Seek(int64(pos), io.SeekStart); err != nil {
 				return err
 			}
 		default:
@@ -120,52 +123,4 @@ func (bl *Remote) Dump(dir string) error {
 			}
 		}
 	}
-}
-
-func addLine(file, line string) error {
-	lines, err := readLines(file)
-	if err != nil {
-		return err
-	}
-	if contains(lines, line) {
-		return nil
-	}
-
-	// Append line.
-	f, err := os.OpenFile(file, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
-	if err != nil {
-		return err
-	}
-	if _, err := f.WriteString(line + "\n"); err != nil {
-		_ = f.Close()
-		return fmt.Errorf("binlog.addLine: error in appending to binlog.index: %v", err)
-	}
-	return f.Close()
-}
-
-func openFileSeek(dir, file string, pos uint32) (*os.File, error) {
-	if pos > 4 {
-		f, err := os.OpenFile(path.Join(dir, file), os.O_RDWR, 0)
-		if err != nil {
-			return nil, err
-		}
-		if _, err := f.Seek(int64(pos), io.SeekStart); err != nil {
-			_ = f.Close()
-			return nil, err
-		}
-		return f, nil
-	}
-	f, err := os.Create(path.Join(dir, file))
-	if err != nil {
-		return nil, err
-	}
-	if _, err := f.Write(fileHeader); err != nil {
-		_ = f.Close()
-		return nil, err
-	}
-	if err := addLine(path.Join(dir, "binlog.index"), file); err != nil {
-		_ = f.Close()
-		return nil, err
-	}
-	return f, nil
 }

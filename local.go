@@ -1,12 +1,13 @@
 package binlog
 
 import (
-	"bufio"
 	"encoding/binary"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path"
+	"strings"
 )
 
 type Local struct {
@@ -29,7 +30,44 @@ func Open(dir string) (*Local, error) {
 }
 
 func (bl *Local) ListFiles() ([]string, error) {
-	return readLines(path.Join(bl.dir, "binlog.index"))
+	var files []string
+	for {
+		name := ".next"
+		if len(files) > 0 {
+			name = files[len(files)-1] + ".next"
+		}
+		f, err := os.Open(path.Join(bl.dir, name))
+		if err != nil {
+			if os.IsNotExist(err) {
+				return files, nil
+			}
+			return nil, err
+		}
+		buff, err := ioutil.ReadAll(f)
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, strings.TrimSpace(string(buff)))
+	}
+	return files, nil
+}
+
+func (bl *Local) addFile(name string) error {
+	files, err := bl.ListFiles()
+	if err != nil {
+		return err
+	}
+	if err := ensureBinlogFile(path.Join(bl.dir, name)); err != nil {
+		return err
+	}
+	next := ".next"
+	if len(files) > 0 {
+		if files[len(files)-1] == name {
+			return nil
+		}
+		next = files[len(files)-1] + ".next"
+	}
+	return ioutil.WriteFile(path.Join(bl.dir, next), []byte(name), 0666)
 }
 
 func (bl *Local) MasterStatus() (file string, pos uint32, err error) {
@@ -157,29 +195,19 @@ func findBinlogVersion(file string) (uint16, error) {
 	return 0, fmt.Errorf("binlog.findBinlogVersion: cannot determine for %q", file)
 }
 
-func readLines(file string) ([]string, error) {
-	f, err := os.Open(file)
+func ensureBinlogFile(file string) error {
+	stat, err := os.Stat(file)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, nil
+			return ioutil.WriteFile(file, fileHeader, 0666)
 		}
-		return nil, err
+		return err
 	}
-	defer f.Close()
-
-	var lines []string
-	r := bufio.NewScanner(f)
-	for r.Scan() {
-		lines = append(lines, r.Text())
+	if stat.IsDir() {
+		return fmt.Errorf("%s is directory", file)
 	}
-	return lines, r.Err()
-}
-
-func contains(list []string, s string) bool {
-	for _, v := range list {
-		if v == s {
-			return true
-		}
+	if stat.Size() < headerSize {
+		return ioutil.WriteFile(file, fileHeader, 0666)
 	}
-	return false
+	return nil
 }

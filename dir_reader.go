@@ -1,12 +1,13 @@
 package binlog
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path"
+	"strings"
 	"time"
 )
 
@@ -19,9 +20,6 @@ type dirReader struct {
 }
 
 func newDirReader(dir string, file *string) (*dirReader, error) {
-	if _, err := nextBinlogFile(path.Join(dir, *file)); err != nil {
-		return nil, err
-	}
 	f, err := openBinlogFile(path.Join(dir, *file))
 	if err != nil {
 		return nil, err
@@ -97,18 +95,17 @@ func openBinlogFile(file string) (*os.File, error) {
 
 func nextBinlogFile(name string) (string, error) {
 	dir, file := path.Split(name)
-	index, err := os.Open(path.Join(dir, "binlog.index"))
+	f, err := os.Open(path.Join(dir, file+".next"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", nil
+		}
+		return "", err
+	}
+	defer f.Close()
+	buff, err := ioutil.ReadAll(f)
 	if err != nil {
 		return "", err
 	}
-	defer index.Close()
-	r := bufio.NewScanner(index)
-	var text string
-	for r.Scan() {
-		if text == file {
-			return path.Join(dir, r.Text()), nil
-		}
-		text = r.Text()
-	}
-	return "", nil
+	return path.Join(dir, strings.TrimSpace(string(buff))), nil
 }
