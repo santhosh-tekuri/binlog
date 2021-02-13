@@ -189,6 +189,13 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 			return nil, r.err
 		}
 		return new(jsonDecoder).decodeValue(data)
+	case TypeDate:
+		v := r.int3()
+		var year, month, day uint32
+		if v != 0 {
+			year, month, day = v/(16*32), v/32%16, v%32
+		}
+		return time.Date(int(year), time.Month(month), int(day), 0, 0, 0, 0, time.UTC), r.err
 	case TypeDateTime2:
 		b := r.bytesInternal(5)
 		if r.err != nil {
