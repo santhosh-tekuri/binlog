@@ -183,7 +183,7 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 		nbits := ((col.Meta >> 8) * 8) + (col.Meta & 0xFF)
 		buf := r.bytesInternal(int(nbits+7) / 8)
 		return bigEndian(buf), r.err
-	case TypeBlob:
+	case TypeBlob, TypeGeometry:
 		size := r.intFixed(int(col.Meta))
 		return r.bytes(int(size)), r.err
 	case TypeJSON:
