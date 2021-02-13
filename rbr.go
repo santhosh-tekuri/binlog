@@ -88,11 +88,11 @@ func (e *TableMapEvent) decode(r *reader) error {
 		}
 		switch typ {
 		case 1: // UNSIGNED flag of numeric columns
-			signedness := r.bytesInternal(size)
+			unsigned := r.bytesInternal(size)
 			inum := 0
 			for i := range e.Columns {
 				if e.Columns[i].Type.isNumeric() {
-					e.Columns[i].Unsigned = signedness[inum/8]&(1<<uint(7-inum%8)) != 0
+					e.Columns[i].Unsigned = unsigned[inum/8]&(1<<uint(7-inum%8)) != 0
 					inum++
 				}
 			}
