@@ -176,7 +176,7 @@ func getLocation(bl binLog, arg string) (file string, pos uint32) {
 			return arg, 4
 		}
 		file = arg[:colon]
-		off, err := strconv.Atoi(arg[colon+1:])
+		off, err := strconv.ParseInt(arg[colon+1:], 0, 64)
 		if err != nil {
 			panic(err)
 		}
