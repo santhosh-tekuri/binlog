@@ -125,7 +125,7 @@ func (bl *Local) MasterStatus() (file string, pos uint32, err error) {
 
 func (bl *Local) Seek(serverID uint32, fileName string, position uint32) error {
 	//todo: what about serverID and position
-	r, err := newDirReader(bl.dir, &fileName)
+	r, err := newDirReader(bl.dir, &fileName, serverID == 0)
 	if err != nil {
 		return err
 	}
@@ -155,6 +155,13 @@ func (bl *Local) NextEvent() (Event, error) {
 			return Event{}, fmt.Errorf("binlog.NextEvent: error in draining event: %v", err)
 		}
 		r.limit = -1
+	}
+	if !r.more() {
+		err := r.err
+		if err == nil {
+			err = io.EOF
+		}
+		return Event{}, err
 	}
 
 	return nextEvent(r, bl.checksum)

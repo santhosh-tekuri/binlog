@@ -33,7 +33,7 @@ func printUsage() {
 	errln("binlog dump SERVER-URL DIR SERVER-ID FROM-FILE")
 	errln("Arguments:")
 	errln("    SERVER-ID   optional. defaults to 0. non-zero will wait for new events.")
-	errln("    FROM-FILE   optional. valid values are earliest, latest or binlogFile.")
+	errln("    FROM-FILE   optional. valid values are earliest, latest or binlog-filename.")
 	errln("                defaults to earliest. used only if DIR is empty, otherwise")
 	errln("                resumes since last location.")
 	errln("Examples:")

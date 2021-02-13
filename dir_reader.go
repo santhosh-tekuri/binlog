@@ -16,15 +16,16 @@ var fileHeader = []byte{0xfe, 'b', 'i', 'n'}
 type dirReader struct {
 	file     *os.File
 	name     *string
+	nonBlock bool
 	tmeCache map[uint64]*TableMapEvent
 }
 
-func newDirReader(dir string, file *string) (*dirReader, error) {
+func newDirReader(dir string, file *string, nonBlock bool) (*dirReader, error) {
 	f, err := openBinlogFile(path.Join(dir, *file))
 	if err != nil {
 		return nil, err
 	}
-	return &dirReader{f, file, make(map[uint64]*TableMapEvent)}, nil
+	return &dirReader{f, file, nonBlock, make(map[uint64]*TableMapEvent)}, nil
 }
 
 func (r *dirReader) Read(p []byte) (int, error) {
@@ -50,11 +51,17 @@ func (r *dirReader) Read(p []byte) (int, error) {
 			return 0, err
 		}
 		if next == "" {
+			if r.nonBlock {
+				return 0, io.EOF
+			}
 			time.Sleep(delay)
 			continue
 		}
 		if _, err = os.Stat(next); err != nil {
 			if os.IsNotExist(err) {
+				if r.nonBlock {
+					return 0, io.EOF
+				}
 				time.Sleep(delay)
 				continue
 			} else {
