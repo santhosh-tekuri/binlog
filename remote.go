@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"net"
 	"strconv"
@@ -207,6 +208,21 @@ func (bl *Remote) NextEvent() (Event, error) {
 		r.fde = FormatDescriptionEvent{BinlogVersion: v}
 		bl.binlogReader = r
 	} else {
+		if err := r.drain(); err != nil {
+			return Event{}, fmt.Errorf("binlog.NextEvent: error in draining event: %v", err)
+		}
+		if bl.checksum > 0 {
+			got := r.hash.Sum32()
+			r.hash = nil
+			r.limit = -1
+			want := r.int4()
+			if r.err != nil {
+				return Event{}, r.err
+			}
+			if got != want {
+				return Event{}, fmt.Errorf("binlog.NextEvent: checksum failed got=%d want=%d", got, want)
+			}
+		}
 		r.limit += bl.checksum
 		if err := r.drain(); err != nil {
 			return Event{}, fmt.Errorf("binlog.NextEvent: error in draining event: %v", err)
@@ -214,7 +230,6 @@ func (bl *Remote) NextEvent() (Event, error) {
 		r.rd = &packetReader{rd: bl.conn, seq: &bl.seq}
 		r.limit = -1
 	}
-
 	// Check first byte.
 	b, err := r.peek()
 	if err != nil {
@@ -238,7 +253,9 @@ func (bl *Remote) NextEvent() (Event, error) {
 	default:
 		return Event{}, fmt.Errorf("binlogStream: got %0x want OK-byte", b)
 	}
-
+	if bl.checksum > 0 {
+		r.hash = crc32.NewIEEE()
+	}
 	return nextEvent(r, bl.checksum)
 }
 

@@ -2,6 +2,7 @@ package binlog
 
 import (
 	"bytes"
+	"hash"
 	"io"
 )
 
@@ -24,6 +25,7 @@ type reader struct {
 	buf   []byte // contents are the bytes buf[off:]
 	off   int    // read at &buf[off], write at &buf[len(buf)]
 	limit int
+	hash  hash.Hash32
 
 	// context for unmarshallers
 	binlogFile string
@@ -122,6 +124,9 @@ func (r *reader) skip(n int) error {
 		m := n
 		if m > len(r.buffer()) {
 			m = len(r.buffer())
+		}
+		if r.hash != nil {
+			r.hash.Write(r.buf[r.off : r.off+m])
 		}
 		r.off += m
 		n -= m
