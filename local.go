@@ -49,7 +49,6 @@ func (bl *Local) ListFiles() ([]string, error) {
 		}
 		files = append(files, strings.TrimSpace(string(buff)))
 	}
-	return files, nil
 }
 
 func (bl *Local) addFile(name string) error {
