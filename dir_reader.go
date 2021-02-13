@@ -20,9 +20,13 @@ type dirReader struct {
 	tmeCache map[uint64]*TableMapEvent
 }
 
-func newDirReader(dir string, file *string, nonBlock bool) (*dirReader, error) {
+func newDirReader(dir string, file *string, pos uint32, nonBlock bool) (*dirReader, error) {
 	f, err := openBinlogFile(path.Join(dir, *file))
 	if err != nil {
+		return nil, err
+	}
+	if _, err := f.Seek(int64(pos), io.SeekStart); err != nil {
+		_ = f.Close()
 		return nil, err
 	}
 	return &dirReader{f, file, nonBlock, make(map[uint64]*TableMapEvent)}, nil
