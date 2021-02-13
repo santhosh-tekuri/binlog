@@ -18,13 +18,36 @@ type binLog interface {
 	NextRow() (values []interface{}, valuesBeforeUpdate []interface{}, err error)
 }
 
-// binlog view tcp:localhost:3306,ssl,user=root,passwd=password binlog.000002:4
-// binlog view dir:/Users/santhosh/go/src/binlog/dump binlog.000002
-// binlog dump tcp:localhost:3306,ssl,user=root,passwd=password /Users/santhosh/go/src/binlog/dump
+func printUsage() {
+	errln("Usage:")
+	errln()
+	errln("binlog view ADDRESS SERVER-ID LOCATION")
+	errln("Arguments:")
+	errln("    SERVER-ID   optional. defaults to 0. non-zero will wait for new events.")
+	errln("    LOCATION    optional. valid values are earliest, latest or FILE[:POS].")
+	errln("                defaults to earliest. POS defaults to 4.")
+	errln("Examples:")
+	errln("    binlog view tcp:localhost:3306,ssl,user=root,passwd=password 10 binlog.000002:4")
+	errln("    binlog view dir:./dump 10 binlog.000002")
+	errln()
+	errln("binlog dump SERVER-URL DIR SERVER-ID LOCATION")
+	errln("Arguments:")
+	errln("    SERVER-ID   optional. defaults to 0. non-zero will wait for new events.")
+	errln("    LOCATION    optional. valid values are earliest, latest or FILE[:POS].")
+	errln("                defaults to earliest. POS defaults to 4.")
+	errln("Examples:")
+	errln("    binlog dump tcp:localhost:3306,ssl,user=root,passwd=password ./dump 10 binlog.000001:4")
+}
+
 func main() {
+	if len(os.Args) < 3 {
+		printUsage()
+		os.Exit(1)
+	}
 	address := os.Args[2]
 	colon := strings.IndexByte(address, ':')
 	network, address := address[:colon], address[colon+1:]
+	var err error
 	switch os.Args[1] {
 	case "view":
 		var bl binLog
@@ -33,32 +56,62 @@ func main() {
 		} else {
 			bl = openRemote(network, address)
 		}
-		file, pos := getLocation(bl, os.Args[3])
-		if err := bl.Seek(10, file, pos); err != nil {
+		var serverID = 0
+		if len(os.Args) >= 4 {
+			serverID, err = strconv.Atoi(os.Args[3])
+			if err != nil {
+				panic(err)
+			}
+		}
+		var file string
+		var pos uint32
+		if len(os.Args) >= 5 {
+			file, pos = getLocation(bl, os.Args[4])
+		} else {
+			files, err := bl.ListFiles()
+			if err != nil {
+				panic(err)
+			}
+			file, pos = files[0], 4
+		}
+		if err := bl.Seek(uint32(serverID), file, pos); err != nil {
 			panic(err)
 		}
 		if err := view(bl); err != nil {
 			panic(err)
 		}
 	case "dump":
+		if len(os.Args) < 4 {
+			printUsage()
+			os.Exit(1)
+		}
 		remote := openRemote(network, address)
 		dir := os.Args[3]
-		var file string
-		var pos uint32
+		var serverID = 0
+		if len(os.Args) >= 5 {
+			serverID, err = strconv.Atoi(os.Args[4])
+			if err != nil {
+				panic(err)
+			}
+		}
 		local := openLocal(dir)
 		file, pos, err := local.MasterStatus()
 		if err != nil {
 			panic(err)
 		}
 		if file == "" {
-			files, err := remote.ListFiles()
-			if err != nil {
-				panic(err)
+			if len(os.Args) > 5 {
+				file, pos = getLocation(remote, os.Args[4])
+			} else {
+				files, err := remote.ListFiles()
+				if err != nil {
+					panic(err)
+				}
+				file, pos = files[0], 4
 			}
-			file, pos = files[0], 4
 		}
 		fmt.Printf("dumping from %s:0x%02x\n", file, pos)
-		if err := remote.Seek(0, file, pos); err != nil {
+		if err := remote.Seek(uint32(serverID), file, pos); err != nil {
 			panic(err)
 		}
 		if err := remote.Dump(dir); err != nil && err != io.EOF {
@@ -200,4 +253,8 @@ func view(bl binLog) error {
 			fmt.Println()
 		}
 	}
+}
+
+func errln(args ...interface{}) {
+	_, _ = fmt.Fprintln(os.Stderr, args...)
 }
