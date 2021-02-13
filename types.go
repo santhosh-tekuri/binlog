@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"math/big"
 	"strconv"
 	"strings"
 	"time"
@@ -36,7 +37,7 @@ const (
 	TypeDateTime2  ColumnType = 0x12
 	TypeTime2      ColumnType = 0x13
 	TypeJSON       ColumnType = 0xf5
-	TypeNewDecimal ColumnType = 0xf6
+	TypeNewDecimal ColumnType = 0xf6 // DECIMAL NUMERIC
 	TypeEnum       ColumnType = 0xf7
 	TypeSet        ColumnType = 0xf8
 	TypeTinyBlob   ColumnType = 0xf9
@@ -143,6 +144,14 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 			return r.int8(), r.err
 		}
 		return int64(r.int8()), r.err
+	case TypeNewDecimal:
+		precision := int(byte(col.Meta))
+		scale := int(byte(col.Meta >> 8))
+		buff := r.bytes(decimalSize(precision, scale))
+		if r.err != nil {
+			return nil, r.err
+		}
+		return decodeDecimal(buff, precision, scale)
 	case TypeFloat:
 		return math.Float32frombits(r.int4()), r.err
 	case TypeDouble:
@@ -310,4 +319,95 @@ func (col Column) ValueLiteral(v interface{}) string {
 		return strconv.Quote(v.String())
 	}
 	return fmt.Sprintf("%#v", v)
+}
+
+// Decimal ---
+
+const digitsPerInteger int = 9
+
+var compressedBytes = []int{0, 1, 1, 2, 2, 3, 3, 4, 4, 4}
+
+func decodeDecimalDecompressValue(compIndex int, data []byte, mask uint8) (size int, value uint32) {
+	size = compressedBytes[compIndex]
+	buff := make([]byte, size)
+	for i := 0; i < size; i++ {
+		buff[i] = data[i] ^ mask
+	}
+	value = uint32(bigEndian(buff))
+	return
+}
+
+func decimalSize(precision int, scale int) int {
+	integral := precision - scale
+	uncompIntegral := integral / digitsPerInteger
+	uncompFractional := scale / digitsPerInteger
+	compIntegral := integral - (uncompIntegral * digitsPerInteger)
+	compFractional := scale - (uncompFractional * digitsPerInteger)
+
+	return uncompIntegral*4 + compressedBytes[compIntegral] +
+		uncompFractional*4 + compressedBytes[compFractional]
+}
+
+func decodeDecimal(data []byte, precision int, scale int) (*big.Float, error) {
+	integral := precision - scale
+	uncompIntegral := integral / digitsPerInteger
+	uncompFractional := scale / digitsPerInteger
+	compIntegral := integral - (uncompIntegral * digitsPerInteger)
+	compFractional := scale - (uncompFractional * digitsPerInteger)
+
+	binSize := uncompIntegral*4 + compressedBytes[compIntegral] +
+		uncompFractional*4 + compressedBytes[compFractional]
+
+	buf := make([]byte, binSize)
+	copy(buf, data[:binSize])
+
+	//must copy the data for later change
+	data = buf
+
+	// Support negative
+	// The sign is encoded in the high bit of the the byte
+	// But this bit can also be used in the value
+	value := uint32(data[0])
+	var res bytes.Buffer
+	var mask uint32 = 0
+	if value&0x80 == 0 {
+		mask = uint32((1 << 32) - 1)
+		res.WriteString("-")
+	}
+
+	//clear sign
+	data[0] ^= 0x80
+
+	pos, value := decodeDecimalDecompressValue(compIntegral, data, uint8(mask))
+	res.WriteString(fmt.Sprintf("%d", value))
+
+	for i := 0; i < uncompIntegral; i++ {
+		value = binary.BigEndian.Uint32(data[pos:]) ^ mask
+		pos += 4
+		res.WriteString(fmt.Sprintf("%09d", value))
+	}
+
+	res.WriteString(".")
+
+	for i := 0; i < uncompFractional; i++ {
+		value = binary.BigEndian.Uint32(data[pos:]) ^ mask
+		pos += 4
+		res.WriteString(fmt.Sprintf("%09d", value))
+	}
+
+	if size, value := decodeDecimalDecompressValue(compFractional, data[pos:], uint8(mask)); size > 0 {
+		res.WriteString(fmt.Sprintf("%0*d", compFractional, value))
+		pos += size
+	}
+
+	f, _, err := new(big.Float).Parse(string(res.Bytes()), 0)
+	return f, err
+}
+
+func bigEndian(buf []byte) uint64 {
+	var num uint64 = 0
+	for i, b := range buf {
+		num |= uint64(b) << (uint(len(buf)-i-1) * 8)
+	}
+	return num
 }
