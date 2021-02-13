@@ -30,7 +30,6 @@ func (bl *Remote) Dump(dir string) error {
 	ignoreFME := bl.requestPos > 4
 	buf := make([]byte, 14)
 	for {
-		fmt.Println("--------------------------------")
 		pr := &packetReader{rd: bl.conn, seq: &bl.seq}
 		if n, err := io.ReadFull(pr, buf); err != nil {
 			if err != io.ErrUnexpectedEOF { // non-ok packets can have size <14
@@ -66,7 +65,7 @@ func (bl *Remote) Dump(dir string) error {
 		eventType := EventType(buf[5])
 		// ServerID = buf[6:10]
 		eventSize := binary.LittleEndian.Uint32(buf[10:])
-		fmt.Printf("EventType: %s EventSize: 0x%02x\n", eventType, eventSize)
+		//fmt.Printf("EventType: %s EventSize: 0x%02x\n", eventType, eventSize)
 		switch eventType {
 		case ROTATE_EVENT:
 			lr := io.LimitReader(pr, int64(eventSize-13))
