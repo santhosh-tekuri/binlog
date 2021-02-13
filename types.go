@@ -179,6 +179,10 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 			return nil, fmt.Errorf("binlog.decodeValue: invalid num bits in set %d", n)
 		}
 		return r.intFixed(int(n)), r.err
+	case TypeBit:
+		nbits := ((col.Meta >> 8) * 8) + (col.Meta & 0xFF)
+		buf := r.bytesInternal(int(nbits+7) / 8)
+		return bigEndian(buf), r.err
 	case TypeBlob:
 		size := r.intFixed(int(col.Meta))
 		return r.bytes(int(size)), r.err
