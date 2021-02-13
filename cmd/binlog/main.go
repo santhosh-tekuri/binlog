@@ -27,7 +27,7 @@ func printUsage() {
 	errln("    LOCATION    optional. valid values are earliest, latest or FILE[:POS].")
 	errln("                defaults to earliest. POS defaults to 4.")
 	errln("Examples:")
-	errln("    binlog view tcp:localhost:3306,ssl,user=root,passwd=password 10 binlog.000002:4")
+	errln("    binlog view tcp:localhost:3306,ssl,user=root,password=password 10 binlog.000002:4")
 	errln("    binlog view dir:./dump 10 binlog.000002")
 	errln()
 	errln("binlog dump SERVER-URL DIR SERVER-ID LOCATION")
@@ -141,8 +141,8 @@ func openRemote(network, address string) *binlog.Remote {
 		if strings.HasPrefix(t, "user=") {
 			user = strings.TrimPrefix(t, "user=")
 		}
-		if strings.HasPrefix(t, "passwd=") {
-			passwd = strings.TrimPrefix(t, "passwd=")
+		if strings.HasPrefix(t, "password=") {
+			passwd = strings.TrimPrefix(t, "password=")
 		}
 	}
 	if err := bl.Authenticate(user, passwd); err != nil {
