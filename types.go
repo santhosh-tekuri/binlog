@@ -17,35 +17,35 @@ type ColumnType uint8
 
 const (
 	TypeDecimal    ColumnType = 0x00
-	TypeTiny       ColumnType = 0x01
-	TypeShort      ColumnType = 0x02
-	TypeLong       ColumnType = 0x03
-	TypeFloat      ColumnType = 0x04
-	TypeDouble     ColumnType = 0x05
+	TypeTiny       ColumnType = 0x01 // int8 or uint8. TINYINT
+	TypeShort      ColumnType = 0x02 // int16 or uint16. SMALLINT
+	TypeLong       ColumnType = 0x03 // int32 or uint32. INT
+	TypeFloat      ColumnType = 0x04 // float32. FLOAT
+	TypeDouble     ColumnType = 0x05 // float64. DOUBLE
 	TypeNull       ColumnType = 0x06
 	TypeTimestamp  ColumnType = 0x07
-	TypeLongLong   ColumnType = 0x08
-	TypeInt24      ColumnType = 0x09
-	TypeDate       ColumnType = 0x0a
+	TypeLongLong   ColumnType = 0x08 // int64 or uint64. BIGINT
+	TypeInt24      ColumnType = 0x09 // int32 or uint32. MEDIUMINT
+	TypeDate       ColumnType = 0x0a // time.Time(UTC), DATE
 	TypeTime       ColumnType = 0x0b
 	TypeDateTime   ColumnType = 0x0c
-	TypeYear       ColumnType = 0x0d // YEAR(1901 to 2155, and 0000)
+	TypeYear       ColumnType = 0x0d // int. YEAR
 	TypeNewDate    ColumnType = 0x0e
-	TypeVarchar    ColumnType = 0x0f // VARCHAR(65535)
-	TypeBit        ColumnType = 0x10
-	TypeTimestamp2 ColumnType = 0x11
-	TypeDateTime2  ColumnType = 0x12
-	TypeTime2      ColumnType = 0x13
+	TypeVarchar    ColumnType = 0x0f // string. VARCHAR
+	TypeBit        ColumnType = 0x10 // uint64. BIT
+	TypeTimestamp2 ColumnType = 0x11 // time.Time(LOCAL), TIMESTAMP
+	TypeDateTime2  ColumnType = 0x12 // time.Time(UTC), DATETIME
+	TypeTime2      ColumnType = 0x13 // time.Duration, TIME
 	TypeJSON       ColumnType = 0xf5
 	TypeNewDecimal ColumnType = 0xf6 // DECIMAL NUMERIC
-	TypeEnum       ColumnType = 0xf7
-	TypeSet        ColumnType = 0xf8
+	TypeEnum       ColumnType = 0xf7 // uint16. ENUM
+	TypeSet        ColumnType = 0xf8 // uint64. SET
 	TypeTinyBlob   ColumnType = 0xf9
 	TypeMediumBlob ColumnType = 0xfa
 	TypeLongBlob   ColumnType = 0xfb
-	TypeBlob       ColumnType = 0xfc // TINYTEXT TEXT MEDIUMTEXT LONGTEXT TINYBLOB BLOB MEDIUMBLOB LONGBLOB
+	TypeBlob       ColumnType = 0xfc // []byte or string. BLOB TEXT // TINYTEXT TEXT MEDIUMTEXT LONGTEXT TINYBLOB BLOB MEDIUMBLOB LONGBLOB
 	TypeVarString  ColumnType = 0xfd
-	TypeString     ColumnType = 0xfe // CHAR(255) ENUM(65535) SET(64)
+	TypeString     ColumnType = 0xfe // string. CHAR
 	TypeGeometry   ColumnType = 0xff
 )
 
@@ -114,7 +114,6 @@ func (t ColumnType) String() string {
 // https://dev.mysql.com/doc/internals/en/binary-protocol-value.html
 // todo: test with table with all types, especially negative numbers
 func (col Column) decodeValue(r *reader) (interface{}, error) {
-	fmt.Println("coltype:", col.Type, col.Charset)
 	switch col.Type {
 	case TypeTiny:
 		if col.Unsigned {
@@ -187,7 +186,11 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 		return bigEndian(buf), r.err
 	case TypeBlob, TypeGeometry:
 		size := r.intFixed(int(col.Meta))
-		return r.bytes(int(size)), r.err
+		v := r.bytes(int(size))
+		if col.Charset == 0 || col.Charset == 63 {
+			return v, r.err
+		}
+		return string(v), r.err
 	case TypeJSON:
 		size := r.intFixed(int(col.Meta))
 		data := r.bytesInternal(int(size))
@@ -237,6 +240,7 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 		}
 		return time.Unix(int64(sec), int64(frac)*1000), r.err
 	case TypeTime2:
+		// https://github.com/debezium/debezium/blob/master/debezium-connector-mysql/src/main/java/io/debezium/connector/mysql/RowDeserializers.java#L314
 		b := r.bytesInternal(3)
 		if r.err != nil {
 			return nil, r.err
@@ -246,19 +250,39 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 			v := t >> (24 - (off + len))
 			return int(v & ((1 << len) - 1))
 		}
-		sign := slice(1, 1)
+		sign := slice(0, 1)
 		hour := slice(2, 10)
 		min := slice(12, 6)
 		sec := slice(18, 6)
-		frac, err := fractionalSeconds(col.Meta, r)
-		if err != nil {
-			return nil, err
+		var frac int
+		var err error
+		if sign == 0 {
+			// -ve
+			hour = ^hour & mask(10)
+			hour = hour & unsetSignMask(10) // unset sign bit
+			min = ^min & mask(6)
+			min = min & unsetSignMask(6) // unset sign bit
+			sec = ^sec & mask(6)
+			sec = sec & unsetSignMask(6) // unset sign bit
+
+			frac, err = fractionalSecondsNegative(col.Meta, r)
+			if err != nil {
+				return nil, err
+			}
+			if frac == 0 && sec < 59 { // weird duration behavior
+				sec++
+			}
+		} else {
+			frac, err = fractionalSeconds(col.Meta, r)
+			if err != nil {
+				return nil, err
+			}
 		}
 		v := time.Duration(hour)*time.Hour +
 			time.Duration(min)*time.Minute +
 			time.Duration(sec)*time.Second +
 			time.Duration(frac)*time.Microsecond
-		if sign == 1 {
+		if sign == 0 {
 			v = -v
 		}
 		return v, r.err
@@ -269,23 +293,32 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 		}
 		return 1900 + v, r.err
 	}
-	return nil, fmt.Errorf("unmarshal of mysql type %s is not implemented", col.Type)
+	return nil, fmt.Errorf("decode of mysql type %s is not implemented", col.Type)
 }
 
 func fractionalSeconds(meta uint16, r *reader) (int, error) {
-	switch meta {
-	case 0:
-		return 0, nil
-	case 1, 2:
-		return int(r.int1()) * 10000, r.err
-	case 3, 4:
-		b := r.bytesInternal(2)
-		return int(uint16(b[1])|uint16(b[0])<<8) * 100, r.err
-	case 5, 6:
-		b := r.bytesInternal(3)
-		return int(uint32(b[2]) | uint32(b[1])<<8 | uint32(b[0])<<16), r.err
+	n := (meta + 1) / 2
+	v := bigEndian(r.bytesInternal(int(n)))
+	return int(v * uint64(math.Pow(100, float64(3-n)))), r.err
+}
+
+func fractionalSecondsNegative(meta uint16, r *reader) (int, error) {
+	n := (meta + 1) / 2
+	v := int(bigEndian(r.bytesInternal(int(n))))
+	if v != 0 {
+		bits := int(n * 8)
+		v = ^v & mask(bits)
+		v = (v & unsetSignMask(bits)) + 1
 	}
-	return 0, fmt.Errorf("binlog.fractionalSeconds: meta=%d must be less than 6", meta)
+	return v * int(math.Pow(100, float64(3-n))), r.err
+}
+
+func mask(bits int) int {
+	return (1 << bits) - 1
+}
+
+func unsetSignMask(bits int) int {
+	return ^(1 << bits)
 }
 
 func (col Column) ValueLiteral(v interface{}) string {
