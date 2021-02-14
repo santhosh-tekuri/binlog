@@ -26,18 +26,18 @@ const (
 	TypeTimestamp  ColumnType = 0x07
 	TypeLongLong   ColumnType = 0x08 // int64 or uint64. BIGINT
 	TypeInt24      ColumnType = 0x09 // int32 or uint32. MEDIUMINT
-	TypeDate       ColumnType = 0x0a // time.Time(UTC), DATE
+	TypeDate       ColumnType = 0x0a // time.Time(UTC). DATE
 	TypeTime       ColumnType = 0x0b
 	TypeDateTime   ColumnType = 0x0c
 	TypeYear       ColumnType = 0x0d // int. YEAR
 	TypeNewDate    ColumnType = 0x0e
 	TypeVarchar    ColumnType = 0x0f // string. VARCHAR
 	TypeBit        ColumnType = 0x10 // uint64. BIT
-	TypeTimestamp2 ColumnType = 0x11 // time.Time(LOCAL), TIMESTAMP
-	TypeDateTime2  ColumnType = 0x12 // time.Time(UTC), DATETIME
-	TypeTime2      ColumnType = 0x13 // time.Duration, TIME
+	TypeTimestamp2 ColumnType = 0x11 // time.Time(LOCAL). TIMESTAMP
+	TypeDateTime2  ColumnType = 0x12 // time.Time(UTC). DATETIME
+	TypeTime2      ColumnType = 0x13 // time.Duration. TIME
 	TypeJSON       ColumnType = 0xf5
-	TypeNewDecimal ColumnType = 0xf6 // DECIMAL NUMERIC
+	TypeNewDecimal ColumnType = 0xf6 // *big.Float. DECIMAL NUMERIC
 	TypeEnum       ColumnType = 0xf7 // uint16. ENUM
 	TypeSet        ColumnType = 0xf8 // uint64. SET
 	TypeTinyBlob   ColumnType = 0xf9
@@ -442,7 +442,7 @@ func decodeDecimal(data []byte, precision int, scale int) (*big.Float, error) {
 		res.WriteString(fmt.Sprintf("%0*d", compFractional, value))
 		pos += size
 	}
-
+	fmt.Println("decimal:", string(res.Bytes()))
 	f, _, err := new(big.Float).Parse(string(res.Bytes()), 0)
 	return f, err
 }
