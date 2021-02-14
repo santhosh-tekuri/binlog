@@ -1,13 +1,14 @@
 package main
 
 import (
-	"binlog"
 	"fmt"
 	"io"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/santhosh-tekuri/binlog"
 )
 
 type binLog interface {
