@@ -193,11 +193,11 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 		return string(v), r.err
 	case TypeJSON:
 		size := r.intFixed(int(col.Meta))
-		data := r.bytesInternal(int(size))
+		buf := r.bytesInternal(int(size))
 		if r.err != nil {
 			return nil, r.err
 		}
-		return new(jsonDecoder).decodeValue(data)
+		return new(jsonDecoder).decodeValue(buf)
 	case TypeDate:
 		v := r.int3()
 		var year, month, day uint32
@@ -206,33 +206,29 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 		}
 		return time.Date(int(year), time.Month(month), int(day), 0, 0, 0, 0, time.UTC), r.err
 	case TypeDateTime2:
-		b := r.bytesInternal(5)
+		buf := r.bytesInternal(5)
 		if r.err != nil {
 			return nil, r.err
 		}
-		datetime := uint64(b[4]) | uint64(b[3])<<8 | uint64(b[2])<<16 | uint64(b[1])<<24 | uint64(b[0])<<32
-		slice := func(off, len int) int {
-			v := datetime >> (40 - (off + len))
-			return int(v & ((1 << len) - 1))
-		}
-		yearMonth := slice(1, 17)
-		year, month := yearMonth/13, yearMonth%13
-		day := slice(18, 5)
-		hour := slice(23, 5)
-		minute := slice(28, 6)
-		second := slice(34, 6)
+		dt := bigEndian(buf)
+		ym := bitSlice(dt, 40, 1, 17)
+		year, month := ym/13, ym%13
+		day := bitSlice(dt, 40, 18, 5)
+		hour := bitSlice(dt, 40, 23, 5)
+		min := bitSlice(dt, 40, 28, 6)
+		sec := bitSlice(dt, 40, 34, 6)
 
 		frac, err := fractionalSeconds(col.Meta, r)
 		if err != nil {
 			return nil, err
 		}
-		return time.Date(year, time.Month(month), day, hour, minute, second, frac*1000, time.UTC), r.err
+		return time.Date(year, time.Month(month), day, hour, min, sec, frac*1000, time.UTC), r.err
 	case TypeTimestamp2:
-		b := r.bytesInternal(4)
+		buf := r.bytesInternal(4)
 		if r.err != nil {
 			return nil, r.err
 		}
-		sec := binary.BigEndian.Uint32(b)
+		sec := binary.BigEndian.Uint32(buf)
 
 		frac, err := fractionalSeconds(col.Meta, r)
 		if err != nil {
@@ -241,19 +237,15 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 		return time.Unix(int64(sec), int64(frac)*1000), r.err
 	case TypeTime2:
 		// https://github.com/debezium/debezium/blob/master/debezium-connector-mysql/src/main/java/io/debezium/connector/mysql/RowDeserializers.java#L314
-		b := r.bytesInternal(3)
+		buf := r.bytesInternal(3)
 		if r.err != nil {
 			return nil, r.err
 		}
-		t := uint64(b[2]) | uint64(b[1])<<8 | uint64(b[0])<<16
-		slice := func(off, len int) int {
-			v := t >> (24 - (off + len))
-			return int(v & ((1 << len) - 1))
-		}
-		sign := slice(0, 1)
-		hour := slice(2, 10)
-		min := slice(12, 6)
-		sec := slice(18, 6)
+		t := bigEndian(buf)
+		sign := bitSlice(t, 24, 0, 1)
+		hour := bitSlice(t, 24, 2, 10)
+		min := bitSlice(t, 24, 12, 6)
+		sec := bitSlice(t, 24, 18, 6)
 		var frac int
 		var err error
 		if sign == 0 {
@@ -294,6 +286,11 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 		return 1900 + v, r.err
 	}
 	return nil, fmt.Errorf("decode of mysql type %s is not implemented", col.Type)
+}
+
+func bitSlice(v uint64, bits, off, len int) int {
+	v >>= bits - (off + len)
+	return int(v & ((1 << len) - 1))
 }
 
 func fractionalSeconds(meta uint16, r *reader) (int, error) {
