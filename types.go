@@ -114,6 +114,7 @@ func (t ColumnType) String() string {
 // https://dev.mysql.com/doc/internals/en/binary-protocol-value.html
 // todo: test with table with all types, especially negative numbers
 func (col Column) decodeValue(r *reader) (interface{}, error) {
+	fmt.Println("coltype:", col.Type, col.Charset)
 	switch col.Type {
 	case TypeTiny:
 		if col.Unsigned {
@@ -127,11 +128,12 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 		return int16(r.int2()), r.err
 	case TypeInt24:
 		v := r.int3()
-		if v&0x00800000 != 0 {
-			v |= 0xFF000000
-		}
 		if col.Unsigned {
 			return v, r.err
+		}
+		if v&0x00800000 != 0 {
+			// negative number
+			v |= 0xFF000000
 		}
 		return int32(v), r.err
 	case TypeLong:
