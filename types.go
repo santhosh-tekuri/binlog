@@ -43,7 +43,7 @@ const (
 	TypeTinyBlob   ColumnType = 0xf9
 	TypeMediumBlob ColumnType = 0xfa
 	TypeLongBlob   ColumnType = 0xfb
-	TypeBlob       ColumnType = 0xfc // []byte or string. BLOB TEXT // TINYTEXT TEXT MEDIUMTEXT LONGTEXT TINYBLOB BLOB MEDIUMBLOB LONGBLOB
+	TypeBlob       ColumnType = 0xfc // []byte or string. TINYBLOB BLOB MEDIUMBLOB LONGBLOB TINYTEXT TEXT MEDIUMTEXT LONGTEXT
 	TypeVarString  ColumnType = 0xfd
 	TypeString     ColumnType = 0xfe // string. CHAR
 	TypeGeometry   ColumnType = 0xff
