@@ -3,7 +3,6 @@ package binlog
 import (
 	"database/sql"
 	"fmt"
-	"math/big"
 	"reflect"
 	"testing"
 	"time"
@@ -12,11 +11,6 @@ import (
 )
 
 func TestColumn_decodeValue(t *testing.T) {
-	bigFloat := func(s string) *big.Float {
-		v, _ := new(big.Float).SetString(s)
-		return v
-	}
-
 	testCases := []struct {
 		sqlType string
 		val     string
@@ -61,14 +55,14 @@ func TestColumn_decodeValue(t *testing.T) {
 		{"float", "-1.2345", float32(-1.2345)},
 		{"double", "1.2345", float64(1.2345)},
 		{"double", "-1.2345", float64(-1.2345)},
-		{"decimal(6,3)", "123.456", bigFloat("123.456")},
-		{"decimal(6,3)", "12.45", bigFloat("12.45")},
-		{"decimal(6,3)", "-123.456", bigFloat("-123.456")},
-		{"decimal(6,3)", "-12.45", bigFloat("-12.45")},
-		{"numeric(6,3)", "123.456", bigFloat("123.456")},
-		{"numeric(6,3)", "12.45", bigFloat("12.45")},
-		{"numeric(6,3)", "-123.456", bigFloat("-123.456")},
-		{"numeric(6,3)", "-12.45", bigFloat("-12.45")},
+		{"decimal(6,3)", "123.456", Decimal("123.456")},
+		{"decimal(6,3)", "12.45", Decimal("12.450")},
+		{"decimal(6,3)", "-123.456", Decimal("-123.456")},
+		{"decimal(6,3)", "-12.45", Decimal("-12.450")},
+		{"numeric(6,3)", "123.456", Decimal("123.456")},
+		{"numeric(6,3)", "12.45", Decimal("12.450")},
+		{"numeric(6,3)", "-123.456", Decimal("-123.456")},
+		{"numeric(6,3)", "-12.45", Decimal("-12.450")},
 		{"bit(5)", "11", uint64(11)},
 		{"bit(5)", "0", uint64(0)},
 		{"bit(5)", "31", uint64(31)},

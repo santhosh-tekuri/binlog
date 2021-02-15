@@ -37,7 +37,7 @@ const (
 	TypeDateTime2  ColumnType = 0x12 // time.Time(UTC). DATETIME
 	TypeTime2      ColumnType = 0x13 // time.Duration. TIME
 	TypeJSON       ColumnType = 0xf5
-	TypeNewDecimal ColumnType = 0xf6 // *big.Float. DECIMAL NUMERIC
+	TypeNewDecimal ColumnType = 0xf6 // Decimal. DECIMAL NUMERIC
 	TypeEnum       ColumnType = 0xf7 // Enum. ENUM
 	TypeSet        ColumnType = 0xf8 // Set. SET
 	TypeTinyBlob   ColumnType = 0xf9
@@ -391,7 +391,7 @@ func decimalSize(precision int, scale int) int {
 		uncompFractional*4 + compressedBytes[compFractional]
 }
 
-func decodeDecimal(data []byte, precision int, scale int) (*big.Float, error) {
+func decodeDecimal(data []byte, precision int, scale int) (Decimal, error) {
 	integral := precision - scale
 	uncompIntegral := integral / digitsPerInteger
 	uncompFractional := scale / digitsPerInteger
@@ -442,9 +442,7 @@ func decodeDecimal(data []byte, precision int, scale int) (*big.Float, error) {
 		res.WriteString(fmt.Sprintf("%0*d", compFractional, value))
 		pos += size
 	}
-	fmt.Println("decimal:", string(res.Bytes()))
-	f, _, err := new(big.Float).Parse(string(res.Bytes()), 0)
-	return f, err
+	return Decimal(res.String()), nil
 }
 
 func bigEndian(buf []byte) uint64 {
@@ -502,4 +500,24 @@ func (s Set) String() string {
 		}
 	}
 	return buf.String()
+}
+
+// Decimal ---
+
+// number ---
+
+// A Decimal represents a MySQL Decimal/Numeric literal.
+type Decimal string
+
+// String returns the literal text of the decimal.
+func (d Decimal) String() string { return string(d) }
+
+// Float64 returns the number as a float64.
+func (d Decimal) Float64() (float64, error) {
+	return strconv.ParseFloat(string(d), 64)
+}
+
+func (d Decimal) BigFloat() (*big.Float, error) {
+	f, _, err := new(big.Float).Parse(string(d), 0)
+	return f, err
 }
