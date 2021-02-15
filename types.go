@@ -324,26 +324,14 @@ func (col Column) ValueLiteral(v interface{}) string {
 	}
 	switch col.Type {
 	case TypeEnum:
-		v := int(v.(uint16))
-		if v == 0 {
-			return `""`
-		}
-		if v-1 < len(col.Values) {
-			return strconv.Quote(col.Values[v-1])
+		v := v.(Enum)
+		if len(v.Values) > 0 {
+			return strconv.Quote(v.String())
 		}
 	case TypeSet:
-		if len(col.Values) > 0 {
-			v := v.(uint64)
-			var buf strings.Builder
-			for i, val := range col.Values {
-				if v&(1<<i) != 0 {
-					if buf.Len() > 0 {
-						buf.WriteByte(',')
-					}
-					buf.WriteString(val)
-				}
-			}
-			return strconv.Quote(buf.String())
+		v := v.(Set)
+		if len(v.Values) > 0 {
+			return strconv.Quote(v.String())
 		}
 	case TypeJSON:
 		var buf bytes.Buffer
@@ -351,11 +339,9 @@ func (col Column) ValueLiteral(v interface{}) string {
 		s := buf.String()
 		return strconv.Quote(s[:len(s)-1]) // remove trailing newline
 	case TypeBlob:
-		v := v.([]byte)
-		if col.Charset == 0 || col.Charset == 63 { // 63 = binary charset
+		if v, ok := v.([]byte); ok { // 63 = binary charset
 			return fmt.Sprintf(`x"%s"`, hex.EncodeToString(v))
 		}
-		return strconv.Quote(string(v))
 	}
 	switch v := v.(type) {
 	case time.Time:
