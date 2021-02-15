@@ -89,12 +89,12 @@ func TestColumn_decodeValue(t *testing.T) {
 		{"blob(100)", "BINARY('hello world!!!')", []byte("hello world!!!")},
 		{"text", "'hello world!!!'", "hello world!!!"},
 		{"text(100)", "'hello world!!!'", "hello world!!!"},
-		{"ENUM('x-small', 'small', 'medium', 'large', 'x-large')", "'x-small'", Enum{uint16(1), nil}},
-		{"ENUM('x-small', 'small', 'medium', 'large', 'x-large')", "'x-large'", Enum{uint16(5), nil}},
-		{"SET('x-small', 'small', 'medium', 'large', 'x-large')", "'x-small,medium'", uint64(0b101)},
-		{"SET('x-small', 'small', 'medium', 'large', 'x-large')", "'medium,x-small'", uint64(0b101)},
-		{"SET('x-small', 'small', 'medium', 'large', 'x-large')", "''", uint64(0b0)},
-		{"SET('x-small', 'small', 'medium', 'large', 'x-large')", "'x-small,small,medium,large,x-large'", uint64(0b11111)},
+		{"enum('x-small', 'small', 'medium', 'large', 'x-large')", "'x-small'", Enum{1, nil}},
+		{"enum('x-small', 'small', 'medium', 'large', 'x-large')", "'x-large'", Enum{5, nil}},
+		{"set('x-small', 'small', 'medium', 'large', 'x-large')", "'x-small,medium'", Set{0b101, nil}},
+		{"set('x-small', 'small', 'medium', 'large', 'x-large')", "'medium,x-small'", Set{0b101, nil}},
+		{"set('x-small', 'small', 'medium', 'large', 'x-large')", "''", Set{0b0, nil}},
+		{"set('x-small', 'small', 'medium', 'large', 'x-large')", "'x-small,small,medium,large,x-large'", Set{0b11111, nil}},
 		{"year", "0", int(0)},
 		{"year", "1901", int(1901)},
 		{"year", "1", int(2001)},
@@ -136,6 +136,9 @@ func TestColumn_decodeValue(t *testing.T) {
 				equal = ok && want.Equal(got)
 			case Enum:
 				got, ok := v.(Enum)
+				equal = ok && want.Val == got.Val
+			case Set:
+				got, ok := v.(Set)
 				equal = ok && want.Val == got.Val
 			default:
 				equal = reflect.DeepEqual(v, tc.want)

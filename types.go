@@ -39,7 +39,7 @@ const (
 	TypeJSON       ColumnType = 0xf5
 	TypeNewDecimal ColumnType = 0xf6 // *big.Float. DECIMAL NUMERIC
 	TypeEnum       ColumnType = 0xf7 // Enum. ENUM
-	TypeSet        ColumnType = 0xf8 // uint64. SET
+	TypeSet        ColumnType = 0xf8 // Set. SET
 	TypeTinyBlob   ColumnType = 0xf9
 	TypeMediumBlob ColumnType = 0xfa
 	TypeLongBlob   ColumnType = 0xfb
@@ -179,7 +179,7 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 		if n == 0 || n > 8 {
 			return nil, fmt.Errorf("binlog.decodeValue: invalid num bits in set %d", n)
 		}
-		return r.intFixed(int(n)), r.err
+		return Set{r.intFixed(int(n)), col.Values}, r.err
 	case TypeBit:
 		nbits := ((col.Meta >> 8) * 8) + (col.Meta & 0xFF)
 		buf := r.bytesInternal(int(nbits+7) / 8)
@@ -467,4 +467,39 @@ func (e Enum) String() string {
 		return ""
 	}
 	return e.Values[e.Val-1]
+}
+
+// Set ---
+
+type Set struct {
+	Val    uint64
+	Values []string
+}
+
+func (s Set) Members() []string {
+	var m []string
+	if len(s.Values) > 0 {
+		for i, val := range s.Values {
+			if s.Val&(1<<i) != 0 {
+				m = append(m, val)
+			}
+		}
+	}
+	return m
+}
+
+func (s Set) String() string {
+	if len(s.Values) == 0 {
+		return ""
+	}
+	var buf strings.Builder
+	for i, val := range s.Values {
+		if s.Val&(1<<i) != 0 {
+			if buf.Len() > 0 {
+				buf.WriteByte(',')
+			}
+			buf.WriteString(val)
+		}
+	}
+	return buf.String()
 }
