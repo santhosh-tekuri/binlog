@@ -89,8 +89,8 @@ func TestColumn_decodeValue(t *testing.T) {
 		{"blob(100)", "BINARY('hello world!!!')", []byte("hello world!!!")},
 		{"text", "'hello world!!!'", "hello world!!!"},
 		{"text(100)", "'hello world!!!'", "hello world!!!"},
-		{"ENUM('x-small', 'small', 'medium', 'large', 'x-large')", "'x-small'", uint16(1)},
-		{"ENUM('x-small', 'small', 'medium', 'large', 'x-large')", "'x-large'", uint16(5)},
+		{"ENUM('x-small', 'small', 'medium', 'large', 'x-large')", "'x-small'", Enum{uint16(1), nil}},
+		{"ENUM('x-small', 'small', 'medium', 'large', 'x-large')", "'x-large'", Enum{uint16(5), nil}},
 		{"SET('x-small', 'small', 'medium', 'large', 'x-large')", "'x-small,medium'", uint64(0b101)},
 		{"SET('x-small', 'small', 'medium', 'large', 'x-large')", "'medium,x-small'", uint64(0b101)},
 		{"SET('x-small', 'small', 'medium', 'large', 'x-large')", "''", uint64(0b0)},
@@ -134,6 +134,9 @@ func TestColumn_decodeValue(t *testing.T) {
 			case time.Time:
 				got, ok := v.(time.Time)
 				equal = ok && want.Equal(got)
+			case Enum:
+				got, ok := v.(Enum)
+				equal = ok && want.Val == got.Val
 			default:
 				equal = reflect.DeepEqual(v, tc.want)
 			}

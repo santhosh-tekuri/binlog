@@ -38,7 +38,7 @@ const (
 	TypeTime2      ColumnType = 0x13 // time.Duration. TIME
 	TypeJSON       ColumnType = 0xf5
 	TypeNewDecimal ColumnType = 0xf6 // *big.Float. DECIMAL NUMERIC
-	TypeEnum       ColumnType = 0xf7 // uint16. ENUM
+	TypeEnum       ColumnType = 0xf7 // Enum. ENUM
 	TypeSet        ColumnType = 0xf8 // uint64. SET
 	TypeTinyBlob   ColumnType = 0xf9
 	TypeMediumBlob ColumnType = 0xfa
@@ -168,9 +168,9 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 	case TypeEnum:
 		switch col.Meta {
 		case 1:
-			return uint16(r.int1()), r.err
+			return Enum{uint16(r.int1()), col.Values}, r.err
 		case 2:
-			return r.int2(), r.err
+			return Enum{r.int2(), col.Values}, r.err
 		default:
 			return nil, fmt.Errorf("binlog.decodeValue: invalid enum length %d", col.Meta)
 		}
@@ -453,4 +453,18 @@ func bigEndian(buf []byte) uint64 {
 		num |= uint64(b) << (uint(len(buf)-i-1) * 8)
 	}
 	return num
+}
+
+// Enum ---
+
+type Enum struct {
+	Val    uint16
+	Values []string
+}
+
+func (e Enum) String() string {
+	if e.Val == 0 || int(e.Val-1) < len(e.Values) {
+		return ""
+	}
+	return e.Values[e.Val-1]
 }
