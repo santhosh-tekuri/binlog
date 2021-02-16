@@ -195,7 +195,8 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 		if r.err != nil {
 			return nil, r.err
 		}
-		return new(jsonDecoder).decodeValue(buf)
+		v, err := new(jsonDecoder).decodeValue(buf)
+		return JSON{v}, err
 	case TypeDate:
 		v := r.int3()
 		var year, month, day uint32
@@ -488,8 +489,6 @@ func (s Set) String() string {
 
 // Decimal ---
 
-// number ---
-
 // A Decimal represents a MySQL Decimal/Numeric literal.
 type Decimal string
 
@@ -505,3 +504,7 @@ func (d Decimal) BigFloat() (*big.Float, error) {
 	f, _, err := new(big.Float).Parse(string(d), 0)
 	return f, err
 }
+
+// Json ---
+
+type JSON struct{ Val interface{} }

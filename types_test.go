@@ -1,7 +1,9 @@
 package binlog
 
 import (
+	"bytes"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"testing"
@@ -125,23 +127,44 @@ func TestColumn_decodeValue(t *testing.T) {
 		{"time(3)", "'838:51:58.123'", 838*time.Hour + 51*time.Minute + 58*time.Second + 123000*time.Microsecond},
 		{"time(2)", "'838:51:58.12'", 838*time.Hour + 51*time.Minute + 58*time.Second + 120000*time.Microsecond},
 		{"time(1)", "'838:51:58.1'", 838*time.Hour + 51*time.Minute + 58*time.Second + 100000*time.Microsecond},
+		{"json", `'null'`, `null`},
+		{"json", `'true'`, `true`},
+		{"json", `'false'`, `false`},
+		{"json", `'1'`, `1`},                                       // int16
+		{"json", `'-1'`, `-1`},                                     // int16
+		{"json", `'65535'`, `65535`},                               // int32
+		{"json", `'-2147483648'`, `-2147483648`},                   // int32
+		{"json", `'9223372036854775807'`, `9223372036854775807`},   // uint64
+		{"json", `'-9223372036854775808'`, `-9223372036854775808`}, // int64
+		{"json", `'123.45'`, `123.45`},                             // double
+		{"json", `'"value"'`, `"value"`},                           // utf8mb4 string
+		{"json", `'"valueasdfwereeflksdcoewirierbeibfjdsbfjkds;fkjdsjfdskljvalueasdfwereeflksdcoewirierbeibfjdsbfjkds;fkjdsjfdskljsdfsafsfsafsdderewwerewrewr23"'`, `"valueasdfwereeflksdcoewirierbeibfjdsbfjkds;fkjdsjfdskljvalueasdfwereeflksdcoewirierbeibfjdsbfjkds;fkjdsjfdskljsdfsafsfsafsdderewwerewrewr23"`}, // utf8mb4 large string
+		{"json", `'{"key":"value"}'`, `{"key":"value"}`},
 	}
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("%s %s", tc.sqlType, tc.val), func(t *testing.T) {
 			v := testInsert(t, tc.sqlType, tc.val)
+			switch vv := v.(type) {
+			case JSON:
+				var buf bytes.Buffer
+				if err := json.NewEncoder(&buf).Encode(vv.Val); err != nil {
+					t.Fatal(err)
+				}
+				v = string(buf.Bytes()[:buf.Len()-1]) // exclude trailing \n
+			}
 			var equal bool
-			switch want := tc.want.(type) {
+			switch got := v.(type) {
 			case time.Time:
-				got, ok := v.(time.Time)
-				equal = ok && want.Equal(got)
+				want, ok := tc.want.(time.Time)
+				equal = ok && got.Equal(want)
 			case Enum:
-				got, ok := v.(Enum)
-				equal = ok && want.Val == got.Val
+				want, ok := tc.want.(Enum)
+				equal = ok && got.Val == want.Val
 			case Set:
-				got, ok := v.(Set)
-				equal = ok && want.Val == got.Val
+				want, ok := tc.want.(Set)
+				equal = ok && got.Val == want.Val
 			default:
-				equal = reflect.DeepEqual(v, tc.want)
+				equal = reflect.DeepEqual(got, tc.want)
 			}
 			if !equal {
 				t.Logf(" got: %T %v %#v", v, v, v)
