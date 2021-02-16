@@ -25,7 +25,7 @@ const (
 	jsonUInt64
 	jsonDouble
 	jsonString
-	jsonCustom
+	jsonCustom = 0x0f
 )
 
 func (d *jsonDecoder) decodeValue(data []byte) (interface{}, error) {
@@ -68,6 +68,7 @@ func (d *jsonDecoder) decodeValueType(typ byte, data []byte) (interface{}, error
 	case jsonString:
 		return d.decodeString(data)
 	case jsonCustom:
+		return d.decodeCustom(data)
 	}
 	return nil, fmt.Errorf("invalid json value type: 0x%02x", typ)
 }
@@ -232,6 +233,22 @@ func (d *jsonDecoder) decodeCustom(data []byte) (interface{}, error) {
 	if len(data) == 0 {
 		return nil, io.ErrUnexpectedEOF
 	}
-	// todo: implementation pending
-	return d.decodeString(data[1:])
+	typ := data[0]
+	data = data[1:]
+	size, data, err := d.decodeDataLen(data)
+	if err != nil {
+		return nil, err
+	}
+	if len(data) < int(size) {
+		return nil, io.ErrUnexpectedEOF
+	}
+
+	switch ColumnType(typ) {
+	case TypeNewDecimal:
+		precision := int(data[0])
+		scale := int(data[1])
+		return decodeDecimal(data[2:], precision, scale)
+	default:
+		return nil, fmt.Errorf("json decode for %v is not implemented", ColumnType(typ))
+	}
 }

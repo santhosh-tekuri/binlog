@@ -427,6 +427,19 @@ func decodeDecimal(data []byte, precision int, scale int) (Decimal, error) {
 		res.WriteString(fmt.Sprintf("%0*d", compFractional, value))
 		pos += size
 	}
+
+	// remove leading zeros
+	s := res.String()
+	res.Reset()
+	if s[0] == '-' {
+		res.WriteString("-")
+		s = s[1:]
+	}
+	for len(s) > 1 && s[0] == '0' && s[1] != '.' {
+		s = s[1:]
+	}
+	res.WriteString(s)
+
 	return Decimal(res.String()), nil
 }
 
@@ -503,6 +516,10 @@ func (d Decimal) Float64() (float64, error) {
 func (d Decimal) BigFloat() (*big.Float, error) {
 	f, _, err := new(big.Float).Parse(string(d), 0)
 	return f, err
+}
+
+func (d Decimal) MarshalJSON() ([]byte, error) {
+	return []byte(d), nil
 }
 
 // Json ---

@@ -140,6 +140,8 @@ func TestColumn_decodeValue(t *testing.T) {
 		{"json", `'"value"'`, `"value"`},                           // utf8mb4 string
 		{"json", `'"valueasdfwereeflksdcoewirierbeibfjdsbfjkds;fkjdsjfdskljvalueasdfwereeflksdcoewirierbeibfjdsbfjkds;fkjdsjfdskljsdfsafsfsafsdderewwerewrewr23"'`, `"valueasdfwereeflksdcoewirierbeibfjdsbfjkds;fkjdsjfdskljvalueasdfwereeflksdcoewirierbeibfjdsbfjkds;fkjdsjfdskljsdfsafsfsafsdderewwerewrewr23"`}, // utf8mb4 large string
 		{"json", `'{"key":"value"}'`, `{"key":"value"}`},
+		{"json", `'{"key1":"value1","key2":"value2"}'`, `{"key1":"value1","key2":"value2"}`},
+		{"json", `cast(cast(123.45 as decimal(5,2)) as json)`, `123.45`},
 	}
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("%s %s", tc.sqlType, tc.val), func(t *testing.T) {
