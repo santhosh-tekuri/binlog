@@ -249,7 +249,7 @@ func (d *jsonDecoder) decodeCustom(data []byte) (interface{}, error) {
 		precision := int(data[0])
 		scale := int(data[1])
 		return decodeDecimal(data[2:], precision, scale)
-	case TypeDate:
+	case TypeDate, TypeDateTime:
 		if len(data) < 8 {
 			return nil, io.ErrUnexpectedEOF
 		}
