@@ -145,6 +145,8 @@ func TestColumn_decodeValue(t *testing.T) {
 		{"json", `cast(cast('2021-02-14' as date) as json)`, `"2021-02-14T00:00:00Z"`},
 		{"json", `cast(cast('2021-02-14 20:37:12.123456' as datetime(6)) as json)`, `"2021-02-14T20:37:12.123456Z"`},
 		{"json", `cast(cast('2021-02-14 20:37:12.123' as datetime(3)) as json)`, `"2021-02-14T20:37:12.123Z"`},
+		{"json", `cast(cast('12:51:58.123456' as time(6)) as json)`, fmt.Sprintf("%d", 12*time.Hour+51*time.Minute+58*time.Second+123456*time.Microsecond)},
+		{"json", `cast(cast('-12:51:58.123456' as time(6)) as json)`, fmt.Sprintf("-%d", 12*time.Hour+51*time.Minute+58*time.Second+123456*time.Microsecond)},
 	}
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("%s %s", tc.sqlType, tc.val), func(t *testing.T) {

@@ -249,6 +249,28 @@ func (d *jsonDecoder) decodeCustom(data []byte) (interface{}, error) {
 		precision := int(data[0])
 		scale := int(data[1])
 		return decodeDecimal(data[2:], precision, scale)
+	case TypeTime:
+		if len(data) < 8 {
+			return nil, io.ErrUnexpectedEOF
+		}
+		v := int64(binary.LittleEndian.Uint64(data))
+		var hour, min, sec, frac int64
+		var sign = 1
+		if v != 0 {
+			if v < 0 {
+				v = -v
+				sign = -1
+			}
+			frac = v % (1 << 24)
+			v = v >> 24
+			hour = (v >> 12) % (1 << 10)
+			min = (v >> 6) % (1 << 6)
+			sec = v % (1 << 6)
+		}
+		return time.Duration(sign) * (time.Duration(hour)*time.Hour +
+			time.Duration(min)*time.Minute +
+			time.Duration(sec)*time.Second +
+			time.Duration(frac)*time.Microsecond), nil
 	case TypeDate, TypeDateTime:
 		if len(data) < 8 {
 			return nil, io.ErrUnexpectedEOF
