@@ -271,7 +271,7 @@ func (d *jsonDecoder) decodeCustom(data []byte) (interface{}, error) {
 			time.Duration(min)*time.Minute +
 			time.Duration(sec)*time.Second +
 			time.Duration(frac)*time.Microsecond), nil
-	case TypeDate, TypeDateTime:
+	case TypeDate, TypeDateTime, TypeTimestamp:
 		if len(data) < 8 {
 			return nil, io.ErrUnexpectedEOF
 		}
@@ -289,7 +289,11 @@ func (d *jsonDecoder) decodeCustom(data []byte) (interface{}, error) {
 			hms := v % (1 << 17)
 			hour, min, sec = hms>>12, (hms>>6)%(1<<6), hms%(1<<6)
 		}
-		return time.Date(int(year), time.Month(month), int(day), int(hour), int(min), int(sec), int(frac*1000), time.UTC), nil
+		var loc = time.UTC
+		if ColumnType(typ) == TypeTimestamp {
+			loc = time.Local
+		}
+		return time.Date(int(year), time.Month(month), int(day), int(hour), int(min), int(sec), int(frac*1000), loc), nil
 	default:
 		return nil, fmt.Errorf("json decode for %v is not implemented", ColumnType(typ))
 	}

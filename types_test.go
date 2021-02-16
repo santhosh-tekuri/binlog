@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strconv"
 	"testing"
 	"time"
 
@@ -13,6 +14,15 @@ import (
 )
 
 func TestColumn_decodeValue(t *testing.T) {
+	toLocal := func(s string) string {
+		t.Helper()
+		tm, err := time.Parse(time.RFC3339, s)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return tm.Local().Format("2006-01-02T15:04:05") + "Z"
+	}
+
 	testCases := []struct {
 		sqlType string
 		val     string
@@ -145,6 +155,9 @@ func TestColumn_decodeValue(t *testing.T) {
 		{"json", `cast(cast('2021-02-14' as date) as json)`, `"2021-02-14T00:00:00Z"`},
 		{"json", `cast(cast('2021-02-14 20:37:12.123456' as datetime(6)) as json)`, `"2021-02-14T20:37:12.123456Z"`},
 		{"json", `cast(cast('2021-02-14 20:37:12.123' as datetime(3)) as json)`, `"2021-02-14T20:37:12.123Z"`},
+		{"json", `cast(timestamp('2021-02-14 20:37:12.123456') as json)`, `"2021-02-14T20:37:12.123456Z"`},
+		{"json", `cast(timestamp('2020-01-01 10:10:10+05:30') as json)`, strconv.Quote(toLocal("2020-01-01T10:10:10+05:30"))},
+		{"json", `cast(timestamp('2020-01-01 10:10:10-08:00') as json)`, strconv.Quote(toLocal("2020-01-01T10:10:10-08:00"))}, // note: mysql treats timestamp as datetime in json
 		{"json", `cast(cast('12:51:58.123456' as time(6)) as json)`, fmt.Sprintf("%d", 12*time.Hour+51*time.Minute+58*time.Second+123456*time.Microsecond)},
 		{"json", `cast(cast('-12:51:58.123456' as time(6)) as json)`, fmt.Sprintf("-%d", 12*time.Hour+51*time.Minute+58*time.Second+123456*time.Microsecond)},
 	}
