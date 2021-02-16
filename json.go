@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"time"
 )
 
 // https://dev.mysql.com/worklog/task/?id=8132#tabs-8132-4
@@ -248,6 +249,25 @@ func (d *jsonDecoder) decodeCustom(data []byte) (interface{}, error) {
 		precision := int(data[0])
 		scale := int(data[1])
 		return decodeDecimal(data[2:], precision, scale)
+	case TypeDate:
+		if len(data) < 8 {
+			return nil, io.ErrUnexpectedEOF
+		}
+		v := binary.LittleEndian.Uint64(data)
+		var year, month, day, hour, min, sec, frac uint64
+		if v != 0 {
+			if v < 0 {
+				v = -v
+			}
+			frac = v % (1 << 24)
+			v = v >> 24
+			ymd := v >> 17
+			ym := ymd >> 5
+			year, month, day = ym/13, ym%13, ymd%(1<<5)
+			hms := v % (1 << 17)
+			hour, min, sec = hms>>12, (hms>>6)%(1<<6), hms%(1<<6)
+		}
+		return time.Date(int(year), time.Month(month), int(day), int(hour), int(min), int(sec), int(frac*1000), time.UTC), nil
 	default:
 		return nil, fmt.Errorf("json decode for %v is not implemented", ColumnType(typ))
 	}

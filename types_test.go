@@ -142,6 +142,7 @@ func TestColumn_decodeValue(t *testing.T) {
 		{"json", `'{"key":"value"}'`, `{"key":"value"}`},
 		{"json", `'{"key1":"value1","key2":"value2"}'`, `{"key1":"value1","key2":"value2"}`},
 		{"json", `cast(cast(123.45 as decimal(5,2)) as json)`, `123.45`},
+		{"json", `cast(cast('2021-02-14' as date) as json)`, `"2021-02-14T00:00:00Z"`},
 	}
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("%s %s", tc.sqlType, tc.val), func(t *testing.T) {
