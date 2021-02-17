@@ -13,20 +13,20 @@ import (
 type jsonDecoder struct{}
 
 const (
-	jsonSmallObj byte = iota
-	jsonLargeObj
-	jsonSmallArr
-	jsonLargeArr
-	jsonLiteral
-	jsonInt16
-	jsonUInt16
-	jsonInt32
-	jsonUInt32
-	jsonInt64
-	jsonUInt64
-	jsonDouble
-	jsonString
-	jsonCustom = 0x0f
+	jsonSmallObj = 0x00
+	jsonLargeObj = 0x01
+	jsonSmallArr = 0x02
+	jsonLargeArr = 0x03
+	jsonLiteral  = 0x04
+	jsonInt16    = 0x05
+	jsonUInt16   = 0x06
+	jsonInt32    = 0x07
+	jsonUInt32   = 0x08
+	jsonInt64    = 0x09
+	jsonUInt64   = 0x0a
+	jsonDouble   = 0x0b
+	jsonString   = 0x0c
+	jsonCustom   = 0x0f
 )
 
 func (d *jsonDecoder) decodeValue(data []byte) (interface{}, error) {
