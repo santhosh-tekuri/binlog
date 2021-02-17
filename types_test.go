@@ -152,6 +152,7 @@ func TestColumn_decodeValue(t *testing.T) {
 		{"json", `'{"key":"value"}'`, `{"key":"value"}`},
 		{"json", `'{"key1":"value1","key2":"value2"}'`, `{"key1":"value1","key2":"value2"}`},
 		{"json", `cast(cast(123.45 as decimal(5,2)) as json)`, `123.45`},
+		{"json", `cast(BINARY('hello world!!!') as json)`, `"hello world!!!"`}, // TypeVarchar
 		{"json", `cast(cast('2021-02-14' as date) as json)`, `"2021-02-14T00:00:00Z"`},
 		{"json", `cast(cast('2021-02-14 20:37:12.123456' as datetime(6)) as json)`, `"2021-02-14T20:37:12.123456Z"`},
 		{"json", `cast(cast('2021-02-14 20:37:12.123' as datetime(3)) as json)`, `"2021-02-14T20:37:12.123Z"`},

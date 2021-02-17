@@ -295,6 +295,6 @@ func (d *jsonDecoder) decodeCustom(data []byte) (interface{}, error) {
 		}
 		return time.Date(int(year), time.Month(month), int(day), int(hour), int(min), int(sec), int(frac*1000), loc), nil
 	default:
-		return nil, fmt.Errorf("json decode for %v is not implemented", ColumnType(typ))
+		return string(data), nil
 	}
 }
