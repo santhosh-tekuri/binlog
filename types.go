@@ -525,3 +525,9 @@ func (d Decimal) MarshalJSON() ([]byte, error) {
 // Json ---
 
 type JSON struct{ Val interface{} }
+
+func (j JSON) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	err := json.NewEncoder(&buf).Encode(j.Val)
+	return buf.Bytes(), err
+}
