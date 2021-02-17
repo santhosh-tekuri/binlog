@@ -36,7 +36,7 @@ const (
 	TypeTimestamp2 ColumnType = 0x11 // time.Time(LOCAL). TIMESTAMP
 	TypeDateTime2  ColumnType = 0x12 // time.Time(UTC). DATETIME
 	TypeTime2      ColumnType = 0x13 // time.Duration. TIME
-	TypeJSON       ColumnType = 0xf5
+	TypeJSON       ColumnType = 0xf5 // JSON, JSON
 	TypeNewDecimal ColumnType = 0xf6 // Decimal. DECIMAL NUMERIC
 	TypeEnum       ColumnType = 0xf7 // Enum. ENUM
 	TypeSet        ColumnType = 0xf8 // Set. SET
@@ -428,7 +428,7 @@ func decodeDecimal(data []byte, precision int, scale int) (Decimal, error) {
 		pos += size
 	}
 
-	// remove leading zeros
+	// remove leading zeros & trailing dot
 	s := res.String()
 	res.Reset()
 	if s[0] == '-' {
@@ -437,6 +437,9 @@ func decodeDecimal(data []byte, precision int, scale int) (Decimal, error) {
 	}
 	for len(s) > 1 && s[0] == '0' && s[1] != '.' {
 		s = s[1:]
+	}
+	if len(s) > 0 && s[len(s)-1] == '.' {
+		s = s[:len(s)-1]
 	}
 	res.WriteString(s)
 
@@ -459,10 +462,20 @@ type Enum struct {
 }
 
 func (e Enum) String() string {
-	if e.Val == 0 || int(e.Val-1) < len(e.Values) {
+	if e.Val == 0 {
 		return ""
 	}
-	return e.Values[e.Val-1]
+	if int(e.Val-1) < len(e.Values) {
+		return e.Values[e.Val-1]
+	}
+	return fmt.Sprintf("%d", e.Val)
+}
+
+func (e Enum) MarshalJSON() ([]byte, error) {
+	if e.Val == 0 || len(e.Values) > 0 {
+		return []byte(strconv.Quote(e.String())), nil
+	}
+	return []byte(e.String()), nil
 }
 
 // Set ---
@@ -485,19 +498,29 @@ func (s Set) Members() []string {
 }
 
 func (s Set) String() string {
-	if len(s.Values) == 0 {
+	if s.Val == 0 {
 		return ""
 	}
-	var buf strings.Builder
-	for i, val := range s.Values {
-		if s.Val&(1<<i) != 0 {
-			if buf.Len() > 0 {
-				buf.WriteByte(',')
+	if len(s.Values) > 0 {
+		var buf strings.Builder
+		for i, val := range s.Values {
+			if s.Val&(1<<i) != 0 {
+				if buf.Len() > 0 {
+					buf.WriteByte(',')
+				}
+				buf.WriteString(val)
 			}
-			buf.WriteString(val)
 		}
+		return buf.String()
 	}
-	return buf.String()
+	return fmt.Sprintf("%d", s.Val)
+}
+
+func (s Set) MarshalJSON() ([]byte, error) {
+	if s.Val == 0 || len(s.Values) > 0 {
+		return []byte(strconv.Quote(s.String())), nil
+	}
+	return []byte(s.String()), nil
 }
 
 // Decimal ---
