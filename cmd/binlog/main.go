@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -228,28 +229,34 @@ func view(bl binLog) error {
 					panic(err)
 				}
 				if e.Header.EventType.IsDeleteRows() {
-					fmt.Print("   WHERE:")
+					fmt.Print(" WHERE: ")
 				} else {
-					fmt.Print("     SET:")
+					fmt.Print("   SET: ")
 				}
+				m := make(map[string]interface{})
 				for i, v := range row {
 					col := d.Columns()[i].Name
 					if col == "" {
 						col = "@" + strconv.Itoa(d.Columns()[i].Ordinal)
 					}
-					fmt.Printf(" %s=%s", col, d.Columns()[i].ValueLiteral(v))
+					m[col] = v
 				}
-				fmt.Println()
+				if err := json.NewEncoder(os.Stdout).Encode(m); err != nil {
+					panic(err)
+				}
 				if before != nil {
-					fmt.Print("   WHERE:")
+					fmt.Print(" WHERE: ")
+					m := make(map[string]interface{})
 					for i, v := range before {
 						col := d.ColumnsBeforeUpdate()[i].Name
 						if col == "" {
 							col = "@" + strconv.Itoa(d.ColumnsBeforeUpdate()[i].Ordinal)
 						}
-						fmt.Printf(" %s=%s", col, d.ColumnsBeforeUpdate()[i].ValueLiteral(v))
+						m[col] = v
 					}
-					fmt.Println()
+					if err := json.NewEncoder(os.Stdout).Encode(m); err != nil {
+						panic(err)
+					}
 				}
 			}
 		default:
