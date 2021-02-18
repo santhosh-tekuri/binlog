@@ -28,7 +28,7 @@ type reader struct {
 	hash  hash.Hash32
 
 	// context for unmarshalers
-	checksum   int // checksum for next event
+	checksum   int // checksum for current event
 	binlogFile string
 	binlogPos  uint32
 	fde        FormatDescriptionEvent

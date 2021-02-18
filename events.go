@@ -147,7 +147,7 @@ type FormatDescriptionEvent struct {
 	EventTypeHeaderLengths []byte
 }
 
-func (e *FormatDescriptionEvent) decode(r *reader) error {
+func (e *FormatDescriptionEvent) decode(r *reader, eventSize uint32) error {
 	e.BinlogVersion = r.int2()
 	e.ServerVersion = r.string(50)
 	if i := strings.IndexByte(e.ServerVersion, 0); i != -1 {
@@ -155,7 +155,14 @@ func (e *FormatDescriptionEvent) decode(r *reader) error {
 	}
 	e.CreateTimestamp = r.int4()
 	e.EventHeaderLength = r.int1()
+	if err := r.ensure(int(FORMAT_DESCRIPTION_EVENT)); err != nil {
+		return err
+	}
+	fmeSize := r.buffer()[FORMAT_DESCRIPTION_EVENT-1]
+	r.checksum = int(eventSize - 19 /*eventHeader*/ - uint32(fmeSize) - 1 /*checksumType*/)
+	r.limit -= r.checksum
 	e.EventTypeHeaderLengths = r.bytesEOF()
+	e.EventTypeHeaderLengths = e.EventTypeHeaderLengths[:len(e.EventTypeHeaderLengths)-1] // exclude checksum type
 	return r.err
 }
 

@@ -18,6 +18,7 @@ type dirReader struct {
 	name     *string
 	nonBlock bool
 	tmeCache map[uint64]*TableMapEvent
+	checksum int
 }
 
 func newDirReader(dir string, file *string, pos uint32, nonBlock bool) (*dirReader, error) {
@@ -25,11 +26,29 @@ func newDirReader(dir string, file *string, pos uint32, nonBlock bool) (*dirRead
 	if err != nil {
 		return nil, err
 	}
+	checksum := 0
+	if pos > 4 {
+		// Decode FormatDescriptionEvent to find checksum.
+		v, err := findBinlogVersion(f.Name())
+		if err != nil {
+			return nil, err
+		}
+		r := &reader{rd: f, limit: -1, fde: FormatDescriptionEvent{BinlogVersion: v}}
+		h := EventHeader{}
+		if err := h.decode(r); err != nil {
+			return nil, err
+		}
+		fde := FormatDescriptionEvent{}
+		if err := fde.decode(r, h.EventSize); err != nil {
+			return nil, err
+		}
+		checksum = r.checksum
+	}
 	if _, err := f.Seek(int64(pos), io.SeekStart); err != nil {
 		_ = f.Close()
 		return nil, err
 	}
-	return &dirReader{f, file, nonBlock, make(map[uint64]*TableMapEvent)}, nil
+	return &dirReader{f, file, nonBlock, make(map[uint64]*TableMapEvent), checksum}, nil
 }
 
 func (r *dirReader) Read(p []byte) (int, error) {
@@ -84,7 +103,6 @@ func (r *dirReader) Read(p []byte) (int, error) {
 		for k := range r.tmeCache {
 			delete(r.tmeCache, k)
 		}
-		fmt.Println("*********************", next)
 	}
 }
 

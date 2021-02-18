@@ -207,6 +207,7 @@ func (bl *Remote) NextEvent() (Event, error) {
 			return Event{}, err
 		}
 		r.checksum = bl.checksum
+		r.hash = crc32.NewIEEE()
 		r.fde = FormatDescriptionEvent{BinlogVersion: v}
 		bl.binlogReader = r
 	} else {
@@ -215,7 +216,6 @@ func (bl *Remote) NextEvent() (Event, error) {
 		}
 		if r.checksum > 0 {
 			got := r.hash.Sum32()
-			r.hash = nil
 			r.limit = -1
 			want := r.int4()
 			if r.err != nil {
@@ -225,12 +225,8 @@ func (bl *Remote) NextEvent() (Event, error) {
 				return Event{}, fmt.Errorf("binlog.NextEvent: checksum failed got=%d want=%d", got, want)
 			}
 		}
-		r.limit += bl.checksum
-		if err := r.drain(); err != nil {
-			return Event{}, fmt.Errorf("binlog.NextEvent: error in draining event: %v", err)
-		}
-		r.rd = &packetReader{rd: bl.conn, seq: &bl.seq}
 		r.limit = -1
+		r.rd = &packetReader{rd: bl.conn, seq: &bl.seq}
 	}
 	// Check first byte.
 	b, err := r.peek()
@@ -255,10 +251,7 @@ func (bl *Remote) NextEvent() (Event, error) {
 	default:
 		return Event{}, fmt.Errorf("binlogStream: got %0x want OK-byte", b)
 	}
-	if bl.checksum > 0 {
-		r.hash = crc32.NewIEEE()
-	}
-	return nextEvent(r)
+	return nextEvent(r, bl.checksum)
 }
 
 func (bl *Remote) NextRow() (values []interface{}, valuesBeforeUpdate []interface{}, err error) {

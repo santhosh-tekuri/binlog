@@ -1,9 +1,18 @@
 package binlog
 
-func nextEvent(r *reader) (Event, error) {
+func nextEvent(r *reader, rotateChecksum int) (Event, error) {
+	if r.hash != nil {
+		r.hash.Reset()
+	}
 	h := EventHeader{}
 	if err := h.decode(r); err != nil {
 		return Event{}, err
+	}
+	switch h.EventType {
+	case FORMAT_DESCRIPTION_EVENT:
+		r.checksum = 0 // computed in decode
+	case ROTATE_EVENT:
+		r.checksum = rotateChecksum
 	}
 	headerSize := uint32(13)
 	if r.fde.BinlogVersion > 1 {
@@ -19,7 +28,7 @@ func nextEvent(r *reader) (Event, error) {
 	switch h.EventType {
 	case FORMAT_DESCRIPTION_EVENT:
 		r.fde = FormatDescriptionEvent{}
-		err := r.fde.decode(r)
+		err := r.fde.decode(r, h.EventSize)
 		return Event{h, r.fde}, err
 	case STOP_EVENT:
 		return Event{h, stopEvent{}}, nil

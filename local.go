@@ -3,6 +3,7 @@ package binlog
 import (
 	"encoding/binary"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"io/ioutil"
 	"os"
@@ -15,7 +16,6 @@ type Local struct {
 	conn *dirReader
 
 	binlogReader *reader
-	checksum     int
 }
 
 func Open(dir string) (*Local, error) {
@@ -26,7 +26,7 @@ func Open(dir string) (*Local, error) {
 	if !fi.IsDir() {
 		return nil, fmt.Errorf("binlog.Open: %q is not a directory", dir)
 	}
-	return &Local{dir: dir, checksum: 4}, nil // todo: checksum
+	return &Local{dir: dir}, nil
 }
 
 func (bl *Local) ListFiles() ([]string, error) {
@@ -118,7 +118,6 @@ func (bl *Local) MasterStatus() (file string, pos uint32, err error) {
 		if _, err = f.Seek(int64(pos), io.SeekStart); err != nil {
 			return
 		}
-
 	}
 }
 
@@ -145,13 +144,24 @@ func (bl *Local) NextEvent() (Event, error) {
 			limit:      -1,
 		}
 		bl.conn.name = &r.binlogFile
-		r.checksum = bl.checksum
+		r.checksum = bl.conn.checksum
+		r.hash = crc32.NewIEEE()
 		r.fde = FormatDescriptionEvent{BinlogVersion: v}
 		bl.binlogReader = r
 	} else {
-		r.limit += bl.checksum
 		if err := r.drain(); err != nil {
 			return Event{}, fmt.Errorf("binlog.NextEvent: error in draining event: %v", err)
+		}
+		if r.checksum > 0 {
+			got := r.hash.Sum32()
+			r.limit += r.checksum
+			want := r.int4()
+			if r.err != nil {
+				return Event{}, r.err
+			}
+			if got != want {
+				return Event{}, fmt.Errorf("binlog.NextEvent: checksum failed got=%d want=%d", got, want)
+			}
 		}
 		r.limit = -1
 	}
@@ -162,8 +172,7 @@ func (bl *Local) NextEvent() (Event, error) {
 		}
 		return Event{}, err
 	}
-
-	return nextEvent(r)
+	return nextEvent(r, 0)
 }
 
 func (bl *Local) NextRow() (values []interface{}, valuesBeforeUpdate []interface{}, err error) {
