@@ -27,7 +27,8 @@ type reader struct {
 	limit int
 	hash  hash.Hash32
 
-	// context for unmarshallers
+	// context for unmarshalers
+	checksum   int // checksum for next event
 	binlogFile string
 	binlogPos  uint32
 	fde        FormatDescriptionEvent

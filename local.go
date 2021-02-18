@@ -145,6 +145,7 @@ func (bl *Local) NextEvent() (Event, error) {
 			limit:      -1,
 		}
 		bl.conn.name = &r.binlogFile
+		r.checksum = bl.checksum
 		r.fde = FormatDescriptionEvent{BinlogVersion: v}
 		bl.binlogReader = r
 	} else {
@@ -162,7 +163,7 @@ func (bl *Local) NextEvent() (Event, error) {
 		return Event{}, err
 	}
 
-	return nextEvent(r, bl.checksum)
+	return nextEvent(r)
 }
 
 func (bl *Local) NextRow() (values []interface{}, valuesBeforeUpdate []interface{}, err error) {

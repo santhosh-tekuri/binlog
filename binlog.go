@@ -1,6 +1,6 @@
 package binlog
 
-func nextEvent(r *reader, checksum int) (Event, error) {
+func nextEvent(r *reader) (Event, error) {
 	h := EventHeader{}
 	if err := h.decode(r); err != nil {
 		return Event{}, err
@@ -9,7 +9,7 @@ func nextEvent(r *reader, checksum int) (Event, error) {
 	if r.fde.BinlogVersion > 1 {
 		headerSize = 19
 	}
-	r.limit = int(h.EventSize-headerSize) - checksum
+	r.limit = int(h.EventSize-headerSize) - r.checksum
 
 	if h.NextPos != 0 {
 		r.binlogPos = h.NextPos

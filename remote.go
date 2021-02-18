@@ -26,7 +26,7 @@ type Remote struct {
 	requestFile  string
 	requestPos   uint32
 	binlogReader *reader
-	checksum     int
+	checksum     int // captures binlog_checksum sys-var
 }
 
 func Dial(network, address string) (*Remote, error) {
@@ -206,13 +206,14 @@ func (bl *Remote) NextEvent() (Event, error) {
 		if err != nil {
 			return Event{}, err
 		}
+		r.checksum = bl.checksum
 		r.fde = FormatDescriptionEvent{BinlogVersion: v}
 		bl.binlogReader = r
 	} else {
 		if err := r.drain(); err != nil {
 			return Event{}, fmt.Errorf("binlog.NextEvent: error in draining event: %v", err)
 		}
-		if bl.checksum > 0 {
+		if r.checksum > 0 {
 			got := r.hash.Sum32()
 			r.hash = nil
 			r.limit = -1
@@ -257,7 +258,7 @@ func (bl *Remote) NextEvent() (Event, error) {
 	if bl.checksum > 0 {
 		r.hash = crc32.NewIEEE()
 	}
-	return nextEvent(r, bl.checksum)
+	return nextEvent(r)
 }
 
 func (bl *Remote) NextRow() (values []interface{}, valuesBeforeUpdate []interface{}, err error) {
