@@ -161,7 +161,7 @@ func (e *FormatDescriptionEvent) decode(r *reader) error {
 
 func (e *FormatDescriptionEvent) postHeaderLength(typ EventType, def int) int {
 	if len(e.EventTypeHeaderLengths) >= int(typ) {
-		return int(e.EventTypeHeaderLengths[typ])
+		return int(e.EventTypeHeaderLengths[typ-1])
 	}
 	return def
 }
