@@ -197,6 +197,7 @@ func (bl *Remote) binlogVersion() (uint16, error) {
 	return sv.binlogVersion(), nil
 }
 
+// checksum: https://dev.mysql.com/worklog/task/?id=2540#tabs-2540-4
 func (bl *Remote) NextEvent() (Event, error) {
 	r := bl.binlogReader
 	if r == nil {
