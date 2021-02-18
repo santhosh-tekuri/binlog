@@ -462,17 +462,17 @@ type Enum struct {
 }
 
 func (e Enum) String() string {
-	if e.Val == 0 {
-		return ""
-	}
-	if int(e.Val-1) < len(e.Values) {
+	if len(e.Values) > 0 {
+		if e.Val == 0 {
+			return ""
+		}
 		return e.Values[e.Val-1]
 	}
 	return fmt.Sprintf("%d", e.Val)
 }
 
 func (e Enum) MarshalJSON() ([]byte, error) {
-	if e.Val == 0 || len(e.Values) > 0 {
+	if len(e.Values) > 0 {
 		return []byte(strconv.Quote(e.String())), nil
 	}
 	return []byte(e.String()), nil
@@ -498,10 +498,10 @@ func (s Set) Members() []string {
 }
 
 func (s Set) String() string {
-	if s.Val == 0 {
-		return ""
-	}
 	if len(s.Values) > 0 {
+		if s.Val == 0 {
+			return ""
+		}
 		var buf strings.Builder
 		for i, val := range s.Values {
 			if s.Val&(1<<i) != 0 {
@@ -517,8 +517,10 @@ func (s Set) String() string {
 }
 
 func (s Set) MarshalJSON() ([]byte, error) {
-	if s.Val == 0 || len(s.Values) > 0 {
-		return []byte(strconv.Quote(s.String())), nil
+	if len(s.Values) > 0 {
+		var buf bytes.Buffer
+		err := json.NewEncoder(&buf).Encode(s.Members())
+		return buf.Bytes(), err
 	}
 	return []byte(s.String()), nil
 }
