@@ -4,16 +4,43 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
+var mysql = flag.String("mysql", "", "mysql server used for testing")
+var network, address, user, passwd string
+var db = "binlog"
+var ssl bool
+
 func TestColumn_decodeValue(t *testing.T) {
+	if *mysql == "" {
+		t.Skip()
+	}
+	colon := strings.IndexByte(*mysql, ':')
+	network, address = (*mysql)[:colon], (*mysql)[colon+1:]
+	tok := strings.Split(address, ",")
+	address = tok[0]
+	for _, t := range tok[1:] {
+		switch {
+		case t == "ssl":
+			ssl = true
+		case strings.HasPrefix(t, "user="):
+			user = strings.TrimPrefix(t, "user=")
+		case strings.HasPrefix(t, "password="):
+			passwd = strings.TrimPrefix(t, "password=")
+		case strings.HasPrefix(t, "db="):
+			passwd = strings.TrimPrefix(t, "db=")
+		}
+	}
+
 	toLocal := func(s string) string {
 		t.Helper()
 		tm, err := time.Parse(time.RFC3339, s)
@@ -198,12 +225,17 @@ func TestColumn_decodeValue(t *testing.T) {
 
 func testInsert(t *testing.T, sqlType, value string) interface{} {
 	t.Helper()
-	r, err := Dial("tcp", "localhost:3306")
+	r, err := Dial(network, address)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer r.Close()
-	if err := r.Authenticate("root", "password"); err != nil {
+	if ssl && r.IsSSLSupported() {
+		if err := r.UpgradeSSL(nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := r.Authenticate(user, passwd); err != nil {
 		t.Fatal(err)
 	}
 	file, pos, err := r.MasterStatus()
@@ -223,7 +255,7 @@ func testInsert(t *testing.T, sqlType, value string) interface{} {
 			continue
 		}
 		re := e.Data.(RowsEvent)
-		if re.TableMap.SchemaName != "binlog" || re.TableMap.TableName != "binlog_table" {
+		if re.TableMap.SchemaName != db || re.TableMap.TableName != "binlog_table" {
 			continue
 		}
 		vals, _, err := r.NextRow()
@@ -239,7 +271,8 @@ func testInsert(t *testing.T, sqlType, value string) interface{} {
 
 func insertValue(t *testing.T, sqlType, value string) {
 	t.Helper()
-	db, err := sql.Open("mysql", "root:password@tcp(localhost:3306)/binlog")
+	url := fmt.Sprintf("%s:%s@%s(%s)/%s?tls=%v", user, passwd, network, address, db, ssl)
+	db, err := sql.Open("mysql", url)
 	if err != nil {
 		t.Fatal(err)
 	}
