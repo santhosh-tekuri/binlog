@@ -63,7 +63,6 @@ func (e *handshake) decode(r *reader) error {
 		return r.err
 	}
 	var authPluginDataLength uint8
-	// todo: guess no if check needed
 	if e.capabilityFlags&capPluginAuth != 0 {
 		authPluginDataLength = r.int1()
 	} else {
