@@ -202,6 +202,7 @@ func testInsert(t *testing.T, sqlType, value string) interface{} {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer r.Close()
 	if err := r.Authenticate("root", "password"); err != nil {
 		t.Fatal(err)
 	}
@@ -242,6 +243,7 @@ func insertValue(t *testing.T, sqlType, value string) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer db.Close()
 	if _, err := db.Exec(`drop table if exists binlog_table`); err != nil {
 		t.Fatal(err)
 	}
