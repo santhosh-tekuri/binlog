@@ -12,11 +12,12 @@ import (
 	"time"
 )
 
-// todo: include packet type
+// ErrMalformedPacket used to indicate malformed packet.
 var ErrMalformedPacket = errors.New("malformed packet")
 
 type null struct{}
 
+// Remote represents connection to MySQL server.
 type Remote struct {
 	conn net.Conn
 	seq  uint8
@@ -29,6 +30,7 @@ type Remote struct {
 	checksum     int // captures binlog_checksum sys-var
 }
 
+// Dial connects to the MySQL server specified.
 func Dial(network, address string) (*Remote, error) {
 	conn, err := net.Dial(network, address)
 	if err != nil {
@@ -198,6 +200,9 @@ func (bl *Remote) MasterStatus() (file string, pos uint32, err error) {
 // SetHeartbeatPeriod configures the interval to send HeartBeatEvent in absence of data.
 // This avoids connection timeout occurring in the absence of data. Setting interval to 0
 // disables heartbeats altogether.
+//
+// Use this, if you are using non-zero serverID to Seek method. In this case, server sends
+// heartbeatEvents when there are no more events.
 func (bl *Remote) SetHeartbeatPeriod(d time.Duration) error {
 	_, err := bl.query(fmt.Sprintf("SET @master_heartbeat_period=%d", d))
 	return err
@@ -219,6 +224,10 @@ func (bl *Remote) confirmChecksumSupport() error {
 	return err
 }
 
+// Seek requests binlog at fileName and position.
+//
+// if serverID is zero, NextEvent return io.EOF when there are no ore events.
+// if serverID is non-zero, NextEvent waits for new events.
 func (bl *Remote) Seek(serverID uint32, fileName string, position uint32) error {
 	checksum, err := bl.fetchBinlogChecksum()
 	if err != nil {
@@ -252,8 +261,11 @@ func (bl *Remote) binlogVersion() (uint16, error) {
 	return sv.binlogVersion(), nil
 }
 
-// checksum: https://dev.mysql.com/worklog/task/?id=2540#tabs-2540-4
+// NextEvent return next binlog event.
+//
+// return io.EOF when there are no more Events
 func (bl *Remote) NextEvent() (Event, error) {
+	// checksum: https://dev.mysql.com/worklog/task/?id=2540#tabs-2540-4
 	r := bl.binlogReader
 	if r == nil {
 		r = newReader(bl.conn, &bl.seq)
@@ -309,10 +321,13 @@ func (bl *Remote) NextEvent() (Event, error) {
 	return nextEvent(r, bl.checksum)
 }
 
+// NextRow returns next row for RowsEvent. Returns io.EOF when there are no more rows.
+// valuesBeforeUpdate should be used only for events UPDATE_ROWS_EVENTv1, UPDATE_ROWS_EVENTv2.
 func (bl *Remote) NextRow() (values []interface{}, valuesBeforeUpdate []interface{}, err error) {
 	return nextRow(bl.binlogReader)
 }
 
+// Close closes connection.
 func (bl *Remote) Close() error {
 	return bl.conn.Close()
 }

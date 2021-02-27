@@ -31,7 +31,7 @@ func nextEvent(r *reader, rotateChecksum int) (Event, error) {
 		err := r.fde.decode(r, h.EventSize)
 		return Event{h, r.fde}, err
 	case STOP_EVENT:
-		return Event{h, stopEvent{}}, nil
+		return Event{h, StopEvent{}}, nil
 	case ROTATE_EVENT:
 		re := RotateEvent{}
 		err := re.decode(r)
@@ -99,7 +99,7 @@ func nextEvent(r *reader, rotateChecksum int) (Event, error) {
 		err := ie.decode(r)
 		return Event{h, ie}, err
 	case HEARTBEAT_EVENT:
-		return Event{h, heartbeatEvent{}}, nil
+		return Event{h, HeartbeatEvent{}}, nil
 	case IGNORABLE_EVENT:
 		return Event{h, ignorableEvent{}}, nil
 	case ROWS_QUERY_EVENT:
