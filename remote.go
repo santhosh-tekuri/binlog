@@ -34,6 +34,13 @@ func Dial(network, address string) (*Remote, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Enable TCP KeepAlive on TCP connections
+	if tc, ok := conn.(*net.TCPConn); ok {
+		if err := tc.SetKeepAlive(true); err != nil {
+			_ = conn.Close()
+			return nil, err
+		}
+	}
 	var seq uint8
 	r := newReader(conn, &seq)
 	hs := handshake{}
