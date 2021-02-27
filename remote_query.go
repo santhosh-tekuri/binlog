@@ -168,13 +168,11 @@ func (rs *resultSet) rows() ([][]interface{}, error) {
 	var rows [][]interface{}
 	for {
 		row, err := rs.nextRow()
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			break
+		if err == io.EOF {
+			return rows, nil
+		} else if err != nil {
+			return nil, err
 		}
 		rows = append(rows, row)
 	}
-	return rows, nil
 }
