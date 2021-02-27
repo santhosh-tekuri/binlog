@@ -67,7 +67,9 @@ func nextEvent(r *reader, rotateChecksum int) (Event, error) {
 	case UNKNOWN_EVENT:
 		return Event{h, unknownEvent{}}, nil
 	case INTVAR_EVENT:
-		return Event{h, intVarEvent{}}, nil
+		ive := IntVarEvent{}
+		err := ive.decode(r)
+		return Event{h, ive}, err
 	case LOAD_EVENT:
 		return Event{h, loadEvent{}}, nil
 	case SLAVE_EVENT:

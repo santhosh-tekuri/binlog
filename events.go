@@ -247,12 +247,26 @@ func (e *RandEvent) decode(r *reader) error {
 // https://dev.mysql.com/doc/internals/en/stop-event.html
 
 type stopEvent struct{}
+
+// IntVarEvent captures Integer based session-variables
+//
+// https://dev.mysql.com/doc/internals/en/intvar-event.html
+type IntVarEvent struct {
+	Type  uint8
+	Value uint64
+}
+
+func (e *IntVarEvent) decode(r *reader) error {
+	e.Type = r.int1()
+	e.Value = r.int8()
+	return r.err
+}
+
 type previousGTIDsEvent struct{}
 type anonymousGTIDEvent struct{}
 type xidEvent struct{}
 type gtidEvent struct{}
 type unknownEvent struct{}
-type intVarEvent struct{}
 type loadEvent struct{}
 type slaveEvent struct{}
 type createFileEvent struct{}
