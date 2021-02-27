@@ -69,6 +69,25 @@ func (bl *Local) addFile(name string) error {
 	return ioutil.WriteFile(path.Join(bl.dir, next), []byte(name), 0666)
 }
 
+func (bl *Local) RemoveFirstFile() error {
+	buf, err := ioutil.ReadFile(path.Join(bl.dir, ".next"))
+	if err != nil {
+		return err
+	}
+	file1 := strings.TrimSpace(string(buf))
+	buf, err = ioutil.ReadFile(path.Join(bl.dir, file1+".next"))
+	if err != nil {
+		return err
+	}
+	if err = ioutil.WriteFile(path.Join(bl.dir, ".next"), buf, 0666); err != nil {
+		return err
+	}
+	if err := os.Remove(path.Join(bl.dir, file1)); err != nil {
+		return err
+	}
+	return os.Remove(path.Join(bl.dir, file1+".next"))
+}
+
 func (bl *Local) MasterStatus() (file string, pos uint32, err error) {
 	files, err := bl.ListFiles()
 	if err != nil {
