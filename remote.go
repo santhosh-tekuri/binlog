@@ -80,34 +80,83 @@ func (bl *Remote) UpgradeSSL(rootCAs *x509.CertPool) error {
 
 // Authenticate sends the credentials to MySQL.
 func (bl *Remote) Authenticate(username, password string) error {
+	var plugin string
+	switch bl.hs.authPluginName {
+	case "mysql_native_password": // supported
+		plugin = bl.hs.authPluginName
+	case "": // unspecified
+		plugin = "mysql_native_password"
+	default:
+		return fmt.Errorf("unsupported auth plugin '%s'", plugin)
+	}
+	authResponse, err := encryptedPasswd(plugin, []byte(password), bl.hs.authPluginData)
+	if err != nil {
+		return err
+	}
+
 	w := newWriter(bl.conn, &bl.seq)
-	err := w.encodeClose(handshakeResponse41{
+	err = w.encodeClose(handshakeResponse41{
 		capabilityFlags: capLongFlag | capSecureConnection,
 		maxPacketSize:   maxPacketSize,
 		characterSet:    bl.hs.characterSet,
 		username:        username,
-		authResponse:    encryptedPasswd([]byte(password), bl.hs.authPluginData),
+		authResponse:    authResponse,
 		database:        "",
-		authPluginName:  "",
+		authPluginName:  plugin,
 		connectAttrs:    nil,
 	})
 	if err != nil {
 		return err
 	}
-
-	r := newReader(bl.conn, &bl.seq)
-	marker, err := r.peek()
-	if err != nil {
-		return err
-	}
-	if marker == errMarker {
-		ep := errPacket{}
-		if err := ep.decode(r, bl.hs.capabilityFlags); err != nil {
+	var numAuthSwitches = 0
+	for {
+		r := newReader(bl.conn, &bl.seq)
+		marker, err := r.peek()
+		if err != nil {
 			return err
 		}
-		return errors.New(ep.errorMessage)
+		switch marker {
+		case okMarker:
+			if err := r.drain(); err != nil {
+				return err
+			}
+			// query serverVersion. seems azure reports wrong serverVersion in handshake
+			rows, err := bl.queryRows(`select version()`)
+			if err != nil {
+				return err
+			}
+			bl.hs.serverVersion = rows[0][0].(string)
+			return nil
+		case errMarker:
+			ep := errPacket{}
+			if err := ep.decode(r, bl.hs.capabilityFlags); err != nil {
+				return err
+			}
+			return errors.New(ep.errorMessage)
+		case 0x01:
+			return errors.New("authMoreData not supported")
+		case 0xFE:
+			if numAuthSwitches != 0 {
+				return fmt.Errorf("AuthSwitch more than once")
+			}
+			numAuthSwitches++
+			asr := authSwitchRequest{}
+			if err := asr.decode(r); err != nil {
+				return err
+			}
+			plugin = asr.pluginName
+			authResponse, err = encryptedPasswd(plugin, []byte(password), asr.authPluginData)
+			if err != nil {
+				return err
+			}
+			w = newWriter(bl.conn, &bl.seq)
+			if err := w.encodeClose(authSwitchResponse{authResponse}); err != nil {
+				return err
+			}
+		default:
+			return ErrMalformedPacket
+		}
 	}
-	return r.drain()
 }
 
 // ListFiles lists the binary log files on the server,
@@ -153,8 +202,7 @@ func (bl *Remote) fetchBinlogChecksum() (string, error) {
 		return "", err
 	}
 	if len(rows) > 0 {
-		checksum, _ := rows[0][1].(string)
-		return checksum, nil
+		return rows[0][1].(string), nil
 	}
 	return "", nil
 }

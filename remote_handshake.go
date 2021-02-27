@@ -1,6 +1,9 @@
 package binlog
 
-import "crypto/sha1"
+import (
+	"crypto/sha1"
+	"fmt"
+)
 
 // Capability Flags: https://dev.mysql.com/doc/internals/en/capability-flags.html#packet-Protocol::CapabilityFlags
 const (
@@ -158,20 +161,70 @@ func (e handshakeResponse41) encode(w *writer) error {
 	return w.err
 }
 
-// https://dev.mysql.com/doc/internals/en/secure-password-authentication.html
-// SHA1( password ) XOR SHA1( "20-bytes random data from server" <concat> SHA1( SHA1( password ) ) )
-func encryptedPasswd(password, scramble []byte) []byte {
-	hash := sha1.New()
-	sha1 := func(b []byte) []byte {
-		hash.Reset()
-		hash.Write(b)
-		return hash.Sum(nil)
-	}
+func encryptedPasswd(plugin string, password, scramble []byte) ([]byte, error) {
+	switch plugin {
+	case "mysql_native_password":
+		// https://dev.mysql.com/doc/internals/en/secure-password-authentication.html
+		// SHA1( password ) XOR SHA1( "20-bytes random data from server" <concat> SHA1( SHA1( password ) ) )
+		if len(password) == 0 {
+			return nil, nil
+		}
+		hash := sha1.New()
+		sha1 := func(b []byte) []byte {
+			hash.Reset()
+			hash.Write(b)
+			return hash.Sum(nil)
+		}
 
-	x := sha1(password)
-	y := sha1(append(scramble[:20], sha1(sha1(password))...))
-	for i, b := range y {
-		x[i] ^= b
+		x := sha1(password)
+		y := sha1(append(scramble[:20], sha1(sha1(password))...))
+		for i, b := range y {
+			x[i] ^= b
+		}
+		return x, nil
 	}
-	return x
+	return nil, fmt.Errorf("unsupported auth plugin '%s'", plugin)
+}
+
+type authMoreData struct {
+	authPluginData []byte
+}
+
+func (e *authMoreData) decode(r *reader) error {
+	header := r.int1()
+	if r.err != nil {
+		return r.err
+	}
+	if header != 0x01 {
+		return fmt.Errorf("authMoreData.decode: got header %0xd", header)
+	}
+	e.authPluginData = r.bytesEOF()
+	return r.err
+}
+
+type authSwitchRequest struct {
+	pluginName     string
+	authPluginData []byte
+}
+
+func (e *authSwitchRequest) decode(r *reader) error {
+	header := r.int1()
+	if r.err != nil {
+		return r.err
+	}
+	if header != 0xFE {
+		return fmt.Errorf("authSwitch.decode: got header %0xd", header)
+	}
+	e.pluginName = r.stringNull()
+	e.authPluginData = r.bytesEOF()
+	return r.err
+}
+
+type authSwitchResponse struct {
+	authResponse []byte
+}
+
+func (e authSwitchResponse) encode(w *writer) error {
+	w.Write(e.authResponse)
+	return w.err
 }
