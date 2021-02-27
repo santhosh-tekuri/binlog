@@ -182,6 +182,9 @@ func encryptedPasswd(plugin string, password, scramble []byte) ([]byte, error) {
 			x[i] ^= b
 		}
 		return x, nil
+	case "mysql_clear_password":
+		// https://dev.mysql.com/doc/internals/en/clear-text-authentication.html
+		return append([]byte(password), 0), nil
 	}
 	return nil, fmt.Errorf("unsupported auth plugin '%s'", plugin)
 }

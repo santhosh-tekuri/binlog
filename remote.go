@@ -82,7 +82,7 @@ func (bl *Remote) UpgradeSSL(rootCAs *x509.CertPool) error {
 func (bl *Remote) Authenticate(username, password string) error {
 	var plugin string
 	switch bl.hs.authPluginName {
-	case "mysql_native_password": // supported
+	case "mysql_native_password", "mysql_clear_password": // supported
 		plugin = bl.hs.authPluginName
 	case "": // unspecified
 		plugin = "mysql_native_password"
