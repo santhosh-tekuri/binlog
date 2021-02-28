@@ -64,8 +64,6 @@ func nextEvent(r *reader, rotateChecksum int) (Event, error) {
 		return Event{h, xidEvent{}}, nil
 	case GTID_EVENT:
 		return Event{h, gtidEvent{}}, nil
-	case UNKNOWN_EVENT:
-		return Event{h, unknownEvent{}}, nil
 	case INTVAR_EVENT:
 		ive := IntVarEvent{}
 		err := ive.decode(r)
@@ -109,6 +107,6 @@ func nextEvent(r *reader, rotateChecksum int) (Event, error) {
 		err := rqe.decode(r)
 		return Event{h, rqe}, err
 	default:
-		return Event{h, unknownEvent{}}, nil
+		return Event{h, UnknownEvent{}}, nil
 	}
 }

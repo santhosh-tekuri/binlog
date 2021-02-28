@@ -333,11 +333,15 @@ func (e *UserVarEvent) decode(r *reader) error {
 // https://dev.mysql.com/doc/internals/en/heartbeat-event.html
 type HeartbeatEvent struct{}
 
+// UnknownEvent should never occur. It is never written to a binary log.
+// If an event is read from a binary log that cannot be recognized as
+// something else, it is treated as UNKNOWN_EVENT.
+type UnknownEvent struct{}
+
 type previousGTIDsEvent struct{}
 type anonymousGTIDEvent struct{}
 type xidEvent struct{}
 type gtidEvent struct{}
-type unknownEvent struct{}
 type loadEvent struct{}
 type slaveEvent struct{}
 type createFileEvent struct{}
