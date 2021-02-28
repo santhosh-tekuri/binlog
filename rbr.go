@@ -20,6 +20,15 @@ type Column struct {
 // TableMapEvent is first event used in Row Based Replication declares
 // how a table that is about to be changed is defined.
 //
+// Used for row-based binary logging. This event precedes each row operation event.
+// It maps a table definition to a number, where the table definition consists of
+// database and table names and column definitions. The purpose of this event is
+// to enable replication when a table has different definitions on the master and slave.
+//
+// Row operation events that belong to the same transaction may be grouped into sequences,
+// in which case each such sequence of events begins with a sequence of TABLE_MAP_EVENT events:
+// one per table used by events in the sequence.
+//
 // see https://dev.mysql.com/doc/internals/en/table-map-event.html
 type TableMapEvent struct {
 	tableID    uint64
