@@ -295,10 +295,10 @@ func insertValue(t *testing.T, sqlType, value string) {
 	}
 	defer db.Close()
 	if _, err := db.Exec(`drop table if exists binlog_table`); err != nil {
-		t.Fatal(err)
+		t.Fatalf("drop binglog_table failed: %v", err)
 	}
 	if _, err := db.Exec(fmt.Sprintf(`create table binlog_table(value %s)`, sqlType)); err != nil {
-		t.Fatal(err)
+		t.Fatalf("create table with type %s failed: %v", sqlType, err)
 	}
 	r, err := db.Exec(fmt.Sprintf(`insert into binlog_table values(%s)`, value))
 	if err != nil {
