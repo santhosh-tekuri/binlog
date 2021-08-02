@@ -70,8 +70,7 @@ func (bl *Remote) IsSSLSupported() bool {
 // it will use InsecureSkipVerify true value. This should be done
 // before Authenticate call
 func (bl *Remote) UpgradeSSL(rootCAs *x509.CertPool) error {
-	w := newWriter(bl.conn, &bl.seq)
-	err := w.encodeClose(sslRequest{
+	err := bl.write(sslRequest{
 		capabilityFlags: capLongFlag | capSecureConnection,
 		maxPacketSize:   maxPacketSize,
 		characterSet:    bl.hs.characterSet,
@@ -106,8 +105,7 @@ func (bl *Remote) Authenticate(username, password string) error {
 		return err
 	}
 
-	w := newWriter(bl.conn, &bl.seq)
-	err = w.encodeClose(handshakeResponse41{
+	err = bl.write(handshakeResponse41{
 		capabilityFlags: capLongFlag | capSecureConnection,
 		maxPacketSize:   maxPacketSize,
 		characterSet:    bl.hs.characterSet,
@@ -160,13 +158,9 @@ AuthSuccess:
 					case 4: // performFullAuthentication
 						switch bl.conn.(type) {
 						case *tls.Conn, *net.UnixConn:
-							w = newWriter(bl.conn, &bl.seq)
-							if err := w.encodeClose(authSwitchResponse{append([]byte(password), 0)}); err != nil {
-								return err
-							}
+							authResponse = append([]byte(password), 0)
 						default:
-							w = newWriter(bl.conn, &bl.seq)
-							if err := w.encodeClose(requestPublicKey{}); err != nil {
+							if err := bl.write(requestPublicKey{}); err != nil {
 								return err
 							}
 							r := newReader(bl.conn, &bl.seq)
@@ -183,14 +177,13 @@ AuthSuccess:
 								return err
 							}
 							pubKey := pkix.(*rsa.PublicKey)
-							authResponse, err := encryptPasswordPubKey([]byte(password), authPluginData, pubKey)
+							authResponse, err = encryptPasswordPubKey([]byte(password), authPluginData, pubKey)
 							if err != nil {
 								return err
 							}
-							w = newWriter(bl.conn, &bl.seq)
-							if err := w.encodeClose(authSwitchResponse{authResponse}); err != nil {
-								return err
-							}
+						}
+						if err := bl.write(authSwitchResponse{authResponse}); err != nil {
+							return err
 						}
 						if err := bl.readOkErr(); err != nil {
 							return err
@@ -220,8 +213,7 @@ AuthSuccess:
 			if err != nil {
 				return err
 			}
-			w = newWriter(bl.conn, &bl.seq)
-			if err := w.encodeClose(authSwitchResponse{authResponse}); err != nil {
+			if err := bl.write(authSwitchResponse{authResponse}); err != nil {
 				return err
 			}
 		default:
@@ -313,8 +305,7 @@ func (bl *Remote) Seek(serverID uint32, fileName string, position uint32) error 
 		bl.checksum = 0
 	}
 	bl.seq = 0
-	w := newWriter(bl.conn, &bl.seq)
-	err = w.encodeClose(comBinlogDump{
+	err = bl.write(comBinlogDump{
 		binlogPos:      position,
 		flags:          0,
 		serverID:       serverID,
@@ -401,6 +392,14 @@ func (bl *Remote) NextRow() (values []interface{}, valuesBeforeUpdate []interfac
 // Close closes connection.
 func (bl *Remote) Close() error {
 	return bl.conn.Close()
+}
+
+func (bl *Remote) write(event interface{ encode(w *writer) error }) error {
+	w := newWriter(bl.conn, &bl.seq)
+	if err := event.encode(w); err != nil {
+		return err
+	}
+	return w.Close()
 }
 
 // comBinlogDump ---

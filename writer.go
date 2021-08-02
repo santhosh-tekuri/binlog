@@ -153,10 +153,3 @@ func (w *writer) query(q string) error {
 	w.string(q)
 	return w.Close()
 }
-
-func (w *writer) encodeClose(event interface{ encode(w *writer) error }) error {
-	if err := event.encode(w); err != nil {
-		return err
-	}
-	return w.Close()
-}
