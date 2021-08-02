@@ -19,13 +19,9 @@ var mysql = flag.String("mysql", "", "mysql server used for testing")
 var network, address, user, passwd string
 var db = "binlog"
 var ssl bool
+var driverURL string
 
-func TestColumn_decodeValue(t *testing.T) {
-	if *mysql == "" {
-		t.Skip(`SKIPPED: pass -mysql flag to run this test
-example: go test -mysql tcp:localhost:3306,ssl,user=root,password=password,db=binlog
-`)
-	}
+func parseMySQLURL() {
 	colon := strings.IndexByte(*mysql, ':')
 	network, address = (*mysql)[:colon], (*mysql)[colon+1:]
 	tok := strings.Split(address, ",")
@@ -42,6 +38,26 @@ example: go test -mysql tcp:localhost:3306,ssl,user=root,password=password,db=bi
 			passwd = strings.TrimPrefix(t, "db=")
 		}
 	}
+	driverURL = fmt.Sprintf("%s:%s@%s(%s)/%s?tls=%v", user, passwd, network, address, db, ssl)
+}
+
+func TestColumn_decodeValue(t *testing.T) {
+	if *mysql == "" {
+		t.Skip(`SKIPPED: pass -mysql flag to run this test
+example: go test -mysql tcp:localhost:3306,ssl,user=root,password=password,db=binlog
+`)
+	}
+	parseMySQLURL()
+
+	// ensure mysql server reachable
+	db, err := sql.Open("mysql", driverURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Ping(); err != nil {
+		t.Fatal(err)
+	}
+	_ = db.Close()
 
 	toLocal := func(s string) string {
 		t.Helper()
@@ -273,8 +289,7 @@ func testInsert(t *testing.T, sqlType, value string) interface{} {
 
 func insertValue(t *testing.T, sqlType, value string) {
 	t.Helper()
-	url := fmt.Sprintf("%s:%s@%s(%s)/%s?tls=%v", user, passwd, network, address, db, ssl)
-	db, err := sql.Open("mysql", url)
+	db, err := sql.Open("mysql", driverURL)
 	if err != nil {
 		t.Fatal(err)
 	}
