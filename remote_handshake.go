@@ -2,6 +2,7 @@ package binlog
 
 import (
 	"crypto/sha1"
+	"crypto/sha256"
 	"fmt"
 )
 
@@ -162,6 +163,23 @@ func (e handshakeResponse41) encode(w *writer) error {
 
 func encryptedPasswd(plugin string, password, scramble []byte) ([]byte, error) {
 	switch plugin {
+	case "caching_sha2_password":
+		if len(password) == 0 {
+			return nil, nil
+		}
+		// XOR(SHA256(password), SHA256(SHA256(SHA256(password)), scramble))
+		hash := sha256.New()
+		sha256 := func(b []byte) []byte {
+			hash.Reset()
+			hash.Write(b)
+			return hash.Sum(nil)
+		}
+		x := sha256(password)
+		y := sha256(append(sha256(sha256(x)), scramble...))
+		for i, b := range y {
+			x[i] ^= b
+		}
+		return x, nil
 	case "mysql_native_password":
 		// https://dev.mysql.com/doc/internals/en/secure-password-authentication.html
 		// SHA1( password ) XOR SHA1( "20-bytes random data from server" <concat> SHA1( SHA1( password ) ) )

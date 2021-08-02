@@ -91,7 +91,7 @@ func (bl *Remote) UpgradeSSL(rootCAs *x509.CertPool) error {
 func (bl *Remote) Authenticate(username, password string) error {
 	var plugin string
 	switch bl.hs.authPluginName {
-	case "mysql_native_password", "mysql_clear_password": // supported
+	case "mysql_native_password", "mysql_clear_password", "caching_sha2_password": // supported
 		plugin = bl.hs.authPluginName
 	case "": // unspecified
 		plugin = "mysql_native_password"
@@ -118,6 +118,7 @@ func (bl *Remote) Authenticate(username, password string) error {
 		return err
 	}
 	var numAuthSwitches = 0
+AuthSuccess:
 	for {
 		r := newReader(bl.conn, &bl.seq)
 		marker, err := r.peek()
@@ -129,13 +130,7 @@ func (bl *Remote) Authenticate(username, password string) error {
 			if err := r.drain(); err != nil {
 				return err
 			}
-			// query serverVersion. seems azure reports wrong serverVersion in handshake
-			rows, err := bl.queryRows(`select version()`)
-			if err != nil {
-				return err
-			}
-			bl.hs.serverVersion = rows[0][0].(string)
-			return nil
+			break AuthSuccess
 		case errMarker:
 			ep := errPacket{}
 			if err := ep.decode(r, bl.hs.capabilityFlags); err != nil {
@@ -143,10 +138,53 @@ func (bl *Remote) Authenticate(username, password string) error {
 			}
 			return errors.New(ep.errorMessage)
 		case 0x01:
-			return errors.New("authMoreData not supported")
+			amd := authMoreData{}
+			if err := amd.decode(r); err != nil {
+				return err
+			}
+			switch plugin {
+			case "caching_sha2_password":
+				switch len(amd.authPluginData) {
+				case 0:
+					break AuthSuccess
+				case 1:
+					switch amd.authPluginData[0] {
+					case 3: // fastAuthSuccess
+						r := newReader(bl.conn, &bl.seq)
+						ok := okPacket{}
+						if err := ok.decode(r, bl.hs.capabilityFlags); err != nil {
+							return err
+						}
+						break AuthSuccess
+					case 4: // performFullAuthentication
+						switch bl.conn.(type) {
+						case *tls.Conn, *net.UnixConn:
+							w = newWriter(bl.conn, &bl.seq)
+							if err := w.encodeClose(authSwitchResponse{append([]byte(password), 0)}); err != nil {
+								return err
+							}
+						default:
+							// https://dev.mysql.com/doc/internals/en/public-key-retrieval.html
+							return errors.New("caching_sha2_password on non-tls is not yet supported")
+						}
+						r := newReader(bl.conn, &bl.seq)
+						ok := okPacket{}
+						if err := ok.decode(r, bl.hs.capabilityFlags); err != nil {
+							return err
+						}
+						break AuthSuccess
+					}
+				default:
+					return ErrMalformedPacket
+				}
+			case "sha256_password":
+				return errors.New("unsupported auth plugin \"sha256_password\"")
+			default:
+				break AuthSuccess
+			}
 		case 0xFE:
 			if numAuthSwitches != 0 {
-				return fmt.Errorf("AuthSwitch more than once")
+				return errors.New("AuthSwitch more than once")
 			}
 			numAuthSwitches++
 			asr := authSwitchRequest{}
@@ -166,6 +204,15 @@ func (bl *Remote) Authenticate(username, password string) error {
 			return ErrMalformedPacket
 		}
 	}
+	// authentication succeeded
+
+	// query serverVersion. seems azure reports wrong serverVersion in handshake
+	rows, err := bl.queryRows(`select version()`)
+	if err != nil {
+		return err
+	}
+	bl.hs.serverVersion = rows[0][0].(string)
+	return nil
 }
 
 // ListFiles lists the binary log files on the server,
