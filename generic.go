@@ -1,6 +1,9 @@
 package binlog
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 // Status Flags: https://dev.mysql.com/doc/internals/en/status-flags.html
 const (
@@ -108,4 +111,24 @@ func (p *okPacket) decode(r *reader, capabilities uint32) error {
 		p.info = r.stringEOF()
 	}
 	return r.err
+}
+
+func (bl *Remote) readOkErr() error {
+	r := newReader(bl.conn, &bl.seq)
+	marker, err := r.peek()
+	if err != nil {
+		return err
+	}
+	switch marker {
+	case okMarker:
+		return r.drain()
+	case errMarker:
+		ep := errPacket{}
+		if err := ep.decode(r, bl.hs.capabilityFlags); err != nil {
+			return err
+		}
+		return errors.New(ep.errorMessage)
+	default:
+		return ErrMalformedPacket
+	}
 }

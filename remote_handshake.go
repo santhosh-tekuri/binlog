@@ -1,6 +1,8 @@
 package binlog
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha1"
 	"crypto/sha256"
 	"fmt"
@@ -161,7 +163,7 @@ func (e handshakeResponse41) encode(w *writer) error {
 	return w.err
 }
 
-func encryptedPasswd(plugin string, password, scramble []byte) ([]byte, error) {
+func encryptPassword(plugin string, password, scramble []byte) ([]byte, error) {
 	switch plugin {
 	case "caching_sha2_password":
 		if len(password) == 0 {
@@ -206,6 +208,16 @@ func encryptedPasswd(plugin string, password, scramble []byte) ([]byte, error) {
 	return nil, fmt.Errorf("unsupported auth plugin %q", plugin)
 }
 
+func encryptPasswordPubKey(password, seed []byte, pub *rsa.PublicKey) ([]byte, error) {
+	plain := make([]byte, len(password)+1)
+	copy(plain, password)
+	for i := range plain {
+		j := i % len(seed)
+		plain[i] ^= seed[j]
+	}
+	return rsa.EncryptOAEP(sha1.New(), rand.Reader, pub, plain, nil)
+}
+
 type authMoreData struct {
 	authPluginData []byte
 }
@@ -247,4 +259,10 @@ type authSwitchResponse struct {
 func (e authSwitchResponse) encode(w *writer) error {
 	w.Write(e.authResponse)
 	return w.err
+}
+
+type requestPublicKey struct{}
+
+func (e requestPublicKey) encode(w *writer) error {
+	return w.int1(2)
 }

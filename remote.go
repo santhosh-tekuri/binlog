@@ -1,8 +1,10 @@
 package binlog
 
 import (
+	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"hash/crc32"
@@ -98,7 +100,8 @@ func (bl *Remote) Authenticate(username, password string) error {
 	default:
 		return fmt.Errorf("unsupported auth plugin %q", bl.hs.authPluginName)
 	}
-	authResponse, err := encryptedPasswd(plugin, []byte(password), bl.hs.authPluginData)
+	authPluginData := bl.hs.authPluginData
+	authResponse, err := encryptPassword(plugin, []byte(password), authPluginData)
 	if err != nil {
 		return err
 	}
@@ -150,9 +153,7 @@ AuthSuccess:
 				case 1:
 					switch amd.authPluginData[0] {
 					case 3: // fastAuthSuccess
-						r := newReader(bl.conn, &bl.seq)
-						ok := okPacket{}
-						if err := ok.decode(r, bl.hs.capabilityFlags); err != nil {
+						if err := bl.readOkErr(); err != nil {
 							return err
 						}
 						break AuthSuccess
@@ -164,12 +165,34 @@ AuthSuccess:
 								return err
 							}
 						default:
-							// https://dev.mysql.com/doc/internals/en/public-key-retrieval.html
-							return errors.New("caching_sha2_password on non-tls is not yet supported")
+							w = newWriter(bl.conn, &bl.seq)
+							if err := w.encodeClose(requestPublicKey{}); err != nil {
+								return err
+							}
+							r := newReader(bl.conn, &bl.seq)
+							amd2 := authMoreData{}
+							if err := amd2.decode(r); err != nil {
+								return err
+							}
+							block, _ := pem.Decode(amd2.authPluginData)
+							if block == nil {
+								return errors.New("no PEM data is found in server response")
+							}
+							pkix, err := x509.ParsePKIXPublicKey(block.Bytes)
+							if err != nil {
+								return err
+							}
+							pubKey := pkix.(*rsa.PublicKey)
+							authResponse, err := encryptPasswordPubKey([]byte(password), authPluginData, pubKey)
+							if err != nil {
+								return err
+							}
+							w = newWriter(bl.conn, &bl.seq)
+							if err := w.encodeClose(authSwitchResponse{authResponse}); err != nil {
+								return err
+							}
 						}
-						r := newReader(bl.conn, &bl.seq)
-						ok := okPacket{}
-						if err := ok.decode(r, bl.hs.capabilityFlags); err != nil {
+						if err := bl.readOkErr(); err != nil {
 							return err
 						}
 						break AuthSuccess
@@ -192,7 +215,8 @@ AuthSuccess:
 				return err
 			}
 			plugin = asr.pluginName
-			authResponse, err = encryptedPasswd(plugin, []byte(password), asr.authPluginData)
+			authPluginData = asr.authPluginData
+			authResponse, err = encryptPassword(plugin, []byte(password), asr.authPluginData)
 			if err != nil {
 				return err
 			}
