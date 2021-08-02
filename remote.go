@@ -96,7 +96,7 @@ func (bl *Remote) Authenticate(username, password string) error {
 	case "": // unspecified
 		plugin = "mysql_native_password"
 	default:
-		return fmt.Errorf("unsupported auth plugin '%s'", plugin)
+		return fmt.Errorf("unsupported auth plugin %q", bl.hs.authPluginName)
 	}
 	authResponse, err := encryptedPasswd(plugin, []byte(password), bl.hs.authPluginData)
 	if err != nil {

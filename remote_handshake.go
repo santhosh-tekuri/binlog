@@ -185,7 +185,7 @@ func encryptedPasswd(plugin string, password, scramble []byte) ([]byte, error) {
 		// https://dev.mysql.com/doc/internals/en/clear-text-authentication.html
 		return append([]byte(password), 0), nil
 	}
-	return nil, fmt.Errorf("unsupported auth plugin '%s'", plugin)
+	return nil, fmt.Errorf("unsupported auth plugin %q", plugin)
 }
 
 type authMoreData struct {
