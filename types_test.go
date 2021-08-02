@@ -22,7 +22,9 @@ var ssl bool
 
 func TestColumn_decodeValue(t *testing.T) {
 	if *mysql == "" {
-		t.Skip()
+		t.Skip(`SKIPPED: pass -mysql flag to run this test
+example: go test -mysql tcp:localhost:3306,ssl,user=root,password=password,db=binlog
+`)
 	}
 	colon := strings.IndexByte(*mysql, ':')
 	network, address = (*mysql)[:colon], (*mysql)[colon+1:]
