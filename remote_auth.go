@@ -112,6 +112,9 @@ AuthSuccess:
 					return ErrMalformedPacket
 				}
 			case "sha256_password":
+				if len(amd.authPluginData) == 0 {
+					break AuthSuccess
+				}
 				if bl.pubKey, err = decodePEM(amd.authPluginData); err != nil {
 					return err
 				}
