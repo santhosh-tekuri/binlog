@@ -85,7 +85,7 @@ func (bl *Remote) UpgradeSSL(rootCAs *x509.CertPool) error {
 		tlsConf.InsecureSkipVerify = true
 	}
 	bl.conn = tls.Client(bl.conn, tlsConf)
-	return nil
+	return bl.conn.(*tls.Conn).Handshake()
 }
 
 // ListFiles lists the binary log files on the server,
