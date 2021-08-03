@@ -1,16 +1,17 @@
 package binlog
 
 import (
+	"flag"
+	"fmt"
+	"os"
+	"strings"
 	"testing"
 )
 
 func TestRemote_Authenticate(t *testing.T) {
 	if *mysql == "" {
-		t.Skip(`SKIPPED: pass -mysql flag to run this test
-example: go test -mysql tcp:localhost:3306,ssl,user=root,password=password,db=binlog
-`)
+		t.Skip(skipReason)
 	}
-	parseMySQLURL()
 	testAuth(t)
 }
 
@@ -31,4 +32,43 @@ func testAuth(t *testing.T) {
 	if _, err = r.queryRows("show databases"); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// test flags ---
+
+var (
+	mysql            = flag.String("mysql", "", "mysql server used for testing")
+	network, address string
+	user, passwd     string
+	db               = "binlog"
+	ssl              bool
+	driverURL        string
+
+	skipReason = `SKIPPED: pass -mysql flag to run this test
+example: go test -mysql tcp:localhost:3306,ssl,user=root,password=password,db=binlog
+`
+)
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+	if *mysql != "" {
+		colon := strings.IndexByte(*mysql, ':')
+		network, address = (*mysql)[:colon], (*mysql)[colon+1:]
+		tok := strings.Split(address, ",")
+		address = tok[0]
+		for _, t := range tok[1:] {
+			switch {
+			case t == "ssl":
+				ssl = true
+			case strings.HasPrefix(t, "user="):
+				user = strings.TrimPrefix(t, "user=")
+			case strings.HasPrefix(t, "password="):
+				passwd = strings.TrimPrefix(t, "password=")
+			case strings.HasPrefix(t, "db="):
+				passwd = strings.TrimPrefix(t, "db=")
+			}
+		}
+		driverURL = fmt.Sprintf("%s:%s@%s(%s)/%s?tls=%v", user, passwd, network, address, db, ssl)
+	}
+	os.Exit(m.Run())
 }

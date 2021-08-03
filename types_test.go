@@ -4,50 +4,19 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"reflect"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
-var mysql = flag.String("mysql", "", "mysql server used for testing")
-var network, address, user, passwd string
-var db = "binlog"
-var ssl bool
-var driverURL string
-
-func parseMySQLURL() {
-	colon := strings.IndexByte(*mysql, ':')
-	network, address = (*mysql)[:colon], (*mysql)[colon+1:]
-	tok := strings.Split(address, ",")
-	address = tok[0]
-	for _, t := range tok[1:] {
-		switch {
-		case t == "ssl":
-			ssl = true
-		case strings.HasPrefix(t, "user="):
-			user = strings.TrimPrefix(t, "user=")
-		case strings.HasPrefix(t, "password="):
-			passwd = strings.TrimPrefix(t, "password=")
-		case strings.HasPrefix(t, "db="):
-			passwd = strings.TrimPrefix(t, "db=")
-		}
-	}
-	driverURL = fmt.Sprintf("%s:%s@%s(%s)/%s?tls=%v", user, passwd, network, address, db, ssl)
-}
-
 func TestColumn_decodeValue(t *testing.T) {
 	if *mysql == "" {
-		t.Skip(`SKIPPED: pass -mysql flag to run this test
-example: go test -mysql tcp:localhost:3306,ssl,user=root,password=password,db=binlog
-`)
+		t.Skip(skipReason)
 	}
-	parseMySQLURL()
 
 	// ensure mysql server reachable
 	db, err := sql.Open("mysql", driverURL)
