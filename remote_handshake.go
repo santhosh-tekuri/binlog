@@ -92,7 +92,7 @@ type sslRequest struct {
 }
 
 func (e sslRequest) encode(w *writer) error {
-	w.int4(e.capabilityFlags | capProtocol41 | capSSL)
+	w.int4(e.capabilityFlags | capProtocol41 | capSSL | capPluginAuth)
 	w.int4(e.maxPacketSize)
 	w.int1(e.characterSet)
 	w.Write(make([]byte, 23))
