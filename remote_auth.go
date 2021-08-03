@@ -17,15 +17,15 @@ import (
 func (bl *Remote) Authenticate(username, password string) error {
 	var plugin string
 	switch bl.hs.authPluginName {
-	case "mysql_native_password", "mysql_clear_password", "caching_sha2_password": // supported
+	case "mysql_native_password", "mysql_clear_password", "sha256_password", "caching_sha2_password": // supported
 		plugin = bl.hs.authPluginName
 	case "": // unspecified
-		plugin = "mysql_native_password"
+		plugin = "mysql_native_password" // todo: make it configurable
 	default:
 		return fmt.Errorf("unsupported auth plugin %q", bl.hs.authPluginName)
 	}
 	authPluginData := bl.hs.authPluginData
-	authResponse, err := encryptPassword(plugin, []byte(password), authPluginData)
+	authResponse, err := bl.encryptPassword(plugin, []byte(password), authPluginData)
 	if err != nil {
 		return err
 	}
@@ -93,17 +93,10 @@ AuthSuccess:
 							if err := amd2.decode(r); err != nil {
 								return err
 							}
-							block, _ := pem.Decode(amd2.authPluginData)
-							if block == nil {
-								return errors.New("no PEM data is found in server response")
-							}
-							pkix, err := x509.ParsePKIXPublicKey(block.Bytes)
-							if err != nil {
+							if bl.pubKey, err = decodePEM(amd2.authPluginData); err != nil {
 								return err
 							}
-							pubKey := pkix.(*rsa.PublicKey)
-							authResponse, err = encryptPasswordPubKey([]byte(password), authPluginData, pubKey)
-							if err != nil {
+							if authResponse, err = encryptPasswordPubKey([]byte(password), authPluginData, bl.pubKey); err != nil {
 								return err
 							}
 						}
@@ -119,7 +112,19 @@ AuthSuccess:
 					return ErrMalformedPacket
 				}
 			case "sha256_password":
-				return errors.New("unsupported auth plugin \"sha256_password\"")
+				if bl.pubKey, err = decodePEM(amd.authPluginData); err != nil {
+					return err
+				}
+				if authResponse, err = encryptPasswordPubKey([]byte(password), authPluginData, bl.pubKey); err != nil {
+					return err
+				}
+				if err := bl.write(authSwitchResponse{authResponse}); err != nil {
+					return err
+				}
+				if err := bl.readOkErr(); err != nil {
+					return err
+				}
+				break AuthSuccess
 			default:
 				break AuthSuccess
 			}
@@ -134,7 +139,7 @@ AuthSuccess:
 			}
 			plugin = asr.pluginName
 			authPluginData = asr.authPluginData
-			authResponse, err = encryptPassword(plugin, []byte(password), asr.authPluginData)
+			authResponse, err = bl.encryptPassword(plugin, []byte(password), asr.authPluginData)
 			if err != nil {
 				return err
 			}
@@ -158,8 +163,22 @@ AuthSuccess:
 
 // encrypting password ---
 
-func encryptPassword(plugin string, password, scramble []byte) ([]byte, error) {
+func (bl *Remote) encryptPassword(plugin string, password, scramble []byte) ([]byte, error) {
 	switch plugin {
+	case "sha256_password":
+		if len(password) == 0 {
+			return []byte{0}, nil
+		}
+		switch bl.conn.(type) {
+		case *tls.Conn, *net.UnixConn:
+			return append(password, 0), nil
+		default:
+			if bl.pubKey == nil {
+				// request public key from server
+				return []byte{1}, nil
+			}
+			return encryptPasswordPubKey(password, scramble, bl.pubKey)
+		}
 	case "caching_sha2_password":
 		if len(password) == 0 {
 			return nil, nil
@@ -201,6 +220,18 @@ func encryptPassword(plugin string, password, scramble []byte) ([]byte, error) {
 		return append([]byte(password), 0), nil
 	}
 	return nil, fmt.Errorf("unsupported auth plugin %q", plugin)
+}
+
+func decodePEM(pemData []byte) (*rsa.PublicKey, error) {
+	block, _ := pem.Decode(pemData)
+	if block == nil {
+		return nil, errors.New("no PEM data is found in server response")
+	}
+	pkix, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+	return pkix.(*rsa.PublicKey), nil
 }
 
 func encryptPasswordPubKey(password, seed []byte, pub *rsa.PublicKey) ([]byte, error) {

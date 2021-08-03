@@ -1,6 +1,7 @@
 package binlog
 
 import (
+	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
@@ -19,9 +20,10 @@ type null struct{}
 
 // Remote represents connection to MySQL server.
 type Remote struct {
-	conn net.Conn
-	seq  uint8
-	hs   handshake
+	conn   net.Conn
+	seq    uint8
+	hs     handshake
+	pubKey *rsa.PublicKey
 
 	// binlog related
 	requestFile  string
