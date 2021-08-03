@@ -173,7 +173,8 @@ func (bl *Remote) encryptPassword(plugin string, password, scramble []byte) ([]b
 			return []byte{0}, nil
 		}
 		switch bl.conn.(type) {
-		case *tls.Conn, *net.UnixConn:
+		case *tls.Conn:
+			// note: seems like sha256_password treats unix conn as insecure (mysql 8.0.26)
 			return append(password, 0), nil
 		default:
 			if bl.pubKey == nil {
