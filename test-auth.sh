@@ -92,11 +92,11 @@ for defplugin in ${plugins[@]}; do
     restart
     for plugin in ${plugins[@]}; do
         echo +++ testing ${plugin} with default=$defplugin transport=tunix
-        go test -mysql unix:$sock,user=${plugin}_user,password=${plugin}_secret -run TestRemote_Authenticate
+        go test -v -mysql unix:$sock,user=${plugin}_user,password=${plugin}_secret -run TestRemote_Authenticate
         echo +++ testing ${plugin} with default=$defplugin transport=tcp
-        go test -mysql tcp:$host:$port,user=${plugin}_user,password=${plugin}_secret -run TestRemote_Authenticate
+        go test -v -mysql tcp:$host:$port,user=${plugin}_user,password=${plugin}_secret -run TestRemote_Authenticate
         echo +++ testing ${plugin} with default=$defplugin transport=ssl
-        go test -mysql tcp:$host:$port,user=${plugin}_user,password=${plugin}_secret,ssl -run TestRemote_Authenticate
+        go test -v -mysql tcp:$host:$port,user=${plugin}_user,password=${plugin}_secret,ssl -run TestRemote_Authenticate
     done
 done
 
