@@ -127,3 +127,13 @@ pwgen() {
 
 create_users
 run_tests
+
+echo '+++ testing with long password (greater than 20 chars)'
+
+pwgen() {
+    plugin=$1
+    echo -n ${plugin}_really_very_long_password
+}
+
+create_users
+run_tests
