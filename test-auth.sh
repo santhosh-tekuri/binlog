@@ -19,6 +19,7 @@ creds=$tmp/creds.cnf
 cat > $creds << EOF
 [mysql]
 host = $host
+port = $port
 user = $user
 password = $password
 EOF
