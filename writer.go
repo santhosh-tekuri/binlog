@@ -1,7 +1,9 @@
 package binlog
 
 import (
+	"fmt"
 	"io"
+	"math"
 )
 
 type writer struct {
@@ -132,6 +134,9 @@ func (w *writer) stringN(v string) error {
 }
 
 func (w *writer) bytes1(v []byte) error {
+	if len(v) > math.MaxUint8 {
+		return fmt.Errorf("binlog: length of [%d]byte cannot be encoded in 1 byte", len(v))
+	}
 	if err := w.int1(uint8(len(v))); err != nil {
 		return err
 	}
