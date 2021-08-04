@@ -28,9 +28,15 @@ EOF
 on_exit(){
     exit_code=$?
 
-    cleanup
+    echo +++ deleting users before exit
+    if running; then
+        for plugin in ${plugins[@]}; do
+            execute "DROP USER IF EXISTS '${plugin}_user'@'%'"
+        done
+    fi
 	cp $mycnf_backup $mycnf
 	rm -rf $tmp
+    cleanup
 
     if [ $exit_code -eq 0 ]; then
         echo 'script succeeded' >&2
