@@ -17,7 +17,8 @@ cp $mycnf $mycnf_backup
 
 creds=$tmp/creds.cnf
 cat > $creds << EOF
-[mysql]
+[client]
+protocol = tcp
 host = $host
 port = $port
 user = $user
