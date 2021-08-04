@@ -80,8 +80,8 @@ execute() {
 create_users() {
     for plugin in ${plugins[@]}; do
         pass=$(pwgen $plugin)
-        execute "DROP USER IF EXISTS '${plugin}_user'@'$host'"
-        execute "CREATE USER '${plugin}_user'@'$host' IDENTIFIED WITH ${plugin}_password BY '$pass'"
+        execute "DROP USER IF EXISTS '${plugin}_user'@'%'"
+        execute "CREATE USER '${plugin}_user'@'%' IDENTIFIED WITH ${plugin}_password BY '$pass'"
     done
 }
 
