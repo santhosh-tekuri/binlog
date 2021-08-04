@@ -92,8 +92,12 @@ run_tests() {
         restart
         for plugin in ${plugins[@]}; do
             pass=$(pwgen $plugin)
-            echo +++ testing ${plugin} with default=$defplugin transport=unix
-            go test -v -mysql unix:$sock,user=${plugin}_user,password=$pass -run TestRemote_Authenticate
+            if [ -z "$sock" ]; then
+                echo +++ skipped unix transport
+            else
+                echo +++ testing ${plugin} with default=$defplugin transport=unix
+                go test -v -mysql unix:$sock,user=${plugin}_user,password=$pass -run TestRemote_Authenticate
+            fi
             echo +++ testing ${plugin} with default=$defplugin transport=tcp
             go test -v -mysql tcp:$host:$port,user=${plugin}_user,password=$pass -run TestRemote_Authenticate
             echo +++ testing ${plugin} with default=$defplugin transport=ssl
