@@ -2,7 +2,7 @@
 
 mycnf=/opt/homebrew/etc/my.cnf
 sock=/tmp/mysql.sock
-host=127.0.0.1
+host=localhost
 port=3306
 user=root
 password=password
