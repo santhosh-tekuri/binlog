@@ -15,6 +15,7 @@ import (
 
 // Authenticate sends the credentials to MySQL.
 func (bl *Remote) Authenticate(username, password string) error {
+	bl.authFlow = nil
 	var plugin string
 	switch bl.hs.authPluginName {
 	case "mysql_native_password", "mysql_clear_password", "sha256_password", "caching_sha2_password": // supported
@@ -24,6 +25,7 @@ func (bl *Remote) Authenticate(username, password string) error {
 	default:
 		return fmt.Errorf("unsupported auth plugin %q", bl.hs.authPluginName)
 	}
+	bl.authFlow = append(bl.authFlow, plugin)
 	authPluginData := bl.hs.authPluginData
 	authResponse, err := bl.encryptPassword(plugin, []byte(password), authPluginData)
 	if err != nil {
@@ -75,16 +77,19 @@ AuthSuccess:
 					break AuthSuccess
 				case 1:
 					switch amd.authPluginData[0] {
-					case 3: // fastAuthSuccess
+					case 3:
+						bl.authFlow = append(bl.authFlow, "fastAuthSuccess")
 						if err := bl.readOkErr(); err != nil {
 							return err
 						}
 						break AuthSuccess
-					case 4: // performFullAuthentication
+					case 4:
+						bl.authFlow = append(bl.authFlow, "performFullAuthentication")
 						switch bl.conn.(type) {
 						case *tls.Conn, *net.UnixConn:
 							authResponse = append([]byte(password), 0)
 						default:
+							bl.authFlow = append(bl.authFlow, "requestPublicKey")
 							if err := bl.write(requestPublicKey{}); err != nil {
 								return err
 							}
@@ -141,6 +146,7 @@ AuthSuccess:
 				return err
 			}
 			plugin = asr.pluginName
+			bl.authFlow = append(bl.authFlow, plugin)
 			authPluginData = asr.authPluginData
 			authResponse, err = bl.encryptPassword(plugin, []byte(password), asr.authPluginData)
 			if err != nil {
@@ -178,6 +184,7 @@ func (bl *Remote) encryptPassword(plugin string, password, scramble []byte) ([]b
 			return append(password, 0), nil
 		default:
 			if bl.pubKey == nil {
+				bl.authFlow = append(bl.authFlow, "requestPublicKey")
 				// request public key from server
 				return []byte{1}, nil
 			}

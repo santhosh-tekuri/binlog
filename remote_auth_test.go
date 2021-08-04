@@ -39,7 +39,9 @@ func testAuth(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := r.Authenticate(user, passwd); err != nil {
+	err = r.Authenticate(user, passwd)
+	t.Log("authFlow:", r.authFlow)
+	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err = r.queryRows("show databases"); err != nil {

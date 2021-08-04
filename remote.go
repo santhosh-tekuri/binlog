@@ -25,6 +25,8 @@ type Remote struct {
 	hs     handshake
 	pubKey *rsa.PublicKey
 
+	authFlow []string // for testing only
+
 	// binlog related
 	requestFile  string
 	requestPos   uint32
