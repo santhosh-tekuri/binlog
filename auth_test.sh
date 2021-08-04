@@ -41,7 +41,7 @@ on_exit(){
 trap on_exit EXIT
 
 running() {
-    nc -zv $host $port > /dev/null 2>&1
+    mysql --defaults-extra-file=$creds --execute=exit > /dev/null 2>&1
 }
 
 start() {
