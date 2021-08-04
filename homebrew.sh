@@ -15,3 +15,7 @@ stop_mysql() {
     brew services stop mysql > /dev/null 2>&1
 }
 
+cleanup() {
+    : no cleanup needed
+}
+

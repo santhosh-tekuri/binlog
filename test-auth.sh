@@ -27,7 +27,7 @@ EOF
 on_exit(){
     exit_code=$?
 
-	# cleanup
+    cleanup
 	cp $mycnf_backup $mycnf
 	rm -rf $tmp
 
