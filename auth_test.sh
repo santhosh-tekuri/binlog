@@ -76,27 +76,50 @@ execute() {
     mysql --defaults-extra-file=$creds --execute="$sql"
 }
 
+create_users() {
+    for plugin in ${plugins[@]}; do
+        pass=$(pwgen $plugin)
+        execute "DROP USER IF EXISTS '${plugin}_user'@'$host'"
+        execute "CREATE USER '${plugin}_user'@'$host' IDENTIFIED WITH ${plugin}_password BY '$pass'"
+    done
+}
+
+run_tests() {
+    for defplugin in ${plugins[@]}; do
+        echo +++ set default_authentication_plugin=${defplugin}_password
+        cp $mycnf_backup $mycnf
+        echo default_authentication_plugin=${defplugin}_password >> $mycnf
+        restart
+        for plugin in ${plugins[@]}; do
+            pass=$(pwgen $plugin)
+            echo +++ testing ${plugin} with default=$defplugin transport=unix
+            go test -v -mysql unix:$sock,user=${plugin}_user,password=$pass -run TestRemote_Authenticate
+            echo +++ testing ${plugin} with default=$defplugin transport=tcp
+            go test -v -mysql tcp:$host:$port,user=${plugin}_user,password=$pass -run TestRemote_Authenticate
+            echo +++ testing ${plugin} with default=$defplugin transport=ssl
+            go test -v -mysql tcp:$host:$port,user=${plugin}_user,password=$pass,ssl -run TestRemote_Authenticate
+        done
+    done
+}
+
 if ! running; then
     start
 fi
 
-for plugin in ${plugins[@]}; do
-    execute "DROP USER IF EXISTS '${plugin}_user'@'$host'"
-    execute "CREATE USER '${plugin}_user'@'$host' IDENTIFIED WITH ${plugin}_password BY '${plugin}_secret'"
-done
+echo '+++ testing with short password (less than 20 chars)'
+pwgen() {
+    plugin=$1
+    echo -n ${plugin}_secret
+}
 
-for defplugin in ${plugins[@]}; do
-    echo +++ set default_authentication_plugin=${defplugin}_password
-    cp $mycnf_backup $mycnf
-    echo default_authentication_plugin=${defplugin}_password >> $mycnf
-    restart
-    for plugin in ${plugins[@]}; do
-        echo +++ testing ${plugin} with default=$defplugin transport=tunix
-        go test -v -mysql unix:$sock,user=${plugin}_user,password=${plugin}_secret -run TestRemote_Authenticate
-        echo +++ testing ${plugin} with default=$defplugin transport=tcp
-        go test -v -mysql tcp:$host:$port,user=${plugin}_user,password=${plugin}_secret -run TestRemote_Authenticate
-        echo +++ testing ${plugin} with default=$defplugin transport=ssl
-        go test -v -mysql tcp:$host:$port,user=${plugin}_user,password=${plugin}_secret,ssl -run TestRemote_Authenticate
-    done
-done
+create_users
+run_tests
 
+echo +++ testing with empty password
+
+pwgen() {
+    echo -n
+}
+
+create_users
+run_tests
