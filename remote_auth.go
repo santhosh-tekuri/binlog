@@ -89,17 +89,19 @@ AuthSuccess:
 						case *tls.Conn, *net.UnixConn:
 							authResponse = append([]byte(password), 0)
 						default:
-							bl.authFlow = append(bl.authFlow, "requestPublicKey")
-							if err := bl.write(requestPublicKey{}); err != nil {
-								return err
-							}
-							r := newReader(bl.conn, &bl.seq)
-							amd2 := authMoreData{}
-							if err := amd2.decode(r); err != nil {
-								return err
-							}
-							if bl.pubKey, err = decodePEM(amd2.authPluginData); err != nil {
-								return err
+							if bl.pubKey == nil {
+								bl.authFlow = append(bl.authFlow, "requestPublicKey2")
+								if err := bl.write(requestPublicKey{}); err != nil {
+									return err
+								}
+								r := newReader(bl.conn, &bl.seq)
+								amd2 := authMoreData{}
+								if err := amd2.decode(r); err != nil {
+									return err
+								}
+								if bl.pubKey, err = decodePEM(amd2.authPluginData); err != nil {
+									return err
+								}
 							}
 							if authResponse, err = encryptPasswordPubKey([]byte(password), authPluginData, bl.pubKey); err != nil {
 								return err
@@ -184,7 +186,7 @@ func (bl *Remote) encryptPassword(plugin string, password, scramble []byte) ([]b
 			return append(password, 0), nil
 		default:
 			if bl.pubKey == nil {
-				bl.authFlow = append(bl.authFlow, "requestPublicKey")
+				bl.authFlow = append(bl.authFlow, "requestPublicKey1")
 				// request public key from server
 				return []byte{1}, nil
 			}
