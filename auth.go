@@ -204,7 +204,7 @@ func (bl *Remote) encryptPassword(plugin string, password, scramble []byte) ([]b
 			return hash.Sum(nil)
 		}
 		x := sha256(password)
-		y := sha256(append(sha256(sha256(x)), scramble...))
+		y := sha256(append(sha256(sha256(x)), scramble[:20]...))
 		for i, b := range y {
 			x[i] ^= b
 		}
@@ -248,6 +248,7 @@ func decodePEM(pemData []byte) (*rsa.PublicKey, error) {
 }
 
 func encryptPasswordPubKey(password, seed []byte, pub *rsa.PublicKey) ([]byte, error) {
+	seed = seed[:20]
 	plain := make([]byte, len(password)+1)
 	copy(plain, password)
 	for i := range plain {
