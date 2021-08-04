@@ -90,10 +90,12 @@ for plugin in ${plugins[@]}; do
     echo default_authentication_plugin=${plugin}_password >> $mycnf
     restart
     for plugin in ${plugins[@]}; do
-        echo +++ testing ${plugin}_password with tcp
-        go test -mysql tcp:$host:$port,user=${plugin}_user,password=${plugin}_secret -run TestRemote_Authenticate
         echo +++ testing ${plugin}_password with unix
         go test -mysql unix:$sock,user=${plugin}_user,password=${plugin}_secret -run TestRemote_Authenticate
+        echo +++ testing ${plugin}_password with tcp
+        go test -mysql tcp:$host:$port,user=${plugin}_user,password=${plugin}_secret -run TestRemote_Authenticate
+        echo +++ testing ${plugin}_password with ssl
+        go test -mysql tcp:$host:$port,user=${plugin}_user,password=${plugin}_secret,ssl -run TestRemote_Authenticate
     done
 done
 

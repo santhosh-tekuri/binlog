@@ -31,7 +31,10 @@ func testAuth(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer r.Close()
-	if ssl && r.IsSSLSupported() {
+	if ssl {
+		if !r.IsSSLSupported() {
+			t.Fatal("server does not support ssl")
+		}
 		if err := r.UpgradeSSL(nil); err != nil {
 			t.Fatal(err)
 		}
