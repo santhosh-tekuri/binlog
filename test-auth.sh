@@ -85,17 +85,17 @@ for plugin in ${plugins[@]}; do
     execute "CREATE USER '${plugin}_user'@'$host' IDENTIFIED WITH ${plugin}_password BY '${plugin}_secret'"
 done
 
-for plugin in ${plugins[@]}; do
-    echo +++ set default_authentication_plugin=${plugin}_password
+for defplugin in ${plugins[@]}; do
+    echo +++ set default_authentication_plugin=${defplugin}_password
     cp $mycnf_backup $mycnf
-    echo default_authentication_plugin=${plugin}_password >> $mycnf
+    echo default_authentication_plugin=${defplugin}_password >> $mycnf
     restart
     for plugin in ${plugins[@]}; do
-        echo +++ testing ${plugin}_password with unix
+        echo +++ testing ${plugin} with default=$defplugin transport=tunix
         go test -mysql unix:$sock,user=${plugin}_user,password=${plugin}_secret -run TestRemote_Authenticate
-        echo +++ testing ${plugin}_password with tcp
+        echo +++ testing ${plugin} with default=$defplugin transport=tcp
         go test -mysql tcp:$host:$port,user=${plugin}_user,password=${plugin}_secret -run TestRemote_Authenticate
-        echo +++ testing ${plugin}_password with ssl
+        echo +++ testing ${plugin} with default=$defplugin transport=ssl
         go test -mysql tcp:$host:$port,user=${plugin}_user,password=${plugin}_secret,ssl -run TestRemote_Authenticate
     done
 done
