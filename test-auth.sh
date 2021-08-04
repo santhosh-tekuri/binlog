@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 
 set -e
+if [ "$#" -ne 1 ]; then
+    echo '  usage: ./test-auth.sh SERVER_CTL_FILE' 1>&2
+    echo 'example: ./test-auth.sh homwbrew.sh' 1>&2
+    exit 1
+fi
+source $1
 
-mycnf=/opt/homebrew/etc/my.cnf
-sock=/tmp/mysql.sock
-host=localhost
-port=3306
-user=root
-password=password
 plugins=(mysql_native sha256 caching_sha2)
 
 tmp=$(mktemp -d)
@@ -44,7 +44,7 @@ running() {
 
 start() {
     echo +++ starting mysql
-    brew services start mysql > /dev/null 2>&1
+    start_mysql
     while ! running; do
         echo mysql is not up yet
         sleep 3
@@ -54,7 +54,7 @@ start() {
 
 stop() {
     echo +++ stopping mysql
-    brew services stop mysql > /dev/null 2>&1
+    stop_mysql
     while running; do
         echo mystil is not down yet
         sleep 3
