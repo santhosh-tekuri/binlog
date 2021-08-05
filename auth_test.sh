@@ -6,6 +6,10 @@ if [ "$#" -ne 1 ]; then
     echo 'example: ./test-auth.sh homwbrew.sh' 1>&2
     exit 1
 fi
+if ! [ -x "$(command -v mysql)" ]; then
+    echo mysql client is not installed 1>&2
+    exit 1
+fi
 source $1
 
 plugins=(mysql_native sha256 caching_sha2)
