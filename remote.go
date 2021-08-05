@@ -3,7 +3,6 @@ package binlog
 import (
 	"crypto/rsa"
 	"crypto/tls"
-	"crypto/x509"
 	"errors"
 	"fmt"
 	"hash/crc32"
@@ -68,10 +67,10 @@ func (bl *Remote) IsSSLSupported() bool {
 	return bl.hs.capabilityFlags&capSSL != 0
 }
 
-// UpgradeSSL upgrades current connection to SSL. If rootCAs is nil,
-// it will use InsecureSkipVerify true value. This should be done
-// before Authenticate call
-func (bl *Remote) UpgradeSSL(rootCAs *x509.CertPool) error {
+// UpgradeSSL upgrades current connection to SSL. If tlsConfig is nil
+// it will use InsecureSkipVerify true value. This should be called
+// before Authenticate call.
+func (bl *Remote) UpgradeSSL(tlsConfig *tls.Config) error {
 	err := bl.write(sslRequest{
 		capabilityFlags: capLongFlag | capSecureConnection,
 		maxPacketSize:   maxPacketSize,
@@ -80,13 +79,10 @@ func (bl *Remote) UpgradeSSL(rootCAs *x509.CertPool) error {
 	if err != nil {
 		return err
 	}
-	tlsConf := &tls.Config{}
-	if rootCAs != nil {
-		tlsConf.RootCAs = rootCAs
-	} else {
-		tlsConf.InsecureSkipVerify = true
+	if tlsConfig == nil {
+		tlsConfig = &tls.Config{InsecureSkipVerify: true}
 	}
-	bl.conn = tls.Client(bl.conn, tlsConf)
+	bl.conn = tls.Client(bl.conn, tlsConfig)
 	return bl.conn.(*tls.Conn).Handshake()
 }
 
