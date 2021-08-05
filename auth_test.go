@@ -3,9 +3,11 @@ package binlog
 import (
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestRemote_Authenticate(t *testing.T) {
@@ -83,7 +85,8 @@ func TestMain(m *testing.M) {
 				passwd = strings.TrimPrefix(t, "db=")
 			}
 		}
-		driverURL = fmt.Sprintf("%s:%s@%s(%s)/%s?tls=%v", user, passwd, network, address, db, ssl)
+		timezone := url.QueryEscape(time.Now().Format("'-07:00'"))
+		driverURL = fmt.Sprintf("%s:%s@%s(%s)/%s?tls=%v&time_zone=%s", user, passwd, network, address, db, ssl, timezone)
 	}
 	os.Exit(m.Run())
 }
