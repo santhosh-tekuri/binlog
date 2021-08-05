@@ -9,7 +9,7 @@ fi
 
 datadir=$(mktemp -d)
 
-: "${img:=mysql/mysql-server:8.0.26}"
+img=mysql/mysql-server:${version:-8.0.26}
 cname=mysql
 mycnf=$(mktemp)
 host=localhost
@@ -29,7 +29,7 @@ docker run --name $cname -d $img
 docker cp $cname:/etc/my.cnf $mycnf
 docker rm -f $cname
 
-echo +++ docker run mysql container
+echo +++ docker run ${img}
 env=(
     -e MYSQL_ROOT_PASSWORD=$password   # if not set, generates random onetime password
     -e MYSQL_ROOT_HOST=%               # allow root connections from other hosts
