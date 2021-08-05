@@ -14,20 +14,6 @@ func TestRemote_Authenticate(t *testing.T) {
 	if *mysql == "" {
 		t.Skip(skipReason)
 	}
-	testAuth(t)
-}
-
-func testAuth(t *testing.T) {
-	//// test with mysql driver (used for debug)
-	//db, err := sql.Open("mysql", driverURL)
-	//if err != nil {
-	//	t.Fatal(err)
-	//}
-	//defer db.Close()
-	//if _, err := db.Query(`show databases`); err != nil {
-	//	t.Fatalf("show databases failed: %v", err)
-	//}
-
 	r, err := Dial(network, address)
 	if err != nil {
 		t.Fatal(err)
