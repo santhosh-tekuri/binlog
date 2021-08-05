@@ -2,6 +2,11 @@
 
 set -e
 
+if ! [ -x "$(command -v docker)" ]; then
+    echo docker is not installed 1>&2
+    exit 1
+fi
+
 datadir=$(mktemp -d)
 
 img=mysql/mysql-server:8.0.26
