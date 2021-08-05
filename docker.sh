@@ -9,7 +9,7 @@ fi
 
 datadir=$(mktemp -d)
 
-img=mysql/mysql-server:8.0.26
+: "${img:=mysql/mysql-server:8.0.26}"
 cname=mysql
 mycnf=$(mktemp)
 host=localhost
