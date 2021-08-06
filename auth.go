@@ -164,6 +164,8 @@ AuthSuccess:
 	// authentication succeeded
 
 	// query serverVersion. seems azure reports wrong serverVersion in handshake
+	// Azure Database for MySQL service that is created with version 5.7
+	// reports its version as "5.6.26.0" in initial handshake packet.
 	rows, err := bl.queryRows(`select version()`)
 	if err != nil {
 		return err
@@ -211,7 +213,7 @@ func (bl *Remote) encryptPassword(plugin string, password, scramble []byte) ([]b
 		return x, nil
 	case "mysql_native_password":
 		// https://dev.mysql.com/doc/internals/en/secure-password-authentication.html
-		// SHA1( password ) XOR SHA1( "20-bytes random data from server" <concat> SHA1( SHA1( password ) ) )
+		// SHA1(password) XOR SHA1("20-bytes random data from server"<concat>SHA1(SHA1(password)))
 		if len(password) == 0 {
 			return nil, nil
 		}
