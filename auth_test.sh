@@ -5,7 +5,7 @@ if [ "$#" -ne 1 ]; then
     echo 'Usage: ./auth_test.sh SERVER_CTL_FILE' 1>&2
     echo 1>&2
     echo 'Examples:' 1>&2
-    echo '     ./auth_test.sh homwbrew.sh' 1>&2
+    echo '     ./auth_test.sh homebrew.sh' 1>&2
     echo '     ./auth_test.sh docker.sh' 1>&2
     exit 1
 fi

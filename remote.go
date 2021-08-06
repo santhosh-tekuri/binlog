@@ -13,7 +13,7 @@ import (
 )
 
 // ErrMalformedPacket used to indicate malformed packet.
-var ErrMalformedPacket = errors.New("malformed packet")
+var ErrMalformedPacket = errors.New("binlog: malformed packet")
 
 type null struct{}
 
