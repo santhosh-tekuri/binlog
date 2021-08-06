@@ -15,8 +15,6 @@ import (
 // ErrMalformedPacket used to indicate malformed packet.
 var ErrMalformedPacket = errors.New("binlog: malformed packet")
 
-type null struct{}
-
 // Remote represents connection to MySQL server.
 type Remote struct {
 	conn   net.Conn
@@ -257,13 +255,14 @@ func (bl *Remote) write(event interface{ encode(w *writer) error }) error {
 	return w.Close()
 }
 
-// comBinlogDump ---
-
+// comBinlogDump requests a binlog network stream from server.
+//
+// https://dev.mysql.com/doc/internals/en/com-binlog-dump.html
 type comBinlogDump struct {
-	binlogPos      uint32
-	flags          uint16
-	serverID       uint32
-	binlogFilename string
+	binlogPos      uint32 // position in the binlog-file to start the stream with
+	flags          uint16 // if BINLOG_DUMP_NON_BLOCK(0x01) set, sends eofPacket when there are no more events
+	serverID       uint32 // server id of this slave
+	binlogFilename string // filename of the binlog. if empty, from first known binlog
 }
 
 func (e comBinlogDump) encode(w *writer) error {

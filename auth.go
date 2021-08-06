@@ -140,7 +140,7 @@ AuthSuccess:
 			}
 		case 0xFE:
 			if numAuthSwitches != 0 {
-				return errors.New("AuthSwitch more than once")
+				return errors.New("binlog: authSwitch more than once")
 			}
 			numAuthSwitches++
 			asr := authSwitchRequest{}
@@ -174,7 +174,7 @@ AuthSuccess:
 	return nil
 }
 
-// encrypting password ---
+// password encryption ---
 
 func (bl *Remote) encryptPassword(plugin string, password, scramble []byte) ([]byte, error) {
 	switch plugin {
@@ -184,7 +184,8 @@ func (bl *Remote) encryptPassword(plugin string, password, scramble []byte) ([]b
 		}
 		switch bl.conn.(type) {
 		case *tls.Conn:
-			// note: seems like sha256_password treats unix conn as insecure (mysql 8.0.26)
+			// unlike caching_sha2_password, sha256_password does not accept
+			// cleartext password on unix transport
 			return append(password, 0), nil
 		default:
 			if bl.pubKey == nil {
@@ -198,7 +199,7 @@ func (bl *Remote) encryptPassword(plugin string, password, scramble []byte) ([]b
 		if len(password) == 0 {
 			return nil, nil
 		}
-		// XOR(SHA256(password), SHA256(SHA256(SHA256(password)), scramble))
+		// SHA256(password) XOR SHA256(SHA256(SHA256(password)), scramble)
 		hash := sha256.New()
 		sha256 := func(b []byte) []byte {
 			hash.Reset()
@@ -213,7 +214,7 @@ func (bl *Remote) encryptPassword(plugin string, password, scramble []byte) ([]b
 		return x, nil
 	case "mysql_native_password":
 		// https://dev.mysql.com/doc/internals/en/secure-password-authentication.html
-		// SHA1(password) XOR SHA1("20-bytes random data from server"<concat>SHA1(SHA1(password)))
+		// SHA1(password) XOR SHA1("20-bytes random data from server", SHA1(SHA1(password)))
 		if len(password) == 0 {
 			return nil, nil
 		}
@@ -223,7 +224,6 @@ func (bl *Remote) encryptPassword(plugin string, password, scramble []byte) ([]b
 			hash.Write(b)
 			return hash.Sum(nil)
 		}
-
 		x := sha1(password)
 		y := sha1(append(scramble[:20], sha1(sha1(password))...))
 		for i, b := range y {
@@ -234,13 +234,13 @@ func (bl *Remote) encryptPassword(plugin string, password, scramble []byte) ([]b
 		// https://dev.mysql.com/doc/internals/en/clear-text-authentication.html
 		return append(password, 0), nil
 	}
-	return nil, fmt.Errorf("unsupported auth plugin %q", plugin)
+	return nil, fmt.Errorf("binlog: unsupported authPlugin %q", plugin)
 }
 
 func decodePEM(pemData []byte) (*rsa.PublicKey, error) {
 	block, _ := pem.Decode(pemData)
 	if block == nil {
-		return nil, errors.New("no PEM data is found in server response")
+		return nil, errors.New("binlog: no PEM data found in server response")
 	}
 	pkix, err := x509.ParsePKIXPublicKey(block.Bytes)
 	if err != nil {

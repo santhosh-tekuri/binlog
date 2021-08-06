@@ -6,8 +6,10 @@ import (
 	"io"
 )
 
-// queryResponse holds one of the following values
-// okPacket, *resultSet
+// queryResponse holds one of the following values:
+// okPacket, *resultSet.
+//
+// https://dev.mysql.com/doc/internals/en/com-query-response.html
 type queryResponse interface{}
 
 func (bl *Remote) queryRows(q string) ([][]interface{}, error) {
@@ -52,16 +54,17 @@ func (bl *Remote) query(q string) (queryResponse, error) {
 	}
 }
 
+// columnDef is column definition for resultSet.
+//
 // https://dev.mysql.com/doc/internals/en/com-query-response.html#column-definition
-
 type columnDef struct {
 	schema       string
-	table        string
-	orgTable     string
-	name         string
-	orgName      string
+	table        string // virtual table-name
+	orgTable     string // physical table-name
+	name         string // virtual column name
+	orgName      string // physical column name
 	charset      uint16
-	columnLength uint32
+	columnLength uint32 // maximum length of the field
 	typ          uint8
 	flags        uint16
 	decimals     uint8
@@ -83,11 +86,20 @@ func (cd *columnDef) decode(r *reader, capabilities uint32) error {
 		cd.decimals = r.int1()
 		_ = r.skip(2) // filler
 		return r.err
-	} else {
-		return fmt.Errorf("Protocol::ColumnDefinition320 not implemented yet")
 	}
+	return fmt.Errorf("binlog: Protocol::ColumnDefinition320 not implemented yet")
 }
 
+// resultSet made up of two parts.
+// 1. column definitions
+//    - starts with a packet containing the column-count
+//    - followed by as many columnDef packets as there are columns
+//    - terminated by eofPacket, if the capDeprecateEOF is not set
+// 2. rows
+//    - each row is a packet
+//    - terminated by eofPacket or errPacket
+//
+// https://dev.mysql.com/doc/internals/en/com-query-response.html#text-resultset
 type resultSet struct {
 	r            *reader
 	capabilities uint32
@@ -124,6 +136,11 @@ func (rs *resultSet) decode(r *reader, capabilities uint32) error {
 	return eof.decode(r, capabilities)
 }
 
+// null represents null in resultSet.
+type null struct{}
+
+// nextRow returns data of next row. Returns io.EOF
+// if there are no more rows.
 func (rs *resultSet) nextRow() ([]interface{}, error) {
 	r := rs.r
 	r.rd.(*packetReader).reset()
@@ -164,6 +181,7 @@ func (rs *resultSet) nextRow() ([]interface{}, error) {
 	}
 }
 
+// rows is helper method to collect rows into [][]interface{}.
 func (rs *resultSet) rows() ([][]interface{}, error) {
 	var rows [][]interface{}
 	for {

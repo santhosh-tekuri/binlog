@@ -10,12 +10,18 @@ const (
 	sessionStateChanged = 0x4000
 )
 
-// eofPacket ---
+// Packet Markers
+const (
+	okMarker  = 0x00
+	eofMarker = 0xfe
+	errMarker = 0xff
+)
 
+// eofPacket contains warnings and status flags.
+// EOF packets are deprecated. From MySQL 5.7.5,
+// OK packets are used to indicate EOF.
+//
 // https://dev.mysql.com/doc/internals/en/packet-EOF_Packet.html
-
-const eofMarker = 0xfe
-
 type eofPacket struct {
 	warnings    uint16
 	statusFlags uint16
@@ -27,7 +33,7 @@ func (e *eofPacket) decode(r *reader, capabilities uint32) error {
 		return r.err
 	}
 	if header != eofMarker {
-		return fmt.Errorf("eofPacket.decode: got header %0xd", header)
+		return fmt.Errorf("binlog: eofPacket.header is %0xd", header)
 	}
 	if capabilities&capProtocol41 != 0 {
 		e.warnings = r.int2()
@@ -36,15 +42,9 @@ func (e *eofPacket) decode(r *reader, capabilities uint32) error {
 	return r.err
 }
 
-// errPacket ---
-
+// errPacket signals that an error occurred.
+//
 // https://dev.mysql.com/doc/internals/en/packet-ERR_Packet.html
-
-const (
-	errMarker = 0xFF
-	okMarker  = 0x00
-)
-
 type errPacket struct {
 	errorCode      uint16
 	sqlStateMarker string
@@ -58,7 +58,7 @@ func (e *errPacket) decode(r *reader, capabilities uint32) error {
 		return r.err
 	}
 	if header != errMarker {
-		return fmt.Errorf("errorPacket.decode: got header %0xd", header)
+		return fmt.Errorf("binlog: errPacket.header is %0xd", header)
 	}
 	e.errorCode = r.int2()
 
@@ -70,10 +70,9 @@ func (e *errPacket) decode(r *reader, capabilities uint32) error {
 	return r.err
 }
 
-// okPacket ---
-
+// okPacket signals successful completion of a command.
+//
 // https://dev.mysql.com/doc/internals/en/packet-OK_Packet.html
-
 type okPacket struct {
 	affectedRows        uint64
 	lastInsertID        uint64
@@ -89,7 +88,7 @@ func (p *okPacket) decode(r *reader, capabilities uint32) error {
 		return r.err
 	}
 	if header != okMarker {
-		return fmt.Errorf("okPacket.decode: got header %0xd", header)
+		return fmt.Errorf("binlog: okPacket.header is %0xd", header)
 	}
 	p.affectedRows = r.intN()
 	p.lastInsertID = r.intN()
@@ -113,6 +112,7 @@ func (p *okPacket) decode(r *reader, capabilities uint32) error {
 	return r.err
 }
 
+// readOkErr reads ok/err packet based on marker.
 func (bl *Remote) readOkErr() error {
 	r := newReader(bl.conn, &bl.seq)
 	marker, err := r.peek()

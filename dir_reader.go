@@ -106,22 +106,29 @@ func (r *dirReader) Read(p []byte) (int, error) {
 	}
 }
 
+// openBinlogFile opens file and seeks location
+// to just after the magic header.
 func openBinlogFile(file string) (*os.File, error) {
 	f, err := os.Open(file)
 	if err != nil {
 		return nil, err
 	}
+
+	// read magic header and validate
 	header := make([]byte, 4)
 	_, err = io.ReadAtLeast(f, header, len(header))
 	if err != nil {
 		return nil, err
 	}
 	if !bytes.Equal(header, fileHeader) {
-		return nil, fmt.Errorf("binlog.Open: %s has invalid fileheader", file)
+		return nil, fmt.Errorf("binlog: %q is not binlog file", file)
 	}
 	return f, nil
 }
 
+// nextBinlogFile returns next file given current file
+// by reading '.next' file. returns nil if next file
+// does not exist.
 func nextBinlogFile(name string) (string, error) {
 	dir, file := path.Split(name)
 	f, err := os.Open(path.Join(dir, file+".next"))

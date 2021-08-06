@@ -5,50 +5,53 @@ import (
 	"strings"
 )
 
-// https://dev.mysql.com/doc/internals/en/binlog-event-type.html
-// https://dev.mysql.com/doc/internals/en/event-meanings.html
-
+// EventType represents Binlog Event Type.
 type EventType uint8
 
+// Event Type Constants.
+//
+// https://dev.mysql.com/doc/internals/en/binlog-event-type.html
+// https://dev.mysql.com/doc/internals/en/event-meanings.html
 const (
-	UNKNOWN_EVENT            EventType = 0x00
-	START_EVENT_V3           EventType = 0x01
-	QUERY_EVENT              EventType = 0x02
-	STOP_EVENT               EventType = 0x03
-	ROTATE_EVENT             EventType = 0x04
-	INTVAR_EVENT             EventType = 0x05
-	LOAD_EVENT               EventType = 0x06
-	SLAVE_EVENT              EventType = 0x07
-	CREATE_FILE_EVENT        EventType = 0x08
-	APPEND_BLOCK_EVENT       EventType = 0x09
-	EXEC_LOAD_EVENT          EventType = 0x0a
-	DELETE_FILE_EVENT        EventType = 0x0b
-	NEW_LOAD_EVENT           EventType = 0x0c
-	RAND_EVENT               EventType = 0x0d
-	USER_VAR_EVENT           EventType = 0x0e
-	FORMAT_DESCRIPTION_EVENT EventType = 0x0f
-	XID_EVENT                EventType = 0x10
-	BEGIN_LOAD_QUERY_EVENT   EventType = 0x11
-	EXECUTE_LOAD_QUERY_EVENT EventType = 0x12
-	TABLE_MAP_EVENT          EventType = 0x13
-	WRITE_ROWS_EVENTv0       EventType = 0x14
-	UPDATE_ROWS_EVENTv0      EventType = 0x15
-	DELETE_ROWS_EVENTv0      EventType = 0x16
-	WRITE_ROWS_EVENTv1       EventType = 0x17
-	UPDATE_ROWS_EVENTv1      EventType = 0x18
-	DELETE_ROWS_EVENTv1      EventType = 0x19
-	INCIDENT_EVENT           EventType = 0x1a
-	HEARTBEAT_EVENT          EventType = 0x1b
+	UNKNOWN_EVENT            EventType = 0x00 // should never occur. used when event cannot be recognized.
+	START_EVENT_V3           EventType = 0x01 // descriptor event written to binlog beginning. deprecated.
+	QUERY_EVENT              EventType = 0x02 // written when an updating statement is done.
+	STOP_EVENT               EventType = 0x03 // written when mysqld stops.
+	ROTATE_EVENT             EventType = 0x04 // written when mysqld switches to a new binary log file.
+	INTVAR_EVENT             EventType = 0x05 // if stmt uses AUTO_INCREMENT col or LAST_INSERT_ID().
+	LOAD_EVENT               EventType = 0x06 // used for LOAD DATA INFILE statements in MySQL 3.23.
+	SLAVE_EVENT              EventType = 0x07 // not used.
+	CREATE_FILE_EVENT        EventType = 0x08 // used for LOAD DATA INFILE statements in MySQL 4.0 and 4.1.
+	APPEND_BLOCK_EVENT       EventType = 0x09 // used for LOAD DATA INFILE statements in MySQL 4.0 and 4.1.
+	EXEC_LOAD_EVENT          EventType = 0x0a // used for LOAD DATA INFILE statements in MySQL 4.0 and 4.1.
+	DELETE_FILE_EVENT        EventType = 0x0b // used for LOAD DATA INFILE statements in MySQL 4.0 and 4.1.
+	NEW_LOAD_EVENT           EventType = 0x0c // used for LOAD DATA INFILE statements in MySQL 4.0 and 4.1.
+	RAND_EVENT               EventType = 0x0d // if stmt uses RAND().
+	USER_VAR_EVENT           EventType = 0x0e // if stmt uses a user variable.
+	FORMAT_DESCRIPTION_EVENT EventType = 0x0f // descriptor event written to binlog beginning.
+	XID_EVENT                EventType = 0x10 // for XA commit transaction.
+	BEGIN_LOAD_QUERY_EVENT   EventType = 0x11 // used for LOAD DATA INFILE statements in MySQL 5.0.
+	EXECUTE_LOAD_QUERY_EVENT EventType = 0x12 // used for LOAD DATA INFILE statements in MySQL 5.0.
+	TABLE_MAP_EVENT          EventType = 0x13 // precedes rbr event. contains table definition.
+	WRITE_ROWS_EVENTv0       EventType = 0x14 // logs inserts of rows in a single table.
+	UPDATE_ROWS_EVENTv0      EventType = 0x15 // logs updates of rows in a single table.
+	DELETE_ROWS_EVENTv0      EventType = 0x16 // logs deletions of rows in a single table.
+	WRITE_ROWS_EVENTv1       EventType = 0x17 // logs inserts of rows in a single table.
+	UPDATE_ROWS_EVENTv1      EventType = 0x18 // logs updates of rows in a single table.
+	DELETE_ROWS_EVENTv1      EventType = 0x19 // logs inserts of rows in a single table.
+	INCIDENT_EVENT           EventType = 0x1a // used to log an out of the ordinary event that occurred on the master.
+	HEARTBEAT_EVENT          EventType = 0x1b // to signal that master is still alive. not written to file.
 	IGNORABLE_EVENT          EventType = 0x1c
 	ROWS_QUERY_EVENT         EventType = 0x1d
-	WRITE_ROWS_EVENTv2       EventType = 0x1e
-	UPDATE_ROWS_EVENTv2      EventType = 0x1f
-	DELETE_ROWS_EVENTv2      EventType = 0x20
+	WRITE_ROWS_EVENTv2       EventType = 0x1e // logs inserts of rows in a single table.
+	UPDATE_ROWS_EVENTv2      EventType = 0x1f // logs updates of rows in a single table.
+	DELETE_ROWS_EVENTv2      EventType = 0x20 // logs inserts of rows in a single table.
 	GTID_EVENT               EventType = 0x21
 	ANONYMOUS_GTID_EVENT     EventType = 0x22
 	PREVIOUS_GTIDS_EVENT     EventType = 0x23
 )
 
+// Event represents Binlog Event.
 type Event struct {
 	Header EventHeader
 	Data   interface{}
@@ -100,29 +103,36 @@ func (t EventType) String() string {
 	return fmt.Sprintf("0x%02x", uint8(t))
 }
 
+// IsWriteRows tells if this EventType WRITE_ROWS_EVENT.
+// MySQL has multiple versions of WRITE_ROWS_EVENT.
 func (t EventType) IsWriteRows() bool {
 	return t == WRITE_ROWS_EVENTv0 || t == WRITE_ROWS_EVENTv1 || t == WRITE_ROWS_EVENTv2
 }
 
+// IsWriteRows tells if this EventType UPDATE_ROWS_EVENT.
+// MySQL has multiple versions of UPDATE_ROWS_EVENT.
 func (t EventType) IsUpdateRows() bool {
 	return t == UPDATE_ROWS_EVENTv0 || t == UPDATE_ROWS_EVENTv1 || t == UPDATE_ROWS_EVENTv2
 }
 
+// IsWriteRows tells if this EventType DELETE_ROWS_EVENT.
+// MySQL has multiple versions of DELETE_ROWS_EVENT.
 func (t EventType) IsDeleteRows() bool {
 	return t == DELETE_ROWS_EVENTv0 || t == DELETE_ROWS_EVENTv1 || t == DELETE_ROWS_EVENTv2
 }
 
+// EventHeader represents Binlog Event Header.
+//
 // https://dev.mysql.com/doc/internals/en/binlog-event-header.html
 // https://dev.mysql.com/doc/internals/en/event-header-fields.html
-
 type EventHeader struct {
-	Timestamp uint32
-	EventType EventType
-	ServerID  uint32
-	EventSize uint32
-	LogFile   string
-	NextPos   uint32
-	Flags     uint16
+	Timestamp uint32    // seconds since unix epoch
+	EventType EventType // binlog event type
+	ServerID  uint32    // server-id of the originating mysql-server
+	EventSize uint32    // size of the event (header + post-header + body)
+	LogFile   string    // logfile of the next event
+	NextPos   uint32    // position of the next event
+	Flags     uint16    // flags
 }
 
 func (h *EventHeader) decode(r *reader) error {
@@ -142,11 +152,11 @@ func (h *EventHeader) decode(r *reader) error {
 //
 // https://dev.mysql.com/doc/internals/en/format-description-event.html
 type FormatDescriptionEvent struct {
-	BinlogVersion          uint16
-	ServerVersion          string
-	CreateTimestamp        uint32
-	EventHeaderLength      uint8
-	EventTypeHeaderLengths []byte
+	BinlogVersion          uint16 // version of this binlog format
+	ServerVersion          string // version of the MySQL Server that created the binlog
+	CreateTimestamp        uint32 // seconds since Unix epoch when the binlog was created
+	EventHeaderLength      uint8  // length of the Binlog Event Header of next events
+	EventTypeHeaderLengths []byte // post-header lengths for different event-types
 }
 
 func (e *FormatDescriptionEvent) decode(r *reader, eventSize uint32) error {
@@ -182,8 +192,8 @@ func (e *FormatDescriptionEvent) postHeaderLength(typ EventType, def int) int {
 //
 // https://dev.mysql.com/doc/internals/en/rotate-event.html
 type RotateEvent struct {
-	Position   uint64
-	NextBinlog string
+	Position   uint64 // position of next event
+	NextBinlog string // name of next binlog file
 }
 
 func (e *RotateEvent) decode(r *reader) error {
