@@ -82,9 +82,9 @@ func (e *TableMapEvent) decode(r *reader) error {
 		}
 	}
 
-	nullability := bitmap(r.bytes(bitmapSize(numCol)))
+	nullable := r.nullBitmap(numCol)
 	for i := range e.Columns {
-		e.Columns[i].Nullable = nullability.isTrue(i)
+		e.Columns[i].Nullable = nullable.isTrue(i)
 	}
 
 	// extended table metadata
@@ -274,7 +274,7 @@ func (e *RowsEvent) decode(r *reader, eventType EventType) error {
 	}
 
 	e.columns = make([][]Column, 2)
-	present := bitmap(r.bytes(bitmapSize(numCol)))
+	present := r.nullBitmap(numCol)
 	for i := 0; i < int(numCol); i++ {
 		if present.isTrue(i) {
 			e.columns[0] = append(e.columns[0], e.TableMap.Columns[i])
@@ -282,7 +282,7 @@ func (e *RowsEvent) decode(r *reader, eventType EventType) error {
 	}
 	switch eventType {
 	case UPDATE_ROWS_EVENTv1, UPDATE_ROWS_EVENTv2:
-		present = bitmap(r.bytes(bitmapSize(numCol)))
+		present = r.nullBitmap(numCol)
 		for i := 0; i < int(numCol); i++ {
 			if present.isTrue(i) {
 				e.columns[1] = append(e.columns[1], e.TableMap.Columns[i])
@@ -311,7 +311,7 @@ func nextRow(r *reader) (values []interface{}, valuesBeforeUpdate []interface{},
 		n = 2
 	}
 	for m := 0; m < n; m++ {
-		nullValue := bitmap(r.bytes(bitmapSize(uint64(len(r.re.columns[m])))))
+		nullValue := r.nullBitmap(uint64(len(r.re.columns[m])))
 		if r.err != nil {
 			return nil, nil, r.err
 		}
@@ -373,16 +373,16 @@ func (e *RowsQueryEvent) decode(r *reader) error {
 	return r.err
 }
 
-// bitmap ---
-
+// nullBitmap captures many NULL values more efficiently.
+//
 // https://dev.mysql.com/doc/internals/en/null-bitmap.html
+type nullBitmap []byte
 
-type bitmap []byte
-
-func bitmapSize(numCol uint64) int {
-	return int((numCol + 7) / 8)
+func (nb nullBitmap) isTrue(colID int) bool {
+	return (nb[colID/8]>>uint8(colID%8))&1 == 1
 }
 
-func (bm bitmap) isTrue(colID int) bool {
-	return (bm[colID/8]>>uint8(colID%8))&1 == 1
+func (r *reader) nullBitmap(numCol uint64) nullBitmap {
+	size := int((numCol + 7) / 8)
+	return r.bytes(size)
 }
