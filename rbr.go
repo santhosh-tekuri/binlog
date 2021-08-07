@@ -387,8 +387,8 @@ func (e *RowsQueryEvent) decode(r *reader) error {
 // https://dev.mysql.com/doc/internals/en/null-bitmap.html
 type nullBitmap []byte
 
-func (nb nullBitmap) isTrue(colPos int) bool {
-	return (nb[colPos/8]>>uint8(colPos%8))&1 == 1
+func (nb nullBitmap) isTrue(icol int) bool {
+	return (nb[icol/8]>>uint8(icol%8))&1 == 1
 }
 
 func (r *reader) nullBitmap(numCol uint64) nullBitmap {
