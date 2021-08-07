@@ -83,6 +83,9 @@ func (e *TableMapEvent) decode(r *reader) error {
 	}
 
 	nullable := r.nullBitmap(numCol)
+	if r.err != nil {
+		return r.err
+	}
 	for i := range e.Columns {
 		e.Columns[i].Nullable = nullable.isTrue(i)
 	}
@@ -275,6 +278,9 @@ func (e *RowsEvent) decode(r *reader, eventType EventType) error {
 
 	e.columns = make([][]Column, 2)
 	present := r.nullBitmap(numCol)
+	if r.err != nil {
+		return r.err
+	}
 	for i := 0; i < int(numCol); i++ {
 		if present.isTrue(i) {
 			e.columns[0] = append(e.columns[0], e.TableMap.Columns[i])
@@ -283,6 +289,9 @@ func (e *RowsEvent) decode(r *reader, eventType EventType) error {
 	switch eventType {
 	case UPDATE_ROWS_EVENTv1, UPDATE_ROWS_EVENTv2:
 		present = r.nullBitmap(numCol)
+		if r.err != nil {
+			return r.err
+		}
 		for i := 0; i < int(numCol); i++ {
 			if present.isTrue(i) {
 				e.columns[1] = append(e.columns[1], e.TableMap.Columns[i])
