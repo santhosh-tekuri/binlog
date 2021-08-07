@@ -17,6 +17,8 @@ import (
 type ColumnType uint8
 
 // ColumnType Constants
+//
+// https://dev.mysql.com/doc/internals/en/com-query-response.html#packet-Protocol::ColumnType
 const (
 	TypeDecimal    ColumnType = 0x00
 	TypeTiny       ColumnType = 0x01 // int8 or uint8. TINYINT
@@ -238,6 +240,18 @@ func (col Column) decodeValue(r *reader) (interface{}, error) {
 		return time.Unix(int64(sec), int64(frac)*1000), r.err
 	case TypeTime2:
 		// https://github.com/debezium/debezium/blob/master/debezium-connector-mysql/src/main/java/io/debezium/connector/mysql/RowDeserializers.java#L314
+		//
+		// (in big endian)
+		//
+		// 1 bit sign (1= non-negative, 0= negative)
+		// 1 bit unused (reserved for future extensions)
+		// 10 bits hour (0-838)
+		// 6 bits minute (0-59)
+		// 6 bits second (0-59)
+		//
+		// (3 bytes in total)
+		//
+		// + fractional-seconds storage (size depends on meta)
 		buf := r.bytesInternal(3)
 		if r.err != nil {
 			return nil, r.err
@@ -456,10 +470,16 @@ func bigEndian(buf []byte) uint64 {
 	return num
 }
 
-// Enum ---
-
+// Enum represents value of TypeEnum.
+//
+// https://dev.mysql.com/doc/refman/8.0/en/enum.html
 type Enum struct {
-	Val    uint16
+	// index value. refers to a position in list of permitted values.
+	// begins with 1.
+	// 0 means empty string invalid value.
+	Val uint16
+
+	// list of permitted values
 	Values []string
 }
 
@@ -480,13 +500,20 @@ func (e Enum) MarshalJSON() ([]byte, error) {
 	return []byte(e.String()), nil
 }
 
-// Set ---
-
+// Set represents value of TypeSet.
+//
+// https://dev.mysql.com/doc/refman/8.0/en/set.html
 type Set struct {
-	Val    uint64
+	// set's numerical value with bits set corresponding
+	// to the set members that make up the column value.
+	// 0 means empty string invalid value.
+	Val uint64
+
+	// list of permitted values
 	Values []string
 }
 
+// Members returns the values in this set.
 func (s Set) Members() []string {
 	var m []string
 	if len(s.Values) > 0 {
@@ -527,12 +554,9 @@ func (s Set) MarshalJSON() ([]byte, error) {
 	return []byte(s.String()), nil
 }
 
-// Decimal ---
-
 // A Decimal represents a MySQL Decimal/Numeric literal.
 type Decimal string
 
-// String returns the literal text of the decimal.
 func (d Decimal) String() string { return string(d) }
 
 // Float64 returns the number as a float64.
@@ -540,6 +564,7 @@ func (d Decimal) Float64() (float64, error) {
 	return strconv.ParseFloat(string(d), 64)
 }
 
+// BigFloat returns the number as a *big.Float.
 func (d Decimal) BigFloat() (*big.Float, error) {
 	f, _, err := new(big.Float).Parse(string(d), 0)
 	return f, err
@@ -549,8 +574,7 @@ func (d Decimal) MarshalJSON() ([]byte, error) {
 	return []byte(d), nil
 }
 
-// Json ---
-
+// Json represents value of TypeJSON
 type JSON struct{ Val interface{} }
 
 func (j JSON) MarshalJSON() ([]byte, error) {
