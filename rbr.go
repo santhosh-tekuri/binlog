@@ -169,7 +169,7 @@ func (e *TableMapEvent) decodeDefaultCharset(r *reader, size int, f func(ColumnT
 		}
 	}
 	if size != 0 {
-		fmt.Errorf("invalid defaultCharset of columns")
+		return fmt.Errorf("invalid defaultCharset of columns")
 	}
 	for i := range e.Columns {
 		if f(e.Columns[i].Type) && e.Columns[i].Charset == 0 {
@@ -191,7 +191,7 @@ func (e *TableMapEvent) decodeCharset(r *reader, size int, f func(ColumnType) bo
 		}
 	}
 	if size != 0 {
-		fmt.Errorf("invalid columnCharset of columns")
+		return fmt.Errorf("invalid columnCharset of columns")
 	}
 	return nil
 }
