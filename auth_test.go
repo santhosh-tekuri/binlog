@@ -14,7 +14,7 @@ func TestRemote_Authenticate(t *testing.T) {
 	if *mysql == "" {
 		t.Skip(skipReason)
 	}
-	r, err := Dial(network, address)
+	r, err := Dial(network, address, 5*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}

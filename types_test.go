@@ -212,7 +212,7 @@ func TestColumn_decodeValue(t *testing.T) {
 
 func testInsert(t *testing.T, sqlType, value string) interface{} {
 	t.Helper()
-	r, err := Dial(network, address)
+	r, err := Dial(network, address, 5*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}

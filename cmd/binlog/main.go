@@ -126,7 +126,7 @@ func main() {
 
 func openRemote(network, address string) *binlog.Remote {
 	tok := strings.Split(address, ",")
-	bl, err := binlog.Dial(network, tok[0])
+	bl, err := binlog.Dial(network, tok[0], 5*time.Second)
 	if err != nil {
 		panic(err)
 	}

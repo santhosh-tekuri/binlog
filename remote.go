@@ -20,7 +20,7 @@ type Remote struct {
 	conn   net.Conn
 	seq    uint8
 	hs     handshake
-	pubKey *rsa.PublicKey
+	pubKey *rsa.PublicKey // used by auth. cached here
 
 	authFlow []string // for testing only
 
@@ -28,12 +28,12 @@ type Remote struct {
 	requestFile  string
 	requestPos   uint32
 	binlogReader *reader
-	checksum     int // captures binlog_checksum sys-var
+	checksum     int // captures binlog_checksum sys-var. used only for RotateEvent
 }
 
 // Dial connects to the MySQL server specified.
-func Dial(network, address string) (*Remote, error) {
-	conn, err := net.Dial(network, address)
+func Dial(network, address string, timeout time.Duration) (*Remote, error) {
+	conn, err := net.DialTimeout(network, address, timeout)
 	if err != nil {
 		return nil, err
 	}
