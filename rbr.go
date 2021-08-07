@@ -6,6 +6,7 @@ import (
 	"io"
 )
 
+// Column captures column info for TableMapEvent and RowsEvent.
 type Column struct {
 	Ordinal  int
 	Type     ColumnType
@@ -31,7 +32,7 @@ type Column struct {
 //
 // see https://dev.mysql.com/doc/internals/en/table-map-event.html
 type TableMapEvent struct {
-	tableID    uint64
+	tableID    uint64 // numeric table id
 	flags      uint16
 	SchemaName string
 	TableName  string
@@ -231,9 +232,9 @@ func (e *TableMapEvent) decodeValues(r *reader, size int, typ ColumnType) error 
 type RowsEvent struct {
 	eventType EventType
 	tableID   uint64
-	TableMap  *TableMapEvent
+	TableMap  *TableMapEvent // associated TableMapEvent
 	flags     uint16
-	columns   [][]Column
+	columns   [][]Column // column definitions
 }
 
 func (e *RowsEvent) decode(r *reader, eventType EventType) error {
@@ -336,6 +337,7 @@ func nextRow(r *reader) (values []interface{}, valuesBeforeUpdate []interface{},
 	}
 }
 
+// Columns returns columns info after update
 func (e RowsEvent) Columns() []Column {
 	switch e.eventType {
 	case UPDATE_ROWS_EVENTv1, UPDATE_ROWS_EVENTv2:
@@ -345,6 +347,8 @@ func (e RowsEvent) Columns() []Column {
 	}
 }
 
+// ColumnsBeforeUpdate returns columns after after update.
+// returns nil, if rows were inserted.
 func (e RowsEvent) ColumnsBeforeUpdate() []Column {
 	switch e.eventType {
 	case UPDATE_ROWS_EVENTv1, UPDATE_ROWS_EVENTv2:

@@ -13,8 +13,10 @@ import (
 	"time"
 )
 
+// ColumnType used in TableMapEvent and RowsEvent.
 type ColumnType uint8
 
+// ColumnType Constants
 const (
 	TypeDecimal    ColumnType = 0x00
 	TypeTiny       ColumnType = 0x01 // int8 or uint8. TINYINT
