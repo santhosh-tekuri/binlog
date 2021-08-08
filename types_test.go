@@ -48,43 +48,48 @@ func TestColumn_decodeValue(t *testing.T) {
 	}{
 		{"tinyint", "23", int8(23)},
 		{"tinyint", "-23", int8(-23)},
-		{"tinyint", "-128", int8(-128)},
-		{"tinyint", "127", int8(127)},
+		{"tinyint", "-128", int8(-128)}, // min
+		{"tinyint", "127", int8(127)},   // max
+		//
 		{"tinyint unsigned", "23", uint8(23)},
-		{"tinyint unsigned", "0", uint8(0)},
-		{"tinyint unsigned", "255", uint8(255)},
+		{"tinyint unsigned", "0", uint8(0)},     // min
+		{"tinyint unsigned", "255", uint8(255)}, // max
 		//
 		{"smallint", "23", int16(23)},
 		{"smallint", "-23", int16(-23)},
-		{"smallint", "-32768", int16(-32768)},
-		{"smallint", "32767", int16(32767)},
+		{"smallint", "-32768", int16(-32768)}, // min
+		{"smallint", "32767", int16(32767)},   // max
+		//
 		{"smallint unsigned", "23", uint16(23)},
-		{"smallint unsigned", "0", uint16(0)},
-		{"smallint unsigned", "65535", uint16(65535)},
+		{"smallint unsigned", "0", uint16(0)},         // min
+		{"smallint unsigned", "65535", uint16(65535)}, // max
 		//
 		{"mediumint", "23", int32(23)},
 		{"mediumint", "-23", int32(-23)},
-		{"mediumint", "-8388608", int32(-8388608)},
-		{"mediumint", "8388607", int32(8388607)},
+		{"mediumint", "-8388608", int32(-8388608)}, // min
+		{"mediumint", "8388607", int32(8388607)},   // max
+		//
 		{"mediumint unsigned", "23", uint32(23)},
-		{"mediumint unsigned", "0", uint32(0)},
-		{"mediumint unsigned", "16777215", uint32(16777215)},
+		{"mediumint unsigned", "0", uint32(0)},               // min
+		{"mediumint unsigned", "16777215", uint32(16777215)}, // max
 		//
 		{"int", "23", int32(23)},
 		{"int", "-23", int32(-23)},
-		{"int", "-2147483648", int32(-2147483648)},
-		{"int", "2147483647", int32(2147483647)},
+		{"int", "-2147483648", int32(-2147483648)}, // min
+		{"int", "2147483647", int32(2147483647)},   // max
+		//
 		{"int unsigned", "23", uint32(23)},
-		{"int unsigned", "0", uint32(0)},
-		{"int unsigned", "4294967295", uint32(4294967295)},
+		{"int unsigned", "0", uint32(0)},                   // min
+		{"int unsigned", "4294967295", uint32(4294967295)}, // max
 		//
 		{"bigint", "23", int64(23)},
 		{"bigint", "-23", int64(-23)},
-		{"bigint", "-9223372036854775808", int64(-9223372036854775808)},
-		{"bigint", "9223372036854775807", int64(9223372036854775807)},
+		{"bigint", "-9223372036854775808", int64(-9223372036854775808)}, // min
+		{"bigint", "9223372036854775807", int64(9223372036854775807)},   // max
+		//
 		{"bigint unsigned", "23", uint64(23)},
-		{"bigint unsigned", "0", uint64(0)},
-		{"bigint unsigned", "18446744073709551615", uint64(18446744073709551615)},
+		{"bigint unsigned", "0", uint64(0)},                                       // min
+		{"bigint unsigned", "18446744073709551615", uint64(18446744073709551615)}, // max
 		//
 		{"float", "1.2345", float32(1.2345)},
 		{"float", "-1.2345", float32(-1.2345)},
