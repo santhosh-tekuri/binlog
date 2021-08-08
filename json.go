@@ -71,7 +71,7 @@ func (d *jsonDecoder) decodeValueType(typ byte, data []byte) (interface{}, error
 	case jsonCustom:
 		return d.decodeCustom(data)
 	}
-	return nil, fmt.Errorf("invalid json value type: 0x%02x", typ)
+	return nil, fmt.Errorf("binlog: invalid json valueType %#02x", typ)
 }
 
 func (d *jsonDecoder) decodeComposite(data []byte, small bool, obj bool) (interface{}, error) {
@@ -178,7 +178,7 @@ func (d *jsonDecoder) decodeLiteral(data []byte) (interface{}, error) {
 	case 0x02:
 		return false, nil
 	}
-	return nil, fmt.Errorf("invalid json literal type: 0x%02x", data[0])
+	return nil, fmt.Errorf("binlog: invalid json literalType %#02x", data[0])
 }
 
 func (d *jsonDecoder) decodeUInt16(data []byte) (uint16, error) {
@@ -216,7 +216,7 @@ func (d *jsonDecoder) decodeDataLen(data []byte) (uint64, []byte, error) {
 			return size, data, nil
 		}
 	}
-	return 0, nil, errors.New("invalid dataLen")
+	return 0, nil, errors.New("binlog: invalid json stringDataLen")
 }
 
 func (d *jsonDecoder) decodeString(data []byte) (string, error) {
