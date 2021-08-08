@@ -28,6 +28,10 @@ func TestColumn_decodeValue(t *testing.T) {
 	}
 	_ = db.Close()
 
+	dur := func(h, m, s, micro int64) time.Duration {
+		return time.Duration(h)*time.Hour + time.Duration(m)*time.Minute + time.Duration(s)*time.Second + time.Duration(micro)*time.Microsecond
+	}
+
 	toLocal := func(s string) string {
 		t.Helper()
 		tm, err := time.Parse(time.RFC3339, s)
@@ -137,20 +141,20 @@ func TestColumn_decodeValue(t *testing.T) {
 		{"timestamp(6)", "'2021-02-14 20:37:12.123456'", time.Date(2021, time.February, 14, 20, 37, 12, 123456000, time.Local)},
 		{"timestamp(6)", "convert_tz('1970-01-01 00:00:01.000000', '+00:00', @@session.time_zone)", time.Date(1970, time.January, 1, 0, 0, 1, 0, time.UTC).Local()},           // min
 		{"timestamp(6)", "convert_tz('2038-01-19 03:14:07.999999', '+00:00', @@session.time_zone)", time.Date(2038, time.January, 19, 3, 14, 7, 999999000, time.UTC).Local()}, // max
-		{"time(6)", "'-838:59:59.000000'", -(838*time.Hour + 59*time.Minute + 59*time.Second)},                                                                                // min
-		{"time(6)", "'838:59:59.000000'", 838*time.Hour + 59*time.Minute + 59*time.Second},                                                                                    // max
-		{"time(6)", "'-838:51:59.000000'", -(838*time.Hour + 51*time.Minute + 59*time.Second)},
-		{"time(6)", "'-838:51:58.000000'", -(838*time.Hour + 51*time.Minute + 58*time.Second)},
-		{"time(6)", "'-838:51:58.123456'", -(838*time.Hour + 51*time.Minute + 58*time.Second + 123456*time.Microsecond)},
-		{"time(3)", "'-838:51:58.123'", -(838*time.Hour + 51*time.Minute + 58*time.Second + 123000*time.Microsecond)},
-		{"time(2)", "'-838:51:58.12'", -(838*time.Hour + 51*time.Minute + 58*time.Second + 120000*time.Microsecond)},
-		{"time(1)", "'-838:51:58.1'", -(838*time.Hour + 51*time.Minute + 58*time.Second + 100000*time.Microsecond)},
-		{"time(6)", "'838:51:59.000000'", 838*time.Hour + 51*time.Minute + 59*time.Second},
-		{"time(6)", "'838:51:58.000000'", 838*time.Hour + 51*time.Minute + 58*time.Second},
-		{"time(6)", "'838:51:58.123456'", 838*time.Hour + 51*time.Minute + 58*time.Second + 123456*time.Microsecond},
-		{"time(3)", "'838:51:58.123'", 838*time.Hour + 51*time.Minute + 58*time.Second + 123000*time.Microsecond},
-		{"time(2)", "'838:51:58.12'", 838*time.Hour + 51*time.Minute + 58*time.Second + 120000*time.Microsecond},
-		{"time(1)", "'838:51:58.1'", 838*time.Hour + 51*time.Minute + 58*time.Second + 100000*time.Microsecond},
+		{"time(6)", "'-838:59:59.000000'", -dur(838, 59, 59, 0)},                                                                                                              // min
+		{"time(6)", "'838:59:59.000000'", dur(838, 59, 59, 0)},                                                                                                                // max
+		{"time(6)", "'-838:51:59.000000'", -dur(838, 51, 59, 0)},
+		{"time(6)", "'-838:51:58.000000'", -dur(838, 51, 58, 0)},
+		{"time(6)", "'-838:51:58.123456'", -dur(838, 51, 58, 123456)},
+		{"time(3)", "'-838:51:58.123'", -dur(838, 51, 58, 123000)},
+		{"time(2)", "'-838:51:58.12'", -dur(838, 51, 58, 120000)},
+		{"time(1)", "'-838:51:58.1'", -dur(838, 51, 58, 100000)},
+		{"time(6)", "'838:51:59.000000'", dur(838, 51, 59, 0)},
+		{"time(6)", "'838:51:58.000000'", dur(838, 51, 58, 0)},
+		{"time(6)", "'838:51:58.123456'", dur(838, 51, 58, 123456)},
+		{"time(3)", "'838:51:58.123'", dur(838, 51, 58, 123000)},
+		{"time(2)", "'838:51:58.12'", dur(838, 51, 58, 120000)},
+		{"time(1)", "'838:51:58.1'", dur(838, 51, 58, 100000)},
 		{"json", `'null'`, `null`},
 		{"json", `'true'`, `true`},
 		{"json", `'false'`, `false`},
@@ -173,8 +177,8 @@ func TestColumn_decodeValue(t *testing.T) {
 		{"json", `cast(timestamp('2021-02-14 20:37:12.123456') as json)`, `"2021-02-14T20:37:12.123456Z"`},
 		{"json", `cast(timestamp('2020-01-01 10:10:10+05:30') as json)`, strconv.Quote(toLocal("2020-01-01T10:10:10+05:30"))},
 		{"json", `cast(timestamp('2020-01-01 10:10:10-08:00') as json)`, strconv.Quote(toLocal("2020-01-01T10:10:10-08:00"))}, // note: mysql treats timestamp as datetime in json
-		{"json", `cast(cast('12:51:58.123456' as time(6)) as json)`, fmt.Sprintf("%d", 12*time.Hour+51*time.Minute+58*time.Second+123456*time.Microsecond)},
-		{"json", `cast(cast('-12:51:58.123456' as time(6)) as json)`, fmt.Sprintf("-%d", 12*time.Hour+51*time.Minute+58*time.Second+123456*time.Microsecond)},
+		{"json", `cast(cast('12:51:58.123456' as time(6)) as json)`, fmt.Sprintf("%d", dur(12, 51, 58, 123456))},
+		{"json", `cast(cast('-12:51:58.123456' as time(6)) as json)`, fmt.Sprintf("-%d", dur(12, 51, 58, 123456))},
 	}
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("%s %s", tc.sqlType, tc.val), func(t *testing.T) {
