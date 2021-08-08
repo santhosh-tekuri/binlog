@@ -20,31 +20,30 @@ type binLog interface {
 	NextRow() (values []interface{}, valuesBeforeUpdate []interface{}, err error)
 }
 
-func printUsage() {
-	errln("Usage:")
-	errln()
-	errln("binlog view ADDRESS SERVER-ID LOCATION")
-	errln("Arguments:")
-	errln("    SERVER-ID   optional. defaults to 0. non-zero will wait for new events.")
-	errln("    LOCATION    optional. valid values are earliest, latest or FILE[:POS].")
-	errln("                defaults to earliest. POS defaults to 4.")
-	errln("Examples:")
-	errln("    binlog view tcp:localhost:3306,ssl,user=root,password=password 10 binlog.000002:4")
-	errln("    binlog view dir:./dump 10 binlog.000002")
-	errln()
-	errln("binlog dump SERVER-URL DIR SERVER-ID FROM-FILE")
-	errln("Arguments:")
-	errln("    SERVER-ID   optional. defaults to 0. non-zero will wait for new events.")
-	errln("    FROM-FILE   optional. valid values are earliest, latest or binlog-filename.")
-	errln("                defaults to earliest. used only if DIR is empty, otherwise")
-	errln("                resumes since last location.")
-	errln("Examples:")
-	errln("    binlog dump tcp:localhost:3306,ssl,user=root,password=password ./dump 10 binlog.000001")
-}
+var usage = `Usage:
+
+binlog view ADDRESS SERVER-ID LOCATION
+Arguments:
+  SERVER-ID   optional. defaults to 0. non-zero will wait for new events.
+  LOCATION    optional. valid values are earliest, latest or FILE[:POS].
+              defaults to earliest. POS defaults to 4.
+Examples:
+  binlog view tcp:localhost:3306,ssl,user=root,password=password 10 binlog.000002:4
+  binlog view dir:./dump 10 binlog.000002
+
+binlog dump SERVER-URL DIR SERVER-ID FROM-FILE
+Arguments:
+  SERVER-ID   optional. defaults to 0. non-zero will wait for new events.
+  FROM-FILE   optional. valid values are earliest, latest or binlog-filename.
+              defaults to earliest. used only if DIR is empty, otherwise
+              resumes since last location.
+Examples:
+  binlog dump tcp:localhost:3306,ssl,user=root,password=password ./dump 10 binlog.000001
+`
 
 func main() {
 	if len(os.Args) < 3 {
-		printUsage()
+		errln(usage)
 		os.Exit(1)
 	}
 	address := os.Args[2]
@@ -85,7 +84,7 @@ func main() {
 		}
 	case "dump":
 		if len(os.Args) < 4 {
-			printUsage()
+			errln(usage)
 			os.Exit(1)
 		}
 		remote := openRemote(network, address)
