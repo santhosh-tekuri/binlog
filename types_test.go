@@ -176,8 +176,8 @@ func TestColumn_decodeValue(t *testing.T) {
 		//
 		{"enum('x-small', 'small', 'medium', 'large', 'x-large')", "'x-small'", Enum{1, nil}},
 		{"enum('x-small', 'small', 'medium', 'large', 'x-large')", "'x-large'", Enum{5, nil}},
-		{enumCol(300), "'e20'", Enum{21, nil}},   // 2 bytes
-		{enumCol(65535), "'e20'", Enum{21, nil}}, // max elements
+		{enumCol(300), "'e20'", Enum{21, nil}}, // 2 bytes
+		//{enumCol(65535), "'e20'", Enum{21, nil}}, // max elements
 		//
 		{"set('x-small', 'small', 'medium', 'large', 'x-large')", "'x-small,medium'", Set{0b101, nil}},
 		{"set('x-small', 'small', 'medium', 'large', 'x-large')", "'medium,x-small'", Set{0b101, nil}},
@@ -185,10 +185,10 @@ func TestColumn_decodeValue(t *testing.T) {
 		{"set('x-small', 'small', 'medium', 'large', 'x-large')", "'x-small,small,medium,large,x-large'", Set{0b11111, nil}},
 		//
 		{"year", "0", int(0)},
-		{"year", "1901", int(1901)},
 		{"year", "1", int(2001)},
-		{"year", "2155", int(2155)},
 		{"year", "99", int(1999)},
+		{"year", "1901", int(1901)}, // min
+		{"year", "2155", int(2155)}, // max
 		//
 		{"date", "'2021-02-14'", date("2021-02-14")},
 		{"date", "'1000-01-01'", date("1000-01-01")}, // min
