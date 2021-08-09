@@ -176,13 +176,16 @@ func TestColumn_decodeValue(t *testing.T) {
 		//
 		{"enum('x-small', 'small', 'medium', 'large', 'x-large')", "'x-small'", Enum{1, nil}},
 		{"enum('x-small', 'small', 'medium', 'large', 'x-large')", "'x-large'", Enum{5, nil}},
-		{enumCol(300), "'e20'", Enum{21, nil}}, // 2 bytes
+		{"enum('x-small', 'small', 'medium', 'large', 'x-large')", "'extra-large'", Enum{0, nil}}, // invalid value
+		{enumCol(300), "'e20'", Enum{21, nil}},                                                    // 2 bytes
 		//{enumCol(65535), "'e20'", Enum{21, nil}}, // max elements
 		//
 		{"set('x-small', 'small', 'medium', 'large', 'x-large')", "'x-small,medium'", Set{0b101, nil}},
 		{"set('x-small', 'small', 'medium', 'large', 'x-large')", "'medium,x-small'", Set{0b101, nil}},
 		{"set('x-small', 'small', 'medium', 'large', 'x-large')", "''", Set{0b0, nil}},
 		{"set('x-small', 'small', 'medium', 'large', 'x-large')", "'x-small,small,medium,large,x-large'", Set{0b11111, nil}},
+		{"set('x-small', 'small', 'medium', 'large', 'x-large')", "'medium,x-small,extra-large'", Set{0b101, nil}}, // invalid value
+		{"set('x-small', 'small', 'medium', 'large', 'x-large')", "'extra-large'", Set{0b0, nil}},                  // invalid value
 		//
 		{"year", "0", int(0)},
 		{"year", "1", int(2001)},

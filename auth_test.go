@@ -76,7 +76,8 @@ func TestMain(m *testing.M) {
 			tls = "skip-verify"
 		}
 		timezone := url.QueryEscape(time.Now().Format("'-07:00'"))
-		driverURL = fmt.Sprintf("%s:%s@%s(%s)/%s?tls=%v&time_zone=%s", user, passwd, network, address, db, tls, timezone)
+		sqlmode := url.QueryEscape("''")
+		driverURL = fmt.Sprintf("%s:%s@%s(%s)/%s?tls=%v&time_zone=%s&sql_mode=%s", user, passwd, network, address, db, tls, timezone, sqlmode)
 	}
 	os.Exit(m.Run())
 }
