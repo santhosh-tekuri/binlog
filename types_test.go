@@ -101,6 +101,8 @@ func TestColumn_decodeValue(t *testing.T) {
 		{"decimal(6,3)", "12.45", Decimal("12.450")},
 		{"decimal(6,3)", "-123.456", Decimal("-123.456")},
 		{"decimal(6,3)", "-12.45", Decimal("-12.450")},
+		{"decimal(6,0)", "123456", Decimal("123456")},                     // no trailing dot
+		{"decimal(30,20)", "-12.45", Decimal("-12.45000000000000000000")}, // exact scale
 		//
 		{"numeric(6,3)", "123.456", Decimal("123.456")},
 		{"numeric(6,3)", "12.45", Decimal("12.450")},
