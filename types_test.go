@@ -28,6 +28,14 @@ func TestColumn_decodeValue(t *testing.T) {
 	}
 	_ = db.Close()
 
+	enumCol := func(n int) string {
+		s := "enum("
+		for i := 0; i < n; i++ {
+			s += fmt.Sprintf("'e%d',", i)
+		}
+		return s[:len(s)-1] + ")"
+	}
+
 	dur := func(h, m, s, micro int64) time.Duration {
 		return time.Duration(h)*time.Hour + time.Duration(m)*time.Minute + time.Duration(s)*time.Second + time.Duration(micro)*time.Microsecond
 	}
@@ -148,6 +156,8 @@ func TestColumn_decodeValue(t *testing.T) {
 		//
 		{"enum('x-small', 'small', 'medium', 'large', 'x-large')", "'x-small'", Enum{1, nil}},
 		{"enum('x-small', 'small', 'medium', 'large', 'x-large')", "'x-large'", Enum{5, nil}},
+		{enumCol(300), "'e20'", Enum{21, nil}},   // 2 bytes
+		{enumCol(65535), "'e20'", Enum{21, nil}}, // max elements
 		//
 		{"set('x-small', 'small', 'medium', 'large', 'x-large')", "'x-small,medium'", Set{0b101, nil}},
 		{"set('x-small', 'small', 'medium', 'large', 'x-large')", "'medium,x-small'", Set{0b101, nil}},
