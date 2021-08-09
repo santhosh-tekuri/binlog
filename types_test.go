@@ -40,6 +40,24 @@ func TestColumn_decodeValue(t *testing.T) {
 		return time.Duration(h)*time.Hour + time.Duration(m)*time.Minute + time.Duration(s)*time.Second + time.Duration(micro)*time.Microsecond
 	}
 
+	date := func(s string) time.Time {
+		t.Helper()
+		tm, err := time.Parse("2006-01-02", s)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return tm
+	}
+
+	datetime := func(s string, loc *time.Location) time.Time {
+		t.Helper()
+		tm, err := time.ParseInLocation("2006-01-02 15:04:05.999999999", s, loc)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return tm
+	}
+
 	toLocal := func(s string) string {
 		t.Helper()
 		tm, err := time.Parse(time.RFC3339, s)
@@ -170,19 +188,19 @@ func TestColumn_decodeValue(t *testing.T) {
 		{"year", "2155", int(2155)},
 		{"year", "99", int(1999)},
 		//
-		{"date", "'2021-02-14'", time.Date(2021, time.February, 14, 0, 0, 0, 0, time.UTC)},
-		{"date", "'1000-01-01'", time.Date(1000, time.January, 1, 0, 0, 0, 0, time.UTC)},   // min
-		{"date", "'9999-12-31'", time.Date(9999, time.December, 31, 0, 0, 0, 0, time.UTC)}, // max
+		{"date", "'2021-02-14'", date("2021-02-14")},
+		{"date", "'1000-01-01'", date("1000-01-01")}, // min
+		{"date", "'9999-12-31'", date("9999-12-31")}, // max
 		//
-		{"datetime(3)", "'2021-02-14 20:37:12.123'", time.Date(2021, time.February, 14, 20, 37, 12, 123000000, time.UTC)},
-		{"datetime(6)", "'2021-02-14 20:37:12.123456'", time.Date(2021, time.February, 14, 20, 37, 12, 123456000, time.UTC)},
-		{"datetime(6)", "'1000-01-01 00:00:00.000000'", time.Date(1000, time.January, 1, 0, 0, 0, 0, time.UTC)},              // min
-		{"datetime(6)", "'9999-12-31 23:59:59.999999'", time.Date(9999, time.December, 31, 23, 59, 59, 999999000, time.UTC)}, // max
+		{"datetime(3)", "'2021-02-14 20:37:12.123'", datetime("2021-02-14 20:37:12.123", time.UTC)},
+		{"datetime(6)", "'2021-02-14 20:37:12.123456'", datetime("2021-02-14 20:37:12.123456", time.UTC)},
+		{"datetime(6)", "'1000-01-01 00:00:00.000000'", datetime("1000-01-01 00:00:00.000000", time.UTC)}, // min
+		{"datetime(6)", "'9999-12-31 23:59:59.999999'", datetime("9999-12-31 23:59:59.999999", time.UTC)}, // max
 		//
-		{"timestamp(3)", "'2021-02-14 20:37:12.123'", time.Date(2021, time.February, 14, 20, 37, 12, 123000000, time.Local)},
-		{"timestamp(6)", "'2021-02-14 20:37:12.123456'", time.Date(2021, time.February, 14, 20, 37, 12, 123456000, time.Local)},
-		{"timestamp(6)", "convert_tz('1970-01-01 00:00:01.000000', '+00:00', @@session.time_zone)", time.Date(1970, time.January, 1, 0, 0, 1, 0, time.UTC).Local()},           // min
-		{"timestamp(6)", "convert_tz('2038-01-19 03:14:07.999999', '+00:00', @@session.time_zone)", time.Date(2038, time.January, 19, 3, 14, 7, 999999000, time.UTC).Local()}, // max
+		{"timestamp(3)", "'2021-02-14 20:37:12.123'", datetime("2021-02-14 20:37:12.123", time.Local)},
+		{"timestamp(6)", "'2021-02-14 20:37:12.123456'", datetime("2021-02-14 20:37:12.123456", time.Local)},
+		{"timestamp(6)", "convert_tz('1970-01-01 00:00:01.000000', '+00:00', @@session.time_zone)", datetime("1970-01-01 00:00:01.000000", time.UTC).Local()}, // min
+		{"timestamp(6)", "convert_tz('2038-01-19 03:14:07.999999', '+00:00', @@session.time_zone)", datetime("2038-01-19 03:14:07.999999", time.UTC).Local()}, // max
 		//
 		{"time(6)", "'-838:59:59.000000'", -dur(838, 59, 59, 0)}, // min
 		{"time(6)", "'838:59:59.000000'", dur(838, 59, 59, 0)},   // max
