@@ -333,7 +333,7 @@ func unsetSignMask(bits int) int {
 	return ^(1 << bits)
 }
 
-func (col Column) ValueLiteral(v interface{}) string {
+func (col Column) valueLiteral(v interface{}) string {
 	if v == nil {
 		return "NULL"
 	}
