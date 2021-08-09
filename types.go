@@ -581,6 +581,8 @@ func (d Decimal) MarshalJSON() ([]byte, error) {
 }
 
 // Json represents value of TypeJSON
+//
+// https://dev.mysql.com/doc/refman/8.0/en/json.html
 type JSON struct{ Val interface{} }
 
 func (j JSON) MarshalJSON() ([]byte, error) {
