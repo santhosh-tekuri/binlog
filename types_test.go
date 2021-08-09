@@ -307,7 +307,7 @@ func insertValue(t *testing.T, sqlType, value string) {
 	}
 	r, err := db.Exec(fmt.Sprintf(`insert into binlog_table values(%s)`, value))
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("insert failed: %v", err)
 	}
 	got, err := r.RowsAffected()
 	if err != nil {
