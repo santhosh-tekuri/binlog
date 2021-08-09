@@ -29,6 +29,7 @@ func TestColumn_decodeValue(t *testing.T) {
 	_ = db.Close()
 
 	enumCol := func(n int) string {
+		t.Helper()
 		s := "enum("
 		for i := 0; i < n; i++ {
 			s += fmt.Sprintf("'e%d',", i)
@@ -37,6 +38,7 @@ func TestColumn_decodeValue(t *testing.T) {
 	}
 
 	dur := func(h, m, s, micro int64) time.Duration {
+		t.Helper()
 		return time.Duration(h)*time.Hour + time.Duration(m)*time.Minute + time.Duration(s)*time.Second + time.Duration(micro)*time.Microsecond
 	}
 
