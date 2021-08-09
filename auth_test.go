@@ -68,7 +68,7 @@ func TestMain(m *testing.M) {
 			case strings.HasPrefix(t, "password="):
 				passwd = strings.TrimPrefix(t, "password=")
 			case strings.HasPrefix(t, "db="):
-				passwd = strings.TrimPrefix(t, "db=")
+				db = strings.TrimPrefix(t, "db=")
 			}
 		}
 		timezone := url.QueryEscape(time.Now().Format("'-07:00'"))
