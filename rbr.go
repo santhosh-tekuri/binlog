@@ -12,10 +12,13 @@ type Column struct {
 	Type     ColumnType
 	Nullable bool
 	Unsigned bool
-	Name     string // empty strings means unknown.
 	Meta     uint16
-	Charset  uint64   // value zero means unknown.
-	Values   []string // valid values for Enum and Set type.
+	Charset  uint64 // value zero means unknown.
+
+	// following are populated only if
+	// system variable binlog_row_metadata==FULL
+	Name   string
+	Values []string // permitted values for Enum and Set type.
 }
 
 // TableMapEvent is first event used in Row Based Replication declares

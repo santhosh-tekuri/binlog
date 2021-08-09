@@ -142,7 +142,7 @@ func (bl *Remote) confirmChecksumSupport() error {
 
 // Seek requests binlog at fileName and position.
 //
-// if serverID is zero, NextEvent return io.EOF when there are no ore events.
+// if serverID is zero, NextEvent return io.EOF when there are no more events.
 // if serverID is non-zero, NextEvent waits for new events.
 func (bl *Remote) Seek(serverID uint32, fileName string, position uint32) error {
 	checksum, err := bl.fetchBinlogChecksum()

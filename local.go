@@ -11,6 +11,7 @@ import (
 	"strings"
 )
 
+// Local represents connection to local dump directory.
 type Local struct {
 	dir  string
 	conn *dirReader
@@ -18,6 +19,7 @@ type Local struct {
 	binlogReader *reader
 }
 
+// Open connects to dump directory specified.
 func Open(dir string) (*Local, error) {
 	fi, err := os.Stat(dir)
 	if err != nil {
@@ -29,6 +31,7 @@ func Open(dir string) (*Local, error) {
 	return &Local{dir: dir}, nil
 }
 
+// ListFiles lists the binary log files in dump directory.
 func (bl *Local) ListFiles() ([]string, error) {
 	var files []string
 	for {
@@ -69,6 +72,7 @@ func (bl *Local) addFile(name string) error {
 	return ioutil.WriteFile(path.Join(bl.dir, next), []byte(name), 0666)
 }
 
+// RemoveFirstFile deletes the first binary log file from dump directory.
 func (bl *Local) RemoveFirstFile() error {
 	buf, err := ioutil.ReadFile(path.Join(bl.dir, ".next"))
 	if err != nil {
@@ -88,6 +92,7 @@ func (bl *Local) RemoveFirstFile() error {
 	return os.Remove(path.Join(bl.dir, file1+".next"))
 }
 
+// MasterStatus provides status information about the binary log files in dump directory.
 func (bl *Local) MasterStatus() (file string, pos uint32, err error) {
 	files, err := bl.ListFiles()
 	if err != nil {
@@ -140,6 +145,10 @@ func (bl *Local) MasterStatus() (file string, pos uint32, err error) {
 	}
 }
 
+// Seek requests binlog at fileName and position.
+//
+// if serverID is zero, NextEvent return io.EOF when there are no more events.
+// if serverID is non-zero, NextEvent waits for new events.
 func (bl *Local) Seek(serverID uint32, fileName string, position uint32) error {
 	r, err := newDirReader(bl.dir, &fileName, position, serverID == 0)
 	if err != nil {
@@ -149,6 +158,9 @@ func (bl *Local) Seek(serverID uint32, fileName string, position uint32) error {
 	return nil
 }
 
+// NextEvent return next binlog event.
+//
+// return io.EOF when there are no more Events
 func (bl *Local) NextEvent() (Event, error) {
 	r := bl.binlogReader
 	if r == nil {
@@ -194,6 +206,8 @@ func (bl *Local) NextEvent() (Event, error) {
 	return nextEvent(r, 0)
 }
 
+// NextRow returns next row for RowsEvent. Returns io.EOF when there are no more rows.
+// valuesBeforeUpdate should be used only for events UPDATE_ROWS_EVENTv1, UPDATE_ROWS_EVENTv2.
 func (bl *Local) NextRow() (values []interface{}, valuesBeforeUpdate []interface{}, err error) {
 	return nextRow(bl.binlogReader)
 }
@@ -226,7 +240,7 @@ func findBinlogVersion(file string) (uint16, error) {
 	if eventType == FORMAT_DESCRIPTION_EVENT {
 		return 4, nil
 	}
-	return 0, fmt.Errorf("binlog.findBinlogVersion: cannot determine for %q", file)
+	return 0, fmt.Errorf("binlog: cannot determine binlog version for %q", file)
 }
 
 func ensureBinlogFile(file string) error {
@@ -238,7 +252,7 @@ func ensureBinlogFile(file string) error {
 		return err
 	}
 	if stat.IsDir() {
-		return fmt.Errorf("%s is directory", file)
+		return fmt.Errorf("binlog: %q is directory", file)
 	}
 	if stat.Size() < headerSize {
 		return ioutil.WriteFile(file, fileHeader, 0666)

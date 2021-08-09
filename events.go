@@ -54,7 +54,7 @@ const (
 // Event represents Binlog Event.
 type Event struct {
 	Header EventHeader
-	Data   interface{}
+	Data   interface{} // one of XXXEvent
 }
 
 var eventTypeNames = map[EventType]string{
@@ -109,13 +109,13 @@ func (t EventType) IsWriteRows() bool {
 	return t == WRITE_ROWS_EVENTv0 || t == WRITE_ROWS_EVENTv1 || t == WRITE_ROWS_EVENTv2
 }
 
-// IsWriteRows tells if this EventType UPDATE_ROWS_EVENT.
+// IsUpdateRows tells if this EventType UPDATE_ROWS_EVENT.
 // MySQL has multiple versions of UPDATE_ROWS_EVENT.
 func (t EventType) IsUpdateRows() bool {
 	return t == UPDATE_ROWS_EVENTv0 || t == UPDATE_ROWS_EVENTv1 || t == UPDATE_ROWS_EVENTv2
 }
 
-// IsWriteRows tells if this EventType DELETE_ROWS_EVENT.
+// IsDeleteRows tells if this EventType DELETE_ROWS_EVENT.
 // MySQL has multiple versions of DELETE_ROWS_EVENT.
 func (t EventType) IsDeleteRows() bool {
 	return t == DELETE_ROWS_EVENTv0 || t == DELETE_ROWS_EVENTv1 || t == DELETE_ROWS_EVENTv2

@@ -479,7 +479,9 @@ type Enum struct {
 	// 0 means empty string invalid value.
 	Val uint16
 
-	// list of permitted values
+	// list of permitted values.
+	// will be populated only if system
+	// variable binlog_row_metadata==FULL
 	Values []string
 }
 
@@ -509,7 +511,9 @@ type Set struct {
 	// 0 means empty string invalid value.
 	Val uint64
 
-	// list of permitted values
+	// list of permitted values.
+	// will be populated only if system
+	// variable binlog_row_metadata==FULL
 	Values []string
 }
 
@@ -555,6 +559,8 @@ func (s Set) MarshalJSON() ([]byte, error) {
 }
 
 // A Decimal represents a MySQL Decimal/Numeric literal.
+//
+// https://dev.mysql.com/doc/refman/8.0/en/fixed-point-types.html
 type Decimal string
 
 func (d Decimal) String() string { return string(d) }
