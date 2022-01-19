@@ -16,7 +16,7 @@ host=localhost
 port=3406
 user=root
 password=dockword
-if ! [[ "$OSTYPE" == "darwin"* ]]; then
+if [[ "$OSTYPE" == "darwin"* ]]; then
     : # docker for mac does not support sharing unix sockets
     : # for details see: https://github.com/docker/for-mac/issues/483
     : # on linux it works, so you can uncomment it
