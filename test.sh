@@ -44,6 +44,7 @@ on_exit(){
     set -ex
 	cp $mycnf_backup $mycnf
     cleanup
+    rm -rf cov.txt
 	rm -rf $tmp
 
     if [ $exit_code -eq 0 ]; then
@@ -111,15 +112,20 @@ run_tests() {
                 echo +++ skipped unix transport
             else
                 echo +++ testing ${plugin} with default=$defplugin transport=unix
-                go test -v -mysql unix:$sock,user=${plugin}_user,password=$pass -run TestRemote_Authenticate
+                go test -v -coverprofile cov.txt -mysql unix:$sock,user=${plugin}_user,password=$pass -run TestRemote_Authenticate
+                cat cov.txt >> coverage.txt
             fi
             echo +++ testing ${plugin} with default=$defplugin transport=tcp
-            go test -v -mysql tcp:$host:$port,user=${plugin}_user,password=$pass -run TestRemote_Authenticate
+            go test -v -coverprofile cov.txt -mysql tcp:$host:$port,user=${plugin}_user,password=$pass -run TestRemote_Authenticate
+            cat cov.txt >> coverage.txt
             echo +++ testing ${plugin} with default=$defplugin transport=ssl
-            go test -v -mysql tcp:$host:$port,user=${plugin}_user,password=$pass,ssl -run TestRemote_Authenticate
+            go test -v -coverprofile cov.txt -mysql tcp:$host:$port,user=${plugin}_user,password=$pass,ssl -run TestRemote_Authenticate
+            cat cov.txt >> coverage.txt
         done
     done
 }
+
+rm -rf cov.txt coverage.txt
 
 if ! running; then
     start
@@ -157,4 +163,5 @@ echo '+++ run remaining tests'
 
 restart
 execute "CREATE DATABASE binlog"
-go test -v -coverprofile coverage.txt -mysql tcp:$host:$port,ssl,user=$user,password=$password,db=binlog
+go test -v -coverprofile cov.txt -mysql tcp:$host:$port,ssl,user=$user,password=$password,db=binlog
+cat cov.txt >> coverage.txt
