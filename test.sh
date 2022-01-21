@@ -152,3 +152,9 @@ pwgen() {
 
 create_users
 run_tests
+
+echo '+++ run remaining tests'
+
+restart
+execute "CREATE DATABASE binlog"
+go test -v -mysql tcp:$host:$port,ssl,user=$user,password=$password,db=binlog

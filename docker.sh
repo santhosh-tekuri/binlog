@@ -21,7 +21,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     : # for details see: https://github.com/docker/for-mac/issues/483
     : # on linux it works, so you can uncomment it
 else
-    sock=${datadir}/mysql.sock
+    #sock=${datadir}/mysql.sock
 fi
 
 echo +++ get default my.cnf
