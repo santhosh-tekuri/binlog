@@ -42,7 +42,7 @@ on_exit(){
         done
     fi
 	cp $mycnf_backup $mycnf
-    ls -al $sock
+    ls -al $sock/..
 	rm -rf $tmp
     cleanup
 
