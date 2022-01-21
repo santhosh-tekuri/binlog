@@ -8,7 +8,6 @@ if ! [ -x "$(command -v docker)" ]; then
 fi
 
 datadir=$(mktemp -d)
-ls -al $datadir
 img=mysql/mysql-server:${version:-8.0.27}
 cname=mysql
 mycnf=$(mktemp)

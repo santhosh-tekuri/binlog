@@ -42,8 +42,8 @@ on_exit(){
         done
     fi
 	cp $mycnf_backup $mycnf
-	rm -rf $tmp
     cleanup
+	rm -rf $tmp
 
     if [ $exit_code -eq 0 ]; then
         echo 'script succeeded' >&2
