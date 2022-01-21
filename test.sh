@@ -157,4 +157,4 @@ echo '+++ run remaining tests'
 
 restart
 execute "CREATE DATABASE binlog"
-go test -v -mysql tcp:$host:$port,ssl,user=$user,password=$password,db=binlog
+go test -v -coverprofile coverage.txt -mysql tcp:$host:$port,ssl,user=$user,password=$password,db=binlog
