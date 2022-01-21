@@ -41,6 +41,7 @@ on_exit(){
             execute "DROP USER IF EXISTS '${plugin}_user'@'%'"
         done
     fi
+    set -ex
 	cp $mycnf_backup $mycnf
     cleanup
 	rm -rf $tmp
