@@ -42,7 +42,6 @@ on_exit(){
         done
     fi
 	cp $mycnf_backup $mycnf
-    ls -al $datadir
 	rm -rf $tmp
     cleanup
 
