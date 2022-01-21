@@ -1,0 +1,23 @@
+name: gotest
+on: [push, pull_request]
+jobs:
+  gotest:
+    name: gotest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        go: [1.15]
+    steps:
+    - name: setup go
+      uses: actions/setup-go@v2.1.3
+      with:
+        go-version: ${{ matrix.go }}
+    - name: checkout
+      uses: actions/checkout@v2.3.4
+    - name: test
+      run: go test -coverprofile coverage.txt
+    - name: upload coverage
+      uses: codecov/codecov-action@v2.0.2
+      with:
+        files: coverage.txt
