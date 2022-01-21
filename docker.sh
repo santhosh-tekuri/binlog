@@ -8,6 +8,7 @@ if ! [ -x "$(command -v docker)" ]; then
 fi
 
 datadir=$(mktemp -d)
+rm -rf $datadir
 img=mysql/mysql-server:${version:-8.0.27}
 cname=mysql
 mycnf=$(mktemp)
@@ -53,5 +54,4 @@ stop_mysql() {
 cleanup() {
     docker rm -f $cname
     rm -rf $mycnf
-    rm -rf $datadir
 }
