@@ -43,7 +43,6 @@ on_exit(){
     fi
     set -ex
 	cp $mycnf_backup $mycnf
-    ls -al $datadir
     cleanup
 	rm -rf $tmp
 
